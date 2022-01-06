@@ -1,0 +1,24 @@
+[
+    {
+        "name": "f1",
+        "func": ["None.test.fake.fake_core", "output_str_func", ""],
+        "type": "cold",
+        "inputs": ["None"],
+        "outputs": ["string"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f2"],
+        "flags": []
+    },
+    {
+        "name": "f2",
+        "func": ["None.test.fake.fake_core", "is_input_str_func", ""],
+        "type": "cold",
+        "inputs": ["string"],
+        "outputs": ["param1:::flag"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": [],
+        "flags": []
+    }
+]

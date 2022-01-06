@@ -1,0 +1,44 @@
+{
+  "###### note ######": "All uppercase keys are supported to self-define",
+
+  "###### start: general config ######": "1",
+  "name": "CGC_of_Sn",
+  "version": "1.0.0",
+  "date": "TODO",
+  "abstract": "Main code for calculate CGC of S1 to S7",
+  "future": "Will support to S8 and S9, then to Sn",
+  "github": "",
+  "version_name": "",
+  "paper": "",
+  "author": "Gui Yu",
+  "license": "MIT",
+  "###### end: general config ######": null,
+
+  "###### start: system config ######": "2",
+  "### log folder default is <CGC_of_Sn>/logs ###": null,
+  "### supported self-defined log folder under <CGC_of_Sn>, change log_folder to there ###": null,
+  "### supported self-defined softlink, the same link under <CGC_of_Sn> and write in log_folder ###": null,
+  "### also, you could point it in cmd, and cmd > config ###": null,
+  "DEFAULT_LOG_FOLDER": "logs",
+  "### log level support [ERROR, WARNING, INFO, DEBUG] ###": null,
+  "DEFAULT_LOG_LEVEL": "DEBUG",
+  "### result folder default is <CGC_of_Sn>/results ###": null,
+  "### you can do same things like logs to change this folder ###": null,
+  "DEFAULT_RESULT_FOLDER": "results",
+  "###### end: system config ######": null,
+
+  "###### start: calculate config ######": "3",
+  "### will stop when finish calc target ###": null,
+  "### cmd and here could change calculate target, cmd > default ###": null,
+  "DEFAULT_CALC_TARGET": "S7",
+  "###### end: calculate config ######": null,
+
+  "###### start: workflow config ######": "4",
+  "### default workflow path ###": null,
+  "DEFAULT_WORKFLOW_FILE": "conf/cgc_workflow.json",
+  "###### end: workflow config ######": null,
+
+  "###### start: pipeline config ######": "5",
+  "### TODO: add concurrency and paralleism supporting if needed ###": null,
+  "###### end: pipeline config ######": null
+}

@@ -1,0 +1,83 @@
+[
+    "### only test pipeline ###",
+    "###             |--> f3 --> f4 --|              ###",
+    "### f1 --> f2 --|                |--> f6 --> f7 ###",
+    "###             |--> f5 ---------|              ###",
+    {
+        "name": "f1",
+        "func": ["None.test.fake.fake_core", "what_is_the_time_now", ""],
+        "type": "cold",
+        "inputs": ["param1:::flag:flag"],
+        "outputs": ["asc_time"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f2"],
+        "flags": []
+    },
+    {
+        "name": "f2",
+        "func": ["None.test.fake.fake_core", "self_defined_print", ""],
+        "type": "cold",
+        "inputs": ["asc_time:print_str"],
+        "outputs": ["param2:::flag:flag"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f3", "f5"],
+        "flags": []
+    },
+    {
+        "name": "f3",
+        "func": ["None.test.fake.fake_core", "what_is_my_uid", ""],
+        "type": "cold",
+        "inputs": ["param2:::flag:flag"],
+        "outputs": ["uid"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f4"],
+        "flags": []
+    },
+    {
+        "name": "f4",
+        "func": ["None.test.fake.fake_core", "who_am_i", ""],
+        "type": "cold",
+        "inputs": ["uid"],
+        "outputs": ["pw_name"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f6"],
+        "flags": []
+    },
+    {
+        "name": "f5",
+        "func": ["None.test.fake.fake_core", "where_am_i", ""],
+        "type": "cold",
+        "inputs": ["param2:::flag:normal_flag"],
+        "outputs": ["path"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f6"],
+        "flags": []
+    },
+    {
+        "name": "f6",
+        "func": ["None.test.fake.fake_core", "merge", "merge_merge"],
+        "type": "cold",
+        "inputs": ["pw_name:param_1", "path:param_2"],
+        "outputs": ["rst"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f7"],
+        "flags": []
+    },
+    {
+        "name": "f7",
+        "func": ["None.test.fake.fake_core", "self_defined_print", ""],
+        "type": "cold",
+        "inputs": ["rst:print_str"],
+        "outputs": ["flag"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": [],
+        "flags": []
+    }
+]

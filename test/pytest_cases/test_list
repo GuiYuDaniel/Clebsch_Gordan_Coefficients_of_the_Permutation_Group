@@ -1,0 +1,9 @@
+# cat test_list|grep -v #|grep test|pytest -ra --durations=0 -vv
+# test_config.py
+test_db.py
+test_io.py
+test_json_op.py
+test_pipeline.py
+test_pipenode.py
+test_pipetask.py
+test_topo.py
