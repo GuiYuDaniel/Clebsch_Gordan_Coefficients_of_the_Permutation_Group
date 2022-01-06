@@ -1,0 +1,27 @@
+{
+    "### a fix dict start ###": "1",
+    "fix_dict": {"name": "first_node",
+                 "func": ["None.test.fake.fake_core", "where_am_i", ""],
+                 "type": "cold",
+                 "inputs": ["input:cmd_params"],
+                 "outputs": ["output:results"],
+                 "extra_args": [],
+                 "extra_kwargs": {},
+                 "flags": [],
+                 "### delete1 ###": "this should be delete after without comments",
+                 "keep1": "### this should keep ###",
+                 "### delete2 ###": ["this should be delete after without comments"],
+                 "keep2": ["### this should delete ###", "this should keep"],
+                 "### delete3 ###": {"this_should_be_delete": "this_should_be_delete"},
+                 "fix1": {"### delete4 ###": {"this_should_be_delete": []},
+                          "keep3": "### this should keep ###",
+                          "keep4": ["this should be keep",
+                                    "### this should delete ###",
+                                    {"### delete5 ###": []}]}
+    },
+    "### a fix dict end ###": "1",
+
+    "### another list start ###": "2",
+    "a_list": ["this should be keep"],
+    "### another list end ###": "2"
+}

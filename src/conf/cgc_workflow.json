@@ -1,0 +1,99 @@
+[
+    "### CGC pipeline ###",
+
+    "### 论文中的流程描述 ###",
+    "### 1，杨图 ###",
+    "### 2，计算杨图对应的本征值 ###",
+    "### 3，建立从本征值到对应杨图的信息 ###",
+    "### 4，建立分支律 ###",
+    "### 5，杨盘（杨盘是填了数字的杨图） ###",
+    "### 6，建立（ij）临近交换矩阵 ###",
+    "### 7，计算（in）交换矩阵 ###",
+    "### 8，建立CG序列 ###",
+    "### 9，计算ISF的CSCO矩阵（SUM_(i=1)（in））###",
+    "### 10，解矩阵得到整体上有一个（-1）自由相位的ISF###",
+    "### 11，通过绝对相位规定、相对相位规定调整，使之同Yamanouchi相位相同 ###",
+    "### 12，由n的ISF和（n - 1）的CG系数计算n的CG系数 ###",
+
+    "### pipeline图 ###",
+    "###             |--> f3 --> f4 --|              ###",
+    "### f1 --> f2 --|                |--> f6 --> f7 ###",
+    "###             |--> f5 ---------|              ###",
+    {
+        "name": "f1",
+        "func": ["None.test.fake.fake_core", "what_is_the_time_now", ""],
+        "type": "cold",
+        "inputs": ["param1:::flag:flag"],
+        "outputs": ["asc_time"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f2"],
+        "flags": []
+    },
+    {
+        "name": "f2",
+        "func": ["None.test.fake.fake_core", "self_defined_print", ""],
+        "type": "cold",
+        "inputs": ["asc_time:print_str"],
+        "outputs": ["param2:::flag:flag"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f3", "f5"],
+        "flags": []
+    },
+    {
+        "name": "f3",
+        "func": ["None.test.fake.fake_core", "what_is_my_uid", ""],
+        "type": "cold",
+        "inputs": ["param2:::flag:flag"],
+        "outputs": ["uid"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f4"],
+        "flags": []
+    },
+    {
+        "name": "f4",
+        "func": ["None.test.fake.fake_core", "who_am_i", ""],
+        "type": "cold",
+        "inputs": ["uid"],
+        "outputs": ["pw_name"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f6"],
+        "flags": []
+    },
+    {
+        "name": "f5",
+        "func": ["None.test.fake.fake_core", "where_am_i", ""],
+        "type": "cold",
+        "inputs": ["param2:::flag:normal_flag"],
+        "outputs": ["path"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f6"],
+        "flags": []
+    },
+    {
+        "name": "f6",
+        "func": ["None.test.fake.fake_core", "merge", "merge_merge"],
+        "type": "cold",
+        "inputs": ["pw_name:param_1", "path:param_2"],
+        "outputs": ["rst"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["f7"],
+        "flags": []
+    },
+    {
+        "name": "f7",
+        "func": ["None.test.fake.fake_core", "self_defined_print", ""],
+        "type": "cold",
+        "inputs": ["rst:print_str"],
+        "outputs": ["flag"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": [],
+        "flags": []
+    }
+]
