@@ -15,7 +15,7 @@ pipeline负责构建（不是执行）整体计算图：
 import copy
 from db.typing import PipeLineInfo
 from pipeline.pipenode import PipeNode
-from utils.config import Config
+from utils.config import singleton_config
 from utils.log import get_logger
 from utils.utils import new_id
 from utils.topo import (calc_dag, calc_topo_order)
@@ -44,7 +44,7 @@ class PipeLine(object):
             # new a real ppl
             self.ppl_id = ppl_id if ppl_id and isinstance(ppl_id, str) else new_id()
             self.ppl_name = ppl_name if ppl_name and isinstance(ppl_name, str) else self.ppl_id
-            self.config = Config()
+            self.config = singleton_config
             self.dag_dict = calc_dag(workflow_conf)
             self.topo_order_list = calc_topo_order(self.dag_dict)
             self.node_id_dict = self._create_node_dict(workflow_conf)

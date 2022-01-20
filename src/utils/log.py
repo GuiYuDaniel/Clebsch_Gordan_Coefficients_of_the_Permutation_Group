@@ -15,8 +15,14 @@ from functools import lru_cache
 from conf.logging_config import logging_config
 
 log_name = logging_config.get("handlers", {}).get("file_handler", {}).get("filename", None)
-abs_path = os.path.abspath(__file__)  # /Users/guiyu/PycharmProjects/CGC_of_Sn/src/utils/log.py
+abs_path = os.path.abspath(__file__)
+# p.s. /Users/guiyu/PycharmProjects/Clebsch_Gordan_Coefficients_of_the_Permutation_Group/src/utils/log.py
 log_name = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(abs_path))), log_name)
+
+log_folder = os.path.dirname(log_name)
+if not os.path.exists(log_folder):
+    os.makedirs(log_folder)
+
 if log_name.endswith("txt"):
     # hard code to join time mark in log filename
     log_start_time = time.asctime().replace(" ", "_")

@@ -19,7 +19,7 @@ class Path(object):
         join the base_path and the relative_path, which base_path was auto fond
         不检查结果，因为外部使用exist调用很方便
         :param relative_path: should be a relative folder or file path(str)
-        such as conf, conf/cgc_config.json
+        such as conf, conf/config.json
         :param base_path_type: [top, src, test](str)
         top means <CGC_of_Sn>,
         src means <CGC_of_Sn>/src,

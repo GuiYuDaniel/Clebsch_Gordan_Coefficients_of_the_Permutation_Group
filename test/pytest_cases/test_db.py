@@ -42,6 +42,7 @@ class TmpTyping(LocalDb):
             "fake_none": None
         })
         self.map_id = "id"
+        self._init_db_folder()
 
 
 class TestLocalDb(object):
@@ -50,8 +51,8 @@ class TestLocalDb(object):
     """
 
     def setup_class(self):
-        self.fake_path = Path._get_full_path(relative_path="", base_path_type="top")  # 此处没使用config避免循环引用
-        self.db_folder = os.path.join(self.fake_path, "results", "tmp_info")
+        self.top_path = Path._get_full_path(relative_path="", base_path_type="top")  # 此处没使用config避免循环引用
+        self.db_folder = os.path.join(self.top_path, "results", "tmp_info")
         if os.path.exists(self.db_folder):
             shutil.rmtree(self.db_folder)
         self.test_data = {
@@ -88,6 +89,11 @@ class TestLocalDb(object):
         if os.path.exists(self.db_folder):
             shutil.rmtree(self.db_folder)
 
+    def test_001_db_folder_init(self):  # 001使得执行顺序靠前
+        assert not os.path.exists(self.db_folder)
+        db_info = TmpTyping()
+        assert os.path.exists(self.db_folder)
+
     def test_insert_update_query_and_delete(self):
         db_info = TmpTyping()
         # test insert
@@ -113,11 +119,13 @@ class TestLocalDb(object):
         # test update
         time.sleep(2)  # 睡两秒，防止秒级时间update和insert一致
         flag, msg = db_info.update(self.test_condition_false, self.update_data)  # 应该找不到
+        logger.info("Warning is supposed here!")
         assert self.update_data == self.update_data_same
         assert self.test_data == self.test_data_same
         assert flag
         assert msg is False
         flag, msg = db_info.update(self.test_condition_true, self.update_data_wrong)  # 应该找得到但禁止更新
+        logger.info("Error is supposed here!")
         assert not flag
         assert isinstance(msg, str)
         flag, msg = db_info.update(self.test_condition_true, self.update_data)  # 应该得到
@@ -147,6 +155,7 @@ class TestLocalDb(object):
             assert test_data_copy[key] == data_1.get(key)
         # test delete
         flag, msg = db_info.delete(self.test_condition_true)  # 应该是找不到的
+        logger.info("Warning is supposed here!")
         assert self.test_condition_true == self.test_condition_true_same
         assert flag
         assert msg is False
@@ -160,6 +169,7 @@ class TestLocalDb(object):
         test_id = self.test_wrong_data.get("id")
         pkl_path = os.path.join(self.db_folder, test_id + ".pkl")
         flag, msg = db_info.insert(self.test_wrong_data)
+        logger.info("Error is supposed here!")
         assert self.test_wrong_data == self.test_wrong_data_same  # 要保证数据不会被变动
         assert not flag
         assert isinstance(msg, str)
@@ -180,6 +190,7 @@ class TestLocalDb(object):
         }
         time.sleep(2)  # 睡两秒，防止秒级时间update和insert一致
         flag, msg = db_info.update(self.test_condition_true, wrong_update_data)  # 应该找不到
+        logger.info("Error is supposed here!")
         assert self.update_data == self.update_data_same
         assert self.test_data == self.test_data_same
         assert not flag
@@ -209,6 +220,7 @@ class TestLocalDb(object):
         assert msg is True
         # wrong query
         flag, data = db_info.query(self.test_wrong_condition)
+        logger.info("Error is supposed here!")
         assert not flag
         assert isinstance(data, str)
         # delete
@@ -228,6 +240,7 @@ class TestLocalDb(object):
         assert msg is True
         # wrong delete
         flag, msg = db_info.delete(self.test_wrong_condition)
+        logger.info("Error is supposed here!")
         assert not flag
         assert isinstance(msg, str)
         assert os.path.exists(pkl_path)
@@ -250,10 +263,11 @@ class TestTyping(object):
         self.db_folder = os.path.join(self.fake_path, "results", "{}")
         self.db_folder_list = [self.db_folder.format(i) for i in ["pipeline_info", "pipenode_info", "pipetask_info"]]
         for db_folder in self.db_folder_list:
-            all_file_name_list = os.listdir(db_folder)
-            all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-            for test_file in all_test_ahead_list:
-                os.remove(os.path.join(db_folder, test_file))
+            if os.path.exists(db_folder):
+                all_file_name_list = os.listdir(db_folder)
+                all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+                for test_file in all_test_ahead_list:
+                    os.remove(os.path.join(db_folder, test_file))
 
         self.test_ppt_data = {
             "pipetask_id": "test_" + str(uuid.uuid4()),
@@ -285,7 +299,7 @@ class TestTyping(object):
             "pipenode_id": "test_" + str(uuid.uuid4()),
             "pipenode_name": "test_pipenode",
 
-            "func_des": "fake",
+            "func_des": ["None.fake.fake_core", "fake_function", ""],
             "func_str": "fake",
             "type": "cold",
             "inputs": [],
@@ -301,10 +315,11 @@ class TestTyping(object):
 
     def teardown_class(self):
         for db_folder in self.db_folder_list:
-            all_file_name_list = os.listdir(db_folder)
-            all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-            for test_file in all_test_ahead_list:
-                os.remove(os.path.join(db_folder, test_file))
+            if os.path.exists(db_folder):
+                all_file_name_list = os.listdir(db_folder)
+                all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+                for test_file in all_test_ahead_list:
+                    os.remove(os.path.join(db_folder, test_file))
 
     def test_pipetaskinfo(self):
         db_info = PipeTaskInfo()

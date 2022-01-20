@@ -1,7 +1,6 @@
 # -*- coding:utf8 -*-
 """
 测试pipenode能否被成功实例化，检查，调用
-TODO pickle化保存和装载
 """
 
 
@@ -42,10 +41,13 @@ class TestPipeNode(object):
         self.pipenode_id = "test_load_pipenode_id"
         self.fake_pipenode_pkl_path = os.path.join(self.fake_path,
                                                    "test_results", "fake_pipenode_info", "test_load_pipenode_id.pkl")
-        all_file_name_list = os.listdir(self.pipenode_db_folder)
-        all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-        for test_file in all_test_ahead_list:
-            os.remove(os.path.join(self.pipenode_db_folder, test_file))
+        if os.path.exists(self.pipenode_db_folder):
+            all_file_name_list = os.listdir(self.pipenode_db_folder)
+            all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+            for test_file in all_test_ahead_list:
+                os.remove(os.path.join(self.pipenode_db_folder, test_file))
+        else:
+            os.makedirs(self.pipenode_db_folder)
         shutil.copy(self.fake_pipenode_pkl_path, self.pipenode_db_folder)
         self.appeared_id_list = []
 

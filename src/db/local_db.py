@@ -7,7 +7,7 @@
 import copy
 import os
 import time
-from utils.config import Config
+from utils.config import singleton_config
 from utils.io import Save, Load, Delete
 from utils.log import get_logger
 
@@ -25,7 +25,8 @@ class LocalDb(object):
 
     def __init__(self):
         """定义connect路径，必要参数等等"""
-        self.db_folder = os.path.join(Config().top_path, "results", "{}", "{}")
+        self.db_folder = os.path.join(singleton_config.top_path, singleton_config.result_folder, "{}", "{}")
+        # TODO results从conf里取得
         self.table_type = None
         self.design_table_type = {"create_time": str,
                                   "last_write_time": str}
@@ -40,6 +41,13 @@ class LocalDb(object):
             return False, err_msg
         file_path = self.db_folder.format(self.table_type, condition.get(self.map_id)) + file_type
         return True, file_path
+
+    def _init_db_folder(self):
+        """供类继承者创建db目录"""
+        db_folder = os.path.dirname(self.db_folder.format(self.table_type, "fake_db_id"))  # <top_path>/results/xxx
+        if not os.path.exists(db_folder):
+            logger.info("init db folder: {}".format(db_folder))
+            os.makedirs(db_folder)
 
     @staticmethod
     def _check_condition_in_table(condition: dict, table: dict):
@@ -190,7 +198,7 @@ class LocalDb(object):
     def query(self, condition):
         """
         这里query有三种可能结果：
-服务于这里的query是先拿id找符合condition的，所以不应出现多个结果
+        服务于这里的query是先拿id找符合condition的，所以不应出现多个结果
         1，合法：找到一个结果。返回True，data(dict)
         2，合法：未找到结果。返回True，False
         3，非法：有报错。返回False，err_msg
