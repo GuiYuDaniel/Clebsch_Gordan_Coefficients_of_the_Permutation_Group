@@ -25,6 +25,7 @@ class PipeTaskInfo(BaseDb):
             "flags": None
         })
         self.map_id = "pipetask_id"
+        self._init_db_folder()
 
 
 class PipeLineInfo(BaseDb):
@@ -43,6 +44,7 @@ class PipeLineInfo(BaseDb):
             "flags": None
         })
         self.map_id = "pipeline_id"
+        self._init_db_folder()
 
 
 class PipeNodeInfo(BaseDb):
@@ -65,3 +67,4 @@ class PipeNodeInfo(BaseDb):
             "flags": None
         })
         self.map_id = "pipenode_id"
+        self._init_db_folder()

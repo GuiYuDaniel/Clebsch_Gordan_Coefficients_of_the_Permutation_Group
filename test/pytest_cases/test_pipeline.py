@@ -39,22 +39,32 @@ class TestPipeLine(object):
         # 先删
         self.pipeline_db_folder = os.path.join(self.top_path, "results", "pipeline_info")
         self.pipenode_db_folder = os.path.join(self.top_path, "results", "pipenode_info")
-        all_file_name_list = os.listdir(self.pipenode_db_folder)
-        all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-        for test_file in all_test_ahead_list:
-            os.remove(os.path.join(self.pipenode_db_folder, test_file))
-        all_file_name_list = os.listdir(self.pipeline_db_folder)
-        all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-        for test_file in all_test_ahead_list:
-            os.remove(os.path.join(self.pipeline_db_folder, test_file))
+
+        if os.path.exists(self.pipenode_db_folder):
+            all_file_name_list = os.listdir(self.pipenode_db_folder)
+            all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+            for test_file in all_test_ahead_list:
+                os.remove(os.path.join(self.pipenode_db_folder, test_file))
+        else:
+            os.makedirs(self.pipenode_db_folder)
+
+        if os.path.exists(self.pipeline_db_folder):
+            all_file_name_list = os.listdir(self.pipeline_db_folder)
+            all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+            for test_file in all_test_ahead_list:
+                os.remove(os.path.join(self.pipeline_db_folder, test_file))
+        else:
+            os.makedirs(self.pipeline_db_folder)
         # 再粘
         self.fake_pipenode_pkl_folder = os.path.join(self.fake_path, "test_results", "fake_pipenode_info")
         self.fake_pipeline_pkl_folder = os.path.join(self.fake_path, "test_results", "fake_pipeline_info")
+
         all_file_name_list = os.listdir(self.fake_pipenode_pkl_folder)
         all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
         for test_file in all_test_ahead_list:
             fake_pipenode_pkl_path = os.path.join(self.fake_pipenode_pkl_folder, test_file)
             shutil.copy(fake_pipenode_pkl_path, self.pipenode_db_folder)
+
         all_file_name_list = os.listdir(self.fake_pipeline_pkl_folder)
         all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
         for test_file in all_test_ahead_list:
@@ -139,5 +149,6 @@ class TestPipeLine(object):
         assert msg is True
         assert not os.path.exists(file_path)
 
+    @pytest.mark.skip("pass")
     def test_config_in_pipeline(self):
         pass

@@ -1,0 +1,45 @@
+{
+  "###### note ######": "All uppercase keys are supported to self-define by rewriting values in pointed method",
+
+  "###### start: general config ######": "1",
+  "name": "Clebsch_Gordan_Coefficients_of_the_Permutation_Group",
+  "version": "1.0.0",
+  "date": "20220120",
+  "abstract": "Main code for calculate CGC of S1 to S7",
+  "future": "Will support to S8 and S9, then to Sn",
+  "github": "https://github.com/GuiYuDaniel/Clebsch_Gordan_Coefficients_of_the_Permutation_Group",
+  "version_name": "CGC_of_S7",
+  "paper": "https://github.com/GuiYuDaniel/MyPaper-CGC-of-S7/tree/master",
+  "author": "Gui Yu",
+  "license": "MIT",
+  "###### end: general config ######": null,
+
+  "###### start: system config ######": "2",
+  "### log folder default is <CGC>/logs ###": null,
+  "### supported self-defined log folder under <CGC>, join the log_folder to there ###": null,
+  "### supported self-defined softlink, the same link under <CGC> and write in log_folder ###": null,
+  "### by rewrite <CGC>/src/conf/logging_config.py:logging_config:handlers:file_handler:filename ###": null,
+  "DEFAULT_LOG_FOLDER": "logs",
+  "### log level support [ERROR, WARNING, INFO, DEBUG] ###": null,
+  "### by rewrite <CGC>/src/conf/logging_config.py:logging_config:handlers:console:level ###": null,
+  "### by rewrite <CGC>/src/conf/logging_config.py:logging_config:handlers:file_handler:level ###": null,
+  "DEFAULT_LOG_LEVEL": "DEBUG",
+  "### result folder default is <CGC>/results ###": null,
+  "### supported self-defined result folder by rewriting the value below or making a softlink ###": null,
+  "DEFAULT_RESULT_FOLDER": "results",
+  "###### end: system config ######": null,
+
+  "###### start: pipeline config ######": "3",
+  "### TODO: add parallelism and asynchronous supporting if needed ###": null,
+  "###### end: pipeline config ######": null,
+
+  "###### start: core config ######": "4",
+  "### will stop when finish calc target ###": null,
+  "### cmd and here could change calculate target, cmd > default ###": null,
+  "DEFAULT_CALC_TARGET": "S7",
+  "###### end: core config ######": null,
+
+  "###### start: others config ######": "5",
+  "### defining others config here ###": null,
+  "###### end: others config ######": null
+}
