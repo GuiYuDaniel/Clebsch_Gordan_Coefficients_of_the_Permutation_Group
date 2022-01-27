@@ -39,12 +39,13 @@ class LocalDb(object):
                 self.table_type, self.map_id, condition.get(self.map_id))
             logger.error(err_msg)
             return False, err_msg
+        # <top_path>/results/ppx_info/xxx_id.pkl
         file_path = self.db_folder.format(self.table_type, condition.get(self.map_id)) + file_type
         return True, file_path
 
     def _init_db_folder(self):
         """供类继承者创建db目录"""
-        db_folder = os.path.dirname(self.db_folder.format(self.table_type, "fake_db_id"))  # <top_path>/results/xxx
+        db_folder = os.path.dirname(self.db_folder.format(self.table_type, "_"))  # <top_path>/results/ppx_info
         if not os.path.exists(db_folder):
             logger.info("init db folder: {}".format(db_folder))
             os.makedirs(db_folder)

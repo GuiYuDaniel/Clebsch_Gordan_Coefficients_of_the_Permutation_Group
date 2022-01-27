@@ -2,6 +2,7 @@
 # test_config.py
 test_db.py
 test_io.py
+test_io_decorater.py
 test_json_op.py
 test_pipeline.py
 test_pipenode.py
