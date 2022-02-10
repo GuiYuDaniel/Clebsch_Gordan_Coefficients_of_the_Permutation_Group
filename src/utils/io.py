@@ -116,9 +116,9 @@ def _revise_path_before_io(file_type=None, io_type=None):
     # 不带参数的装饰器写法
     def revise_path_before_io(func):
         if not callable(func):
-            err_msg = "function name={} is not callable, pls check".format(func.__name__)
-            logger.error(err_msg)
-            return False, err_msg
+            er_msg = "function name={} is not callable, pls check".format(func.__name__)
+            logger.error(er_msg)
+            return False, er_msg
         wrapper = None, None
 
         # save的前置逻辑
@@ -191,6 +191,11 @@ _revise_path_before_load = partial(_revise_path_before_io, io_type="load")
 _revise_path_before_delete = partial(_revise_path_before_io, io_type="delete")
 
 
+# def _revise_path_before_save(*args, **kwargs):
+#     _func = partial(_revise_path_before_io, io_type="save")
+#     return _func(*args, **kwargs)
+
+
 class Save(object):
     """
     save data
@@ -213,6 +218,8 @@ class Save(object):
     @staticmethod
     @_revise_path_before_save(file_type=".txt")
     def save_txt(data, file_path):
+        if not isinstance(data, str):
+            data = str(data)
         try:
             with open(file_path, "w") as f:
                 f.write(data)

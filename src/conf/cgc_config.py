@@ -30,6 +30,7 @@ system params
 top_path = singleton_config.top_path
 # <CGC>/cgc_results = <CGC_rst>
 cgc_rst_folder = "cgc_results"
+
 # young diagrams path name
 young_diagrams_path_format = os.path.join("young_diagrams", "S{}")
 # young diagrams txt limit

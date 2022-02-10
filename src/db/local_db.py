@@ -25,8 +25,8 @@ class LocalDb(object):
 
     def __init__(self):
         """定义connect路径，必要参数等等"""
+        # db_folder waiting format {table_type} {xxx_id.file_type}
         self.db_folder = os.path.join(singleton_config.top_path, singleton_config.result_folder, "{}", "{}")
-        # TODO results从conf里取得
         self.table_type = None
         self.design_table_type = {"create_time": str,
                                   "last_write_time": str}
