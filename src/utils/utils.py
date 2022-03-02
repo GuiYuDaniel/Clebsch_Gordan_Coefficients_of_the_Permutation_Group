@@ -6,6 +6,7 @@
 """
 
 
+import time
 import uuid
 from enum import Enum, unique
 from utils.log import get_logger
@@ -36,3 +37,23 @@ def new_id(is_log=True):
     if is_log:
         logger.debug("new an id={} with uuid4 method".format(_id))
     return _id
+
+
+def time_2_asctime(float_time):
+    if isinstance(float_time, str):
+        try:
+            float_time = float(float_time)
+        except Exception as e:
+            logger.error(Exception(e))
+            return None
+    if not isinstance(float_time, float):
+        return None
+    struct_time = time.localtime(float_time)
+    return time.asctime(struct_time)
+
+
+def asctime_2_time(asctime):
+    if not isinstance(asctime, str):
+        return None
+    struct_time = time.strptime(asctime, "%a %b %d %H:%M:%S %Y")
+    return time.mktime(struct_time)

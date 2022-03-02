@@ -135,7 +135,7 @@ def _revise_path_before_io(file_type=None, io_type=None):
                     logger.debug("folder_path={} not exist, create it".format(folder_path))
                     os.makedirs(folder_path)
                 if os.path.exists(file_path):
-                    e_msg = "file_path={} existed, will not create again, pls check"
+                    e_msg = "file_path={} existed, will not create again, pls check".format(file_path)
                     logger.error(e_msg)
                     return False, e_msg
                 result = func(data, file_path)
@@ -151,7 +151,7 @@ def _revise_path_before_io(file_type=None, io_type=None):
                     logger.error(e_msg)
                     return False, e_msg
                 if not os.path.exists(file_path):
-                    e_msg = "file_path={} not existed, will not load, pls check"
+                    e_msg = "file_path={} not existed, will not load, pls check".format(file_path)
                     logger.error(e_msg)
                     return False, e_msg
                 if not os.path.isfile(file_path):  # 先用名字查类型
@@ -171,7 +171,7 @@ def _revise_path_before_io(file_type=None, io_type=None):
                     logger.error(e_msg)
                     return False, e_msg
                 if not os.path.exists(file_path):
-                    e_msg = "file_path={} not existed, cannot delete but return True"
+                    e_msg = "file_path={} not existed, cannot delete but return True, msg".format(file_path)
                     logger.warning(e_msg)
                     return True, e_msg
                 result = func(file_path)

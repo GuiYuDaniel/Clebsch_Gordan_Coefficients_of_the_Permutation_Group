@@ -8,3 +8,4 @@ test_pipeline.py
 test_pipenode.py
 test_pipetask.py
 test_topo.py
+test_utils.py

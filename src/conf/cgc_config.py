@@ -30,8 +30,12 @@ system params
 top_path = singleton_config.top_path
 # <CGC>/cgc_results = <CGC_rst>
 cgc_rst_folder = "cgc_results"
+calculated_tables_txt_limit = -1  # -1表示永远存txt
+#calculated_tables_name = "calculated_tables_info"
 
-# young diagrams path name
-young_diagrams_path_format = os.path.join("young_diagrams", "S{}")
+# db table name
+#young_diagrams_table_name = "young_diagrams_info"
+# young diagrams file name format
+young_diagrams_file_name_format = "S{}"
 # young diagrams txt limit
 young_diagrams_txt_limit = default_s_n

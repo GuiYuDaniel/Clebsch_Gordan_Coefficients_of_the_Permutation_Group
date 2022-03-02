@@ -50,7 +50,7 @@ class TestLocalDb(object):
     test class LocalDb functions
     """
 
-    def setup_class(self):
+    def setup(self):
         self.top_path = Path._get_full_path(relative_path="", base_path_type="top")  # 此处没使用config避免循环引用
         self.db_folder = os.path.join(self.top_path, "results", "tmp_info")
         if os.path.exists(self.db_folder):
@@ -63,12 +63,18 @@ class TestLocalDb(object):
             "fake_float": 0.01,
             "fake_bool": True,
             "fake_list": [1, 2],
-            "fake_dict": {1: 1},
+            "fake_dict": {1: 1, "2": "2"},
             "fake_tuple": (1,),
             "fake_np_int": np.int(1),
             "fake_np_float": np.float(0.01),
             "fake_none": {"err_msg": "fake"}
         }
+        self.test_data_id = self.test_data.get("id")
+        self.deep_partial_dict = {"fake_dict": {1: 1, "3": "3"}}
+        self.deep_partial_dict_same = copy.deepcopy(self.deep_partial_dict)
+        self.deep_updated_dict = {1: 1, "3": "3"}
+        self.deep_not_updated_dict = {1: 1, "2": "2", "3": "3"}
+        self.file_name_pkl = os.path.join(self.db_folder, self.test_data.get("id") + ".pkl")
         self.test_data_same = copy.deepcopy(self.test_data)
         self.update_data = {"fake_bool": False}
         self.update_data_same = copy.deepcopy(self.update_data)
@@ -84,8 +90,9 @@ class TestLocalDb(object):
         }
         self.test_wrong_data_same = copy.deepcopy(self.test_wrong_data)
         self.test_wrong_condition = {}
+        self.test_wrong_condition_1 = []
 
-    def teardown_class(self):
+    def teardown(self):
         if os.path.exists(self.db_folder):
             shutil.rmtree(self.db_folder)
 
@@ -96,11 +103,26 @@ class TestLocalDb(object):
 
     def test_insert_update_query_and_delete(self):
         db_info = TmpTyping()
+        assert not os.path.exists(self.file_name_pkl)
+
         # test insert
         flag, msg = db_info.insert(self.test_data)
         assert self.test_data == self.test_data_same  # 要保证数据不会被变动
         assert flag
         assert msg is True
+        assert os.path.exists(self.file_name_pkl)
+
+        # insert again
+        m_time_before = os.stat(self.file_name_pkl).st_mtime
+        flag, msg = db_info.insert(self.test_data)
+        logger.info("Error is supposed here!")
+        assert self.test_data == self.test_data_same  # 要保证数据不会被变动
+        assert flag is False
+        assert msg
+        assert os.path.exists(self.file_name_pkl)
+        m_time_after = os.stat(self.file_name_pkl).st_mtime
+        assert m_time_before == m_time_after
+
         # test query
         flag, data = db_info.query(self.test_condition_true)
         assert self.test_condition_true == self.test_condition_true_same
@@ -116,27 +138,62 @@ class TestLocalDb(object):
         assert data_same is not False
         assert data == data_same
         assert (data is not data_same)  # 保证它们俩的地址不是一个
+
+        flag, data = db_info.query_by_id(self.test_data_id)
+        assert flag
+        assert data is not False
+        for key in self.test_data:
+            assert key in data
+            assert self.test_data[key] == data.get(key)
+        assert isinstance(data.get("create_time"), str)
+        assert isinstance(data.get("last_write_time"), str)
+        flag, data_same = db_info.query(self.test_condition_true)
+        assert flag
+        assert data_same is not False
+        assert data == data_same
+        assert (data is not data_same)  # 保证它们俩的地址不是一个
+
         # test update
-        time.sleep(2)  # 睡两秒，防止秒级时间update和insert一致
+        time.sleep(1.1)  # 睡两秒，防止秒级时间update和insert一致
+
         flag, msg = db_info.update(self.test_condition_false, self.update_data)  # 应该找不到
         logger.info("Warning is supposed here!")
         assert self.update_data == self.update_data_same
         assert self.test_data == self.test_data_same
+        assert self.test_condition_false == self.test_condition_false_same
         assert flag
         assert msg is False
+
         flag, msg = db_info.update(self.test_condition_true, self.update_data_wrong)  # 应该找得到但禁止更新
         logger.info("Error is supposed here!")
         assert not flag
         assert isinstance(msg, str)
+
+        m_time_before = os.stat(self.file_name_pkl).st_mtime
         flag, msg = db_info.update(self.test_condition_true, self.update_data)  # 应该得到
         assert self.update_data == self.update_data_same
         assert self.test_data == self.test_data_same
+        assert self.test_condition_true == self.test_condition_true_same
         assert flag
         assert msg is True
+        m_time_after = os.stat(self.file_name_pkl).st_mtime
+        assert m_time_before != m_time_after
+
+        m_time_before = os.stat(self.file_name_pkl).st_mtime  # update again
+        flag, msg = db_info.update_by_id(self.test_data_id, self.update_data)  # 应该得到
+        assert self.update_data == self.update_data_same
+        assert self.test_data == self.test_data_same
+        assert self.test_condition_true == self.test_condition_true_same
+        assert flag
+        assert msg is True
+        m_time_after = os.stat(self.file_name_pkl).st_mtime
+        assert m_time_before == m_time_after
+
         flag, data_1 = db_info.query(self.test_condition_true)  # 这个就应该是找不到的
         assert self.test_condition_true == self.test_condition_true_same
         assert flag
         assert data_1 is False
+
         flag, data_1 = db_info.query(self.test_condition_false)
         assert self.test_condition_false == self.test_condition_false_same
         assert flag
@@ -153,16 +210,90 @@ class TestLocalDb(object):
         for key in test_data_copy:
             assert key in data_1
             assert test_data_copy[key] == data_1.get(key)
+
         # test delete
+        assert os.path.exists(self.file_name_pkl)
         flag, msg = db_info.delete(self.test_condition_true)  # 应该是找不到的
         logger.info("Warning is supposed here!")
         assert self.test_condition_true == self.test_condition_true_same
         assert flag
         assert msg is False
+        assert os.path.exists(self.file_name_pkl)
+
         flag, msg = db_info.delete(self.test_condition_false)  # 可以找到
         assert self.test_condition_false == self.test_condition_false_same
         assert flag
         assert msg is True
+        assert not os.path.exists(self.file_name_pkl)
+
+        flag, msg = db_info.delete(self.test_condition_false)  # delete again
+        logger.info("Warning is supposed here!")
+        assert self.test_condition_false == self.test_condition_false_same
+        assert flag
+        assert msg is False
+        assert not os.path.exists(self.file_name_pkl)
+
+    def test_update_deep(self):
+        """
+        对于python，
+        a = {1: 2}
+        a.update({3: 4}) == None
+        a == {1: 2, 3: 4}
+
+        b = {"data": {1: 2}}
+        b.update({"data": {3: 4}}) == None
+        b == {"data": {3: 4}}
+        不是 不是 不是 {"data": {1: 2, 3: 4}} 哦！！！
+        也就是说，当前的localdb，只能update到第一层key-value，不支持深层update
+        """
+        db_info = TmpTyping()
+        assert not os.path.exists(self.file_name_pkl)
+
+        # insert
+        flag, msg = db_info.insert(self.test_data)
+        assert self.test_data == self.test_data_same  # 要保证数据不会被变动
+        assert flag
+        assert msg is True
+        assert os.path.exists(self.file_name_pkl)
+
+        flag, data = db_info.query(self.test_condition_true)
+        assert self.test_condition_true == self.test_condition_true_same
+        assert flag
+        assert isinstance(data, dict)
+        assert data.get("fake_dict") == self.test_data_same.get("fake_dict")
+
+        # update deep
+        m_time_before = os.stat(self.file_name_pkl).st_mtime
+        flag, msg = db_info.update_by_id(self.test_data_id, self.deep_partial_dict)  # 应该得到
+        assert self.test_data == self.test_data_same
+        assert self.test_condition_true == self.test_condition_true_same
+        assert self.deep_partial_dict == self.deep_partial_dict_same
+        assert flag
+        assert msg is True
+        m_time_after = os.stat(self.file_name_pkl).st_mtime
+        assert m_time_before != m_time_after
+        assert os.path.exists(self.file_name_pkl)
+
+        flag, data_1 = db_info.query(self.test_condition_true)
+        assert self.test_condition_true == self.test_condition_true_same
+        assert flag
+        assert isinstance(data_1, dict)
+        assert data_1.get("fake_dict") == self.deep_updated_dict
+
+        # test delete
+        assert os.path.exists(self.file_name_pkl)
+        flag, msg = db_info.delete(self.test_data)  # 应该是找得到，但不符合条件，因为test_data已经被update了
+        logger.info("Warning is supposed here!")
+        assert self.test_data == self.test_data_same
+        assert flag
+        assert msg is False
+        assert os.path.exists(self.file_name_pkl)
+
+        flag, msg = db_info.delete_by_id(self.test_data_id)  # 可以找到
+        assert self.test_condition_true == self.test_condition_true_same
+        assert flag
+        assert msg is True
+        assert not os.path.exists(self.file_name_pkl)
 
     def test_insert_wrong(self):
         db_info = TmpTyping()
@@ -188,7 +319,7 @@ class TestLocalDb(object):
 
             "fake_int": "str"
         }
-        time.sleep(2)  # 睡两秒，防止秒级时间update和insert一致
+        # time.sleep(1.1)  # 睡1.1秒，防止秒级时间update和insert一致
         flag, msg = db_info.update(self.test_condition_true, wrong_update_data)  # 应该找不到
         logger.info("Error is supposed here!")
         assert self.update_data == self.update_data_same
@@ -213,16 +344,24 @@ class TestLocalDb(object):
 
     def test_query_wrong(self):
         db_info = TmpTyping()
+
         # insert
         flag, msg = db_info.insert(self.test_data)
         assert self.test_data == self.test_data_same  # 要保证数据不会被变动
         assert flag
         assert msg is True
+
         # wrong query
         flag, data = db_info.query(self.test_wrong_condition)
         logger.info("Error is supposed here!")
         assert not flag
         assert isinstance(data, str)
+
+        flag, data = db_info.query(self.test_wrong_condition_1)
+        logger.info("Error is supposed here!")
+        assert not flag
+        assert isinstance(data, str)
+
         # delete
         flag, msg = db_info.delete(self.test_condition_true)
         assert self.test_condition_true == self.test_condition_true_same
@@ -231,6 +370,7 @@ class TestLocalDb(object):
 
     def test_delete_wrong(self):
         db_info = TmpTyping()
+
         # insert
         test_id = self.test_data.get("id")
         pkl_path = os.path.join(self.db_folder, test_id + ".pkl")
@@ -238,12 +378,14 @@ class TestLocalDb(object):
         assert self.test_data == self.test_data_same  # 要保证数据不会被变动
         assert flag
         assert msg is True
+
         # wrong delete
         flag, msg = db_info.delete(self.test_wrong_condition)
         logger.info("Error is supposed here!")
         assert not flag
         assert isinstance(msg, str)
         assert os.path.exists(pkl_path)
+
         # delete
         flag, msg = db_info.delete(self.test_condition_true)
         assert self.test_condition_true == self.test_condition_true_same
@@ -256,6 +398,7 @@ class TestTyping(object):
     """
     test python file typing.py functions
     all test ids in this case must be test_<id>
+    TestLocalDB中已经测过基础操作和基础报错了。所以，这里只测正向使用即可
     """
 
     def setup_class(self):
@@ -341,7 +484,7 @@ class TestTyping(object):
         assert data == self.test_ppt_data_same
         assert os.path.exists(file_path)
         # test update
-        time.sleep(2)
+        time.sleep(1.1)
         flag, msg = db_info.update(self.test_ppt_condition, self.test_ppt_update_data)
         assert flag
         assert msg is True
@@ -375,7 +518,7 @@ class TestTyping(object):
         assert data == self.test_ppn_data_same
         assert os.path.exists(file_path)
         # test update
-        time.sleep(2)
+        time.sleep(1.1)
         flag, msg = db_info.update(self.test_ppn_condition, self.test_ppn_update_data)
         assert flag
         assert msg is True
@@ -409,7 +552,7 @@ class TestTyping(object):
         assert data == self.test_ppl_data_same
         assert os.path.exists(file_path)
         # test update
-        time.sleep(2)
+        time.sleep(1.1)
         flag, msg = db_info.update(self.test_ppl_condition, self.test_ppl_update_data)
         assert flag
         assert msg is True

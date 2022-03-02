@@ -97,14 +97,97 @@ class LocalDb(object):
         time_now = time.asctime()
         if add_create_time:
             table["create_time"] = time_now
-        table["last_write_time"] = time_now
+        table["last_write_time"] = time_now  # 这本质是一个覆盖操作哦
+
+    # 按照 查删增改 顺序重构db操作
+    def query_by_id(self, table_id):
+        return self.query({self.map_id: table_id})
+
+    def query(self, condition):
+        """
+        这里query有三种可能结果：
+        服务于这里的query是先拿id找符合condition的，所以不应出现多个结果
+        1，合法：找到一个结果。返回True，data(dict)
+        2，合法：未找到结果。返回True，False
+        3，非法：有报错。返回False，err_msg
+        """
+        if not isinstance(condition, dict):
+            err_msg = "condition={} must be dict".format(condition)
+            logger.error(err_msg)
+            return False, err_msg
+        condition_copy = copy.deepcopy(condition)
+        flag, file_path = self._get_file_path_by_condition(condition_copy)
+        if not flag:
+            return flag, file_path  # 此时的file_path是err_msg
+        if not os.path.exists(file_path):
+            err_msg = "file_path={} not existed, will not load, pls check".format(file_path)
+            logger.debug(err_msg)  # query不需要给warning，delete和update可以
+            return True, False
+        flag, data = Load.load_pickle(file_path)
+        if not flag:
+            return flag, data  # 此时data是errmsg
+        # query结果不可信，需要检查
+        flag, msg = self._check_table_key_and_value_type_in_design(data, appear_time_return_false=False)
+        if not flag:
+            return flag, msg
+        flag, msg = self._check_condition_in_table(condition_copy, data)
+        if not flag:
+            if not msg:
+                return True, False
+            else:
+                return False, msg
+        return True, data
+
+    def delete_by_id(self, table_id):
+        return self.delete({self.map_id: table_id})
+
+    def delete(self, condition):
+        """
+        这里delete有三种可能结果：
+        1，合法：找到一个结果并删除。返回True，True
+        2，合法：未找到结果，没有删除。返回True，False
+        3，非法：有报错。返回False，err_msg
+        """
+        if not isinstance(condition, dict):
+            err_msg = "condition={} must be dict".format(condition)
+            logger.error(err_msg)
+            return False, err_msg
+        condition_copy = copy.deepcopy(condition)
+        flag, table = self.query(condition_copy)  # 对于condition的常规检查，query里也有，所以本函数中可以免去
+        if not flag:
+            return flag, table  # 此时table是errmsg
+        if flag and (table is False):
+            warn_msg = "delete condition_copy={} not existed, return True, False".format(condition_copy)
+            logger.warning(warn_msg)
+            logger.debug("it maybe a wrong event with unexpected file_path,"
+                         "or maybe a right event with only find no result")
+            return True, False
+        flag, file_path = self._get_file_path_by_condition(condition_copy)
+        if not flag:  # query成功了，后面基本不用检查了
+            return flag, file_path  # 此时的file_path是err_msg
+        flag, msg = Delete.delete_pickle(file_path)
+        if not flag:
+            return flag, msg
+        return True, True
 
     def _insert(self, table, add_create_time=True):  # 这里加add_create_time是为了实现假的update，使用的权宜之计，对外不可见
+        if not isinstance(table, dict) and not isinstance(add_create_time, bool):
+            err_msg = "table={} must be dict, add_create_time={} must be bool".format(table, add_create_time)
+            logger.error(err_msg)
+            return False, err_msg
         # insert要根据design_table_type检查table
         table_copy = copy.deepcopy(table)
+        flag, query_table = self.query(table_copy)  # 对于condition的常规检查，query里也有，所以本函数中可以免去
+        if not flag:
+            return flag, query_table  # 此时table是errmsg
+        if flag and query_table:
+            err_msg = "query_table={} has existed, cannot insert table_copy={}".format(query_table, table_copy)
+            logger.error(err_msg)
+            return False, err_msg
         flag, msg = self._check_table_key_and_value_type_in_design(table_copy, appear_time_return_false=add_create_time)
         if not flag:
             return flag, msg
+
         # 终于可以存了
         flag, file_path = self._get_file_path_by_condition(table_copy)
         if not flag:
@@ -129,99 +212,55 @@ class LocalDb(object):
         本update的逻辑是：根据condition找数据，按照partial_table里的内容，只更新对应的，没提到的不变
         另外，对于pickle假扮的db，update实质是删了重新存。真的db会支持真正的update
         这里update有三种可能结果：
-        1，合法：找到一个结果并更新。返回True，True
+        1，合法：a)找到一个结果并更新；b)找到一个结果，但无需更新。返回True，True
         2，合法：未找到结果，没有更新，但也没错误。返回True，False
         3，非法：有报错。返回False，err_msg
         """
-        flag, table = self.query(condition)  # 对于condition的常规检查，query里也有，所有本函数中可以免去
+        if not isinstance(condition, dict) and not isinstance(partial_table, dict):
+            err_msg = "condition={} must be dict, partial_table={} must be bool".format(condition, partial_table)
+            logger.error(err_msg)
+            return False, err_msg
+        condition_copy = copy.deepcopy(condition)
+        partial_table_copy = copy.deepcopy(partial_table)
+        flag, table = self.query(condition_copy)  # 对于condition的常规检查，query里也有，所有本函数中可以免去
         if not flag:
             return flag, table  # 此时table是errmsg
         if table is False:
-            err_msg = "cannot find table by condition={}, will not update".format(condition)
+            err_msg = "cannot find table by condition_copy={}, will not update".format(condition_copy)
             logger.warning(err_msg)
             logger.debug("it maybe a wrong event with unexpected file_path,"
                          "or maybe a right event with only find no result")
             return True, False
-        flag, msg = self._check_table_key_and_value_type_in_design(partial_table, appear_time_return_false=True)
+        flag, msg = self._check_table_key_and_value_type_in_design(partial_table_copy, appear_time_return_false=True)
         if not flag:
             return flag, msg
-        if partial_table.get(self.map_id) and table.get(self.map_id) != partial_table.get(self.map_id):
-            err_msg = "non-support update {}, id={} of table must same as id={} of partial_table".format(
-                self.map_id, table.get(self.map_id), partial_table.get(self.map_id))
+        if partial_table_copy.get(self.map_id) and table.get(self.map_id) != partial_table_copy.get(self.map_id):
+            err_msg = "non-support update {}, id={} of table must same as id={} of partial_table_copy".format(
+                self.map_id, table.get(self.map_id), partial_table_copy.get(self.map_id))
             logger.error(err_msg)
             return False, err_msg
-        table.update(partial_table)
-        flag, msg = self._check_table_key_and_value_type_in_design(table, appear_time_return_false=False)  # table里是有时间的
+
+        table_old = copy.deepcopy(table)
+        table.update(partial_table_copy)
+        if table == table_old:
+            logger.debug("partial_table_copy={} update nothing, will return True, True".format(partial_table_copy))
+            return True, True
+        table_copy = copy.deepcopy(table)
+        flag, msg = self._check_table_key_and_value_type_in_design(table_copy, appear_time_return_false=False)  # table里是有时间的
         if not flag:
             return flag, msg
         # 上面的检查要尽量保证不会出现除读盘落盘外的逻辑错误
         # TODO 删和存最好使用原子化操作，最简单的就没考虑那么多，也没加回档，只能前面尽量检查好
-        flag, msg = self.delete(condition)
+        flag, msg = self.delete(condition_copy)
         if not flag:
-            logger.warning("DANGEROUS error! a non-atomized operation may happen")
+            logger.error("DANGEROUS error! a non-atomized operation may happen")
+            logger.error("update within delete and insert, but delete fail, insert not do")
+            logger.debug("condition_copy={}, partial_table_copy={}".format(condition_copy, partial_table_copy))
             return flag, msg
-        flag, msg = self._insert(table, add_create_time=False)
+        flag, msg = self._insert(table_copy, add_create_time=False)
         if not flag:
-            logger.warning("DANGEROUS error! a non-atomized operation may happen")
-            return flag, msg
-        return True, True
-
-    def delete_by_id(self, table_id):
-        return self.delete({self.map_id: table_id})
-
-    def delete(self, condition):
-        """
-        这里delete有三种可能结果：
-        1，合法：找到一个结果并删除。返回True，True
-        2，合法：未找到结果，没有删除。返回True，False
-        3，非法：有报错。返回False，err_msg
-        """
-        flag, table = self.query(condition)  # 对于condition的常规检查，query里也有，所以本函数中可以免去
-        if not flag:
-            return flag, table  # 此时table是errmsg
-        if flag and (table is False):
-            err_msg = "file_path={} not existed, cannot delete but return True"
-            logger.warning(err_msg)
-            logger.debug("it maybe a wrong event with unexpected file_path,"
-                         "or maybe a right event with only find no result")
-            return True, False
-        flag, file_path = self._get_file_path_by_condition(condition)
-        if not flag:  # query成功了，后面基本不用检查了
-            return flag, file_path  # 此时的file_path是err_msg
-        flag, msg = Delete.delete_pickle(file_path)
-        if not flag:
+            logger.error("DANGEROUS error! a non-atomized operation may happen")
+            logger.error("update within delete and insert, but delete done, insert fail")
+            logger.debug("condition_copy={}, partial_table_copy={}".format(condition_copy, partial_table_copy))
             return flag, msg
         return True, True
-
-    def query_by_id(self, table_id):
-        return self.query({self.map_id: table_id})
-
-    def query(self, condition):
-        """
-        这里query有三种可能结果：
-        服务于这里的query是先拿id找符合condition的，所以不应出现多个结果
-        1，合法：找到一个结果。返回True，data(dict)
-        2，合法：未找到结果。返回True，False
-        3，非法：有报错。返回False，err_msg
-        """
-        flag, file_path = self._get_file_path_by_condition(condition)
-        if not flag:
-            return flag, file_path  # 此时的file_path是err_msg
-        if not os.path.exists(file_path):
-            err_msg = "file_path={} not existed, will not load, pls check"
-            logger.debug(err_msg)  # query不需要给warning，delete和update可以
-            return True, False
-        flag, data = Load.load_pickle(file_path)
-        if not flag:
-            return flag, data  # 此时data是errmsg
-        # query结果不可信，需要检查
-        flag, msg = self._check_table_key_and_value_type_in_design(data, appear_time_return_false=False)
-        if not flag:
-            return flag, msg
-        flag, msg = self._check_condition_in_table(condition, data)
-        if not flag:
-            if not msg:
-                return True, False
-            else:
-                return False, msg
-        return True, data

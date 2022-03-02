@@ -148,7 +148,3 @@ class TestPipeLine(object):
         assert flag is True
         assert msg is True
         assert not os.path.exists(file_path)
-
-    @pytest.mark.skip("pass")
-    def test_config_in_pipeline(self):
-        pass

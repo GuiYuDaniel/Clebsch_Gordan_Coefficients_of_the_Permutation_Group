@@ -120,7 +120,6 @@ class PipeTask(object):
         业务逻辑的错误，返回FAIL和msg
         pipetask框架的错误，使用raise断掉
         """
-        # TODO 添加状态
         # TODO 想清楚执行单元，是回访db获得信息，还是从类获得信息，更合理。是否可能出现不一致
         # 检查ppt和ppl，获得状态，进度
         if not self.ppl_id or not isinstance(self.ppl_id, str) \
