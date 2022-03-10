@@ -120,8 +120,9 @@ class LocalDb(object):
         if not flag:
             return flag, file_path  # 此时的file_path是err_msg
         if not os.path.exists(file_path):
-            err_msg = "file_path={} not existed, will not load, pls check".format(file_path)
-            logger.debug(err_msg)  # query不需要给warning，delete和update可以
+            # debug太多了 先注释掉
+            # err_msg = "file_path={} not existed, will not load, pls check".format(file_path)
+            # logger.debug(err_msg)  # query不需要给warning，delete和update可以
             return True, False
         flag, data = Load.load_pickle(file_path)
         if not flag:

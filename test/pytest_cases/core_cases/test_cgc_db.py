@@ -380,3 +380,12 @@ class TestCGCLocalDb(object):
         assert msg is False
         assert not os.path.exists(self.file_name_pkl)
         assert not os.path.exists(self.file_name_txt)
+
+
+class TestYoungDiagramInfo(object):
+
+    def setup(self):
+        pass
+
+    def teardown(self):
+        pass

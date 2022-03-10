@@ -45,16 +45,19 @@ class TestYoungDiagrams(object):
         tail_s_n = 7
         head_time = time.time()
         for s_n in range(head_s_n, tail_s_n + 1):
-            flag, young_diagrams = calc_single_young_diagrams(s_n, is_recursion=True)
+            flag, young_diagrams = calc_single_young_diagrams(s_n, recursion_deep=7)
             logger.debug("for s_n={}, test young_diagrams={}".format(s_n, young_diagrams))
             assert flag
             assert young_diagrams == eval("self.young_diagrams_s_{}".format(s_n)), "s_n={}".format(s_n)
         tail_time = time.time()
-        logger.debug("calc young_diagrams from S{} to S{}, use {}s".format(head_s_n, tail_s_n, tail_time - head_time))
+        logger.debug("calc young_diagrams from S{} to S{}, used {}s".format(head_s_n, tail_s_n, tail_time - head_time))
 
-    @pytest.mark.skip("pass")
-    def test_calc_single_young_diagrams_not_recursion(self):
-        pass
+    def test_calc_single_young_diagrams_out_of_recursion_deep(self):
+        s_n = 1000
+        flag, young_diagrams = calc_single_young_diagrams(s_n, recursion_deep=7)
+        logger.debug("for s_n={}, test young_diagrams={}".format(s_n, young_diagrams))
+        assert flag
+        assert young_diagrams is False
 
     @pytest.mark.skip("pass")
     def test_calc_single_young_diagrams_recursion(self):

@@ -1,7 +1,7 @@
 # -*- coding:utf8 -*-
 """
 这不是一个严格意义上的数据库，只是使用存取pickle，统一接口形式，满足最简单的增删改查需要
-在project的db基础上，多了txt的保存需求，需要改写一些函数
+在继承project的local_db基础上，添加一些txt函数用于展示结果
 模仿src/db的形式写的
 """
 
@@ -18,6 +18,9 @@ from utils.log import get_logger
 
 
 logger = get_logger(__name__)
+
+
+global_finish_sn_name = "Finish_Sn"
 
 
 def get_young_diagrams_file_name(s_n: int, is_full_path=False):
@@ -37,6 +40,19 @@ def get_young_diagrams_file_name(s_n: int, is_full_path=False):
         return True, file_name
     else:
         full_path = os.path.join(top_path, cgc_rst_folder, "young_diagrams_info", file_name)
+        return True, full_path
+
+
+def get_young_diagrams_finish_s_n_name(is_full_path=False):
+    if not isinstance(is_full_path, bool):
+        err_msg = "is_full_path={} with type={} must be bool".format(is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+
+    if not is_full_path:
+        return True, global_finish_sn_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "young_diagrams_info", global_finish_sn_name)
         return True, full_path
 
 
@@ -95,7 +111,7 @@ class CGCLocalDb(LocalDb):
 
         condition_copy = copy.deepcopy(condition)
         # query txt 不检查数据
-        # txt 里面存的，是table.get("data")
+        # txt 里面存的，是table的一个键的值
         flag, file_path_without_type = self._get_file_path_without_type_by_condition(condition_copy)
         if not flag:
             return flag, file_path_without_type  # 此时的file_path_without_type是err_msg
@@ -143,9 +159,10 @@ class CGCLocalDb(LocalDb):
     def delete_txt_by_file_name(self, file_name, is_auto_limit=True):
         return self._delete_txt({self.map_id: file_name}, is_auto_limit=is_auto_limit)
 
-    def insert_txt(self, table, is_auto_limit=True):
-        if not isinstance(is_auto_limit, bool):
-            err_msg = "is_auto_limit={} must be bool".format(is_auto_limit)
+    def insert_txt(self, table, is_auto_limit=True, point_key="data"):
+        if not isinstance(is_auto_limit, bool) or point_key not in self.design_table_type.keys():
+            err_msg = "is_auto_limit={} must be bool, and point_key={} must in design_table_type.keys={}".format(
+                is_auto_limit, point_key, list(self.design_table_type.keys()))
             logger.error(err_msg)
             return False, err_msg
         if is_auto_limit and self.txt_limit != -1 and self.s_n > self.txt_limit:
@@ -172,10 +189,10 @@ class CGCLocalDb(LocalDb):
             return flag, file_path_without_type  # 此时的file_path_without_type是err_msg
 
         # 取data保存
-        flag, msg = Save.save_txt(table_copy.get("data"), file_path_without_type)
+        flag, msg = Save.save_txt(table_copy.get(point_key), file_path_without_type)
         return flag, msg
 
-    def _update_txt(self, condition, partial_table, is_auto_limit=True):
+    def _update_txt(self, condition, partial_table, is_auto_limit=True, point_key="data"):
         """
         只有partial_table的data中了，才更新
         这里update有三种可能结果：
@@ -183,8 +200,9 @@ class CGCLocalDb(LocalDb):
         2，合法：未找到结果，没有更新，但也没错误。返回True，False
         3，非法：有报错。返回False，err_msg
         """
-        if not isinstance(is_auto_limit, bool):
-            err_msg = "is_auto_limit={} must be bool".format(is_auto_limit)
+        if not isinstance(is_auto_limit, bool) or point_key not in self.design_table_type.keys():
+            err_msg = "is_auto_limit={} must be bool, and point_key={} must in design_table_type.keys={}".format(
+                is_auto_limit, point_key, list(self.design_table_type.keys()))
             logger.error(err_msg)
             return False, err_msg
         if is_auto_limit and self.txt_limit != -1 and self.s_n > self.txt_limit:
@@ -206,7 +224,7 @@ class CGCLocalDb(LocalDb):
                          "or maybe a right event with only find no result")
             return True, False
         # 检查partial_table和data的一致性，如果一致，不需要真实触发更新动作了
-        if str(partial_table_copy.get("data")) == data:
+        if str(partial_table_copy.get(point_key)) == data:
             logger.debug("txt_data == data in partial_table_copy={}, will return True, True".format(partial_table_copy))
             return True, True
         new_table = copy.deepcopy(condition_copy)
@@ -219,17 +237,18 @@ class CGCLocalDb(LocalDb):
             logger.error("update within delete and insert, but delete fail, insert not do")
             logger.debug("condition_copy={}, partial_table_copy={}".format(condition_copy, partial_table_copy))
             return flag, msg
-        flag, msg = self.insert_txt(new_table, is_auto_limit=is_auto_limit)
+        flag, msg = self.insert_txt(new_table, is_auto_limit=is_auto_limit, point_key=point_key)
         if not flag:
             logger.error("DANGEROUS error! a non-atomized operation may happen")
             logger.error("update within delete and insert, but delete done, insert fail")
-            logger.debug("condition_copy={}, partial_table_copy={}, new_table={}".format(
-                condition_copy, partial_table_copy, new_table))
+            logger.debug("condition_copy={}, partial_table_copy={}, new_table={}, point_key={}".format(
+                condition_copy, partial_table_copy, new_table, point_key))
             return flag, msg
         return True, True
 
-    def update_txt_by_file_name(self, file_name, partial_table, is_auto_limit=True):
-        return self._update_txt({self.map_id: file_name}, partial_table, is_auto_limit=is_auto_limit)
+    def update_txt_by_file_name(self, file_name, partial_table, is_auto_limit=True, point_key="data"):
+        return self._update_txt({self.map_id: file_name}, partial_table,
+                                is_auto_limit=is_auto_limit, point_key=point_key)
 
     '''
     下面的函数都是存在于父类，但是以防误用，需要在子类中屏蔽掉的
