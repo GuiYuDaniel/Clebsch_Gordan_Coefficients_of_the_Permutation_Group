@@ -34,7 +34,7 @@ class DBProtector(object):
     """
 
     def __init__(self, relative_db_path: str, is_copy=False,
-                 tmp_extra_name: str=".protected", full_path_ahead: str=None):
+                 extension_name: str=".protected", full_path_ahead: str=None):
         if not isinstance(relative_db_path, str):
             err_msg = "relative_src={} must be str".format(relative_db_path)
             logger.error(err_msg)
@@ -56,35 +56,53 @@ class DBProtector(object):
             raise Exception(err_msg)
         self._is_copy = is_copy
 
-        if not isinstance(tmp_extra_name, str):
-            err_msg = "tmp_extra_name={} must be str".format(tmp_extra_name)
+        if not isinstance(extension_name, str) or not extension_name.startswith("."):
+            err_msg = "extension_name={} must be str and startswith '.'".format(extension_name)
             logger.error(err_msg)
             raise Exception(err_msg)
 
         self._full_src = os.path.join(self._full_path_ahead, self._relative_db_path)
-        self._full_dst = self._full_src + tmp_extra_name
-        self._check_init()
+        self._full_dst = self._full_src + extension_name
+
         # 添加一个状态位，标志是否已经对生产环境做了保护
         self._protected_status = False
+        self._db_exists = None
+
+        self._check_init()
 
     def _check_init(self):
         """
         检查目录安全
-        检查被保护的目录存在，临时存放目录不存在
+        检查被保护的目录是否存在
+        检查临时存放目录不存在
         """
         if singleton_config.top_path not in self._full_src or singleton_config.top_path == self._full_src:
             err_msg = "the db path={} must under top_path={}".format(self._full_src, singleton_config.top_path)
             logger.error(err_msg)
             raise Exception(err_msg)
-        if ".." in self._full_src or ".." in self._full_dst:
-            err_msg = "the db path={} and db.protected path={} must not have ..".format(self._full_src, self._full_dst)
-            logger.error(err_msg)
-            raise Exception(err_msg)
+        ban_str_list = ["..", "*"]  # 这些字符不可以出现在目录中
+        for ban_path in ban_str_list:
+            if ban_path in self._full_src or ban_path in self._full_dst:
+                err_msg = "the db path={} and db.protected path={} must not have {}".format(
+                    self._full_src, self._full_dst, ban_path)
+                logger.error(err_msg)
+                raise Exception(err_msg)
+        ban_path_head_list = ["logs", "memos", "src", "test"]  # 这些是程序体，不可以作为头
+        for ban_path in ban_path_head_list:
+            ban_full_head = os.path.join(singleton_config.top_path, ban_path)
+            if self._full_src.startswith(ban_full_head):
+                err_msg = "the db path={} should not startswith {}".format(self._full_src, ban_full_head)
+                logger.error(err_msg)
+                raise Exception(err_msg)
 
-        if not os.path.exists(self._full_src):
-            err_msg = "the real db path={} must be exists".format(self._full_src)
-            logger.error(err_msg)
-            raise Exception(err_msg)
+        # 现在生产目录存在/不存在都支持了
+        # 如果存在 转移走保护起来 结束后再转移回去
+        # 如果不存在 新建一个该目录 结束后删除
+        if os.path.exists(self._full_src):
+            self._db_exists = True
+        else:
+            self._db_exists = False
+
         if os.path.exists(self._full_dst):
             err_msg = "the protector db path={} must be not exists".format(self._full_dst)
             logger.error(err_msg)
@@ -96,18 +114,23 @@ class DBProtector(object):
             logger.error(err_msg)
             raise Exception(err_msg)
 
-        if self._is_copy:  # copy mode
-            # 1, copy db(src) to db.protected(dst), db become to the new test_db
-            os.system("cp -r {} {}".format(self._full_src, self._full_dst))
-            msg = "db={} has been protected to {} with copy mode".format(self._full_src, self._full_dst)
-            logger.info(msg)
-        else:  # mv mode
-            # 1, mv db(src) to db.protected(dst)
-            os.system("mv {} {}".format(self._full_src, self._full_dst))
-            # os.rename(self._full_src, self._full_dst)
-            # 2, makedir a new blank test_db(src)
+        if self._db_exists:
+            if self._is_copy:  # copy mode
+                # 1, copy db(src) to db.protected(dst), db become to the new test_db
+                os.system("cp -r {} {}".format(self._full_src, self._full_dst))
+                msg = "db={} has been protected to {} with copy mode".format(self._full_src, self._full_dst)
+                logger.info(msg)
+            else:  # mv mode
+                # 1, mv db(src) to db.protected(dst)
+                os.system("mv {} {}".format(self._full_src, self._full_dst))
+                # os.rename(self._full_src, self._full_dst)
+                # 2, makedir a new blank test_db(src)
+                os.makedirs(self._full_src)
+                msg = "db={} has been protected to {} with mv mode".format(self._full_src, self._full_dst)
+                logger.info(msg)
+        else:
             os.makedirs(self._full_src)
-            msg = "db={} has been protected to {} with mv mode".format(self._full_src, self._full_dst)
+            msg = "db={} is not exists, create it, and will delete in teardown for protecting".format(self._full_src)
             logger.info(msg)
 
         self._protected_status = True
@@ -119,12 +142,17 @@ class DBProtector(object):
             logger.error(err_msg)
             raise Exception(err_msg)
 
-        # 1, rm test_db(src)
-        os.removedirs(self._full_src)
-        # 2, mv db.protected(dst) to db(src)
-        os.system("mv {} {}".format(self._full_dst, self._full_src))
-        # os.rename(self._full_dst, self._full_src)
-        msg = "protector db={} has been mv back to {}".format(self._full_dst, self._full_src)
-        logger.info(msg)
+        if self._db_exists:
+            # 1, rm test_db(src)
+            os.system("rm -rf {}".format(self._full_src))
+            # 2, mv db.protected(dst) to db(src)
+            os.system("mv {} {}".format(self._full_dst, self._full_src))
+            # os.rename(self._full_dst, self._full_src)
+            msg = "protector db={} has been mv back to {}".format(self._full_dst, self._full_src)
+            logger.info(msg)
+        else:
+            os.system("rm -rf {}".format(self._full_src))
+            msg = "protector db={} has been delete".format(self._full_src)
+            logger.info(msg)
 
         self._protected_status = False

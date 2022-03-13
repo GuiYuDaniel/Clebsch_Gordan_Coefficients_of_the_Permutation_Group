@@ -53,6 +53,7 @@ class TestId(object):
         assert isinstance(my_id, str)
         assert len(my_id) == len(uu_id)
 
+
 class TestTime(object):
 
     def setup_class(self):

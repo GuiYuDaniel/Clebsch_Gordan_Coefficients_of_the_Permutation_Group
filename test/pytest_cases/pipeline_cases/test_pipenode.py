@@ -7,6 +7,7 @@
 import os
 import pytest
 import shutil
+from db.local_db_protector import DBProtector
 from db.typing import PipeNodeInfo
 from utils.log import get_logger
 from utils.io import Path
@@ -20,6 +21,9 @@ logger = get_logger(__name__)
 class TestPipeNode(object):
 
     def setup_class(self):
+        self.protector = DBProtector("results", extension_name=".test_ppn_protected")
+        self.protector.protector_setup()
+
         # 这段是为了准备新建ppn
         self.top_path = Path._get_full_path()
         self.fake_path = Path._get_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
@@ -52,17 +56,19 @@ class TestPipeNode(object):
         self.appeared_id_list = []
 
     def teardown_class(self):
-        # 删除粘贴过去的ppn pkl
-        all_file_name_list = os.listdir(self.pipenode_db_folder)
-        all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-        for test_file in all_test_ahead_list:
-            os.remove(os.path.join(self.pipenode_db_folder, test_file))
-        # 防止delete失败，尝试删除所有测试中产生的id
-        for appeared_id in self.appeared_id_list:
-            file_path = os.path.join(self.pipenode_db_folder, appeared_id + ".pkl")
-            if os.path.exists(file_path):
-                logger.warning("find ppn_id={} still exists, remove it".format(appeared_id))
-                os.remove(file_path)
+        # # 删除粘贴过去的ppn pkl
+        # all_file_name_list = os.listdir(self.pipenode_db_folder)
+        # all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+        # for test_file in all_test_ahead_list:
+        #     os.remove(os.path.join(self.pipenode_db_folder, test_file))
+        # # 防止delete失败，尝试删除所有测试中产生的id
+        # for appeared_id in self.appeared_id_list:
+        #     file_path = os.path.join(self.pipenode_db_folder, appeared_id + ".pkl")
+        #     if os.path.exists(file_path):
+        #         logger.warning("find ppn_id={} still exists, remove it".format(appeared_id))
+        #         os.remove(file_path)
+
+        self.protector.protector_teardown()
 
     def test_create_blank_and_load_ppn(self):
         self.appeared_id_list.append(self.pipenode_id)

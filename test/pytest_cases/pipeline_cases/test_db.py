@@ -7,11 +7,11 @@
 import copy
 import numpy as np
 import os
-import shutil
 import time
 import pytest
 import uuid
 from db.local_db import LocalDb
+from db.local_db_protector import DBProtector
 from db.typing import PipeTaskInfo, PipeNodeInfo, PipeLineInfo
 from utils.io import Path
 from utils.log import get_logger
@@ -51,10 +51,11 @@ class TestLocalDb(object):
     """
 
     def setup(self):
+        self.protector = DBProtector("results", extension_name=".test_db_protected")
+        self.protector.protector_setup()
+
         self.top_path = Path._get_full_path(relative_path="", base_path_type="top")  # 此处没使用config避免循环引用
         self.db_folder = os.path.join(self.top_path, "results", "tmp_info")
-        if os.path.exists(self.db_folder):
-            shutil.rmtree(self.db_folder)
         self.test_data = {
             "id": str(uuid.uuid4()),
 
@@ -93,8 +94,7 @@ class TestLocalDb(object):
         self.test_wrong_condition_1 = []
 
     def teardown(self):
-        if os.path.exists(self.db_folder):
-            shutil.rmtree(self.db_folder)
+        self.protector.protector_teardown()
 
     def test_001_db_folder_init(self):  # 001使得执行顺序靠前
         assert not os.path.exists(self.db_folder)
@@ -402,6 +402,9 @@ class TestTyping(object):
     """
 
     def setup_class(self):
+        self.protector = DBProtector("results", extension_name=".test_db_protected")
+        self.protector.protector_setup()
+
         self.fake_path = Path._get_full_path(relative_path="", base_path_type="top")  # 此处没使用config避免循环引用
         self.db_folder = os.path.join(self.fake_path, "results", "{}")
         self.db_folder_list = [self.db_folder.format(i) for i in ["pipeline_info", "pipenode_info", "pipetask_info"]]
@@ -457,12 +460,14 @@ class TestTyping(object):
         self.test_ppn_update_data = {"inputs": ["1"]}
 
     def teardown_class(self):
-        for db_folder in self.db_folder_list:
-            if os.path.exists(db_folder):
-                all_file_name_list = os.listdir(db_folder)
-                all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-                for test_file in all_test_ahead_list:
-                    os.remove(os.path.join(db_folder, test_file))
+        # for db_folder in self.db_folder_list:
+        #     if os.path.exists(db_folder):
+        #         all_file_name_list = os.listdir(db_folder)
+        #         all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+        #         for test_file in all_test_ahead_list:
+        #             os.remove(os.path.join(db_folder, test_file))
+
+        self.protector.protector_teardown()
 
     def test_pipetaskinfo(self):
         db_info = PipeTaskInfo()

@@ -14,6 +14,7 @@ import shutil
 import time
 from conf.cgc_config import top_path, cgc_rst_folder
 from core.cgc_utils.cgc_local_db import CGCLocalDb
+from db.local_db_protector import DBProtector
 from utils.log import get_logger
 from utils.utils import asctime_2_time
 
@@ -39,6 +40,9 @@ class TestCGCLocalDb(object):
     """
     test class CGCLocalDb functions
     """
+    def setup_class(self):
+        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector.protector_setup()
 
     def setup(self):
         self.db_static_folder = os.path.join(top_path, cgc_rst_folder, "tmp_info")
@@ -68,6 +72,9 @@ class TestCGCLocalDb(object):
     def teardown(self):
         if os.path.exists(self.db_static_folder):
             shutil.rmtree(self.db_static_folder)
+
+    def teardown_class(self):
+        self.protector.protector_teardown()
 
     def test_001_init_cgc_static_db_folder(self):  # 001使得执行顺序靠前
         assert not os.path.exists(self.db_static_folder)

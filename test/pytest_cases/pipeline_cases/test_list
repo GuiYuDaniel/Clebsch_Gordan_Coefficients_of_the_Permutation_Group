@@ -1,4 +1,5 @@
 # cat test_list|grep -v #|grep test|pytest -ra --durations=0 -vv
+test_001_local_db_protector.py
 # test_config.py
 test_db.py
 test_io.py
