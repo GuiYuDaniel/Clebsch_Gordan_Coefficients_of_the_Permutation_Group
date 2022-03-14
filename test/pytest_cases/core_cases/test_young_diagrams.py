@@ -6,10 +6,14 @@ core/young_diagrams.py
 """
 
 
+import os
 import pytest
 import time
-from conf.cgc_config import default_s_n
-from core.young_diagrams import calc_single_young_diagrams
+from conf.cgc_config import default_s_n, cgc_rst_folder
+from core.cgc_utils.cgc_local_db import get_young_diagrams_file_name, get_young_diagrams_finish_s_n_name
+from core.young_diagrams import calc_single_young_diagrams, calc_young_diagrams
+from core.young_diagrams import load_young_diagrams, get_young_diagrams_finish_s_n
+from db.local_db_protector import DBProtector
 from utils.log import get_logger
 
 
@@ -19,6 +23,9 @@ logger = get_logger(__name__)
 class TestYoungDiagrams(object):
 
     def setup_class(self):
+        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_young_diagrams_protected")
+        self.protector.protector_setup()
+
         self.young_diagrams_s_1 = [[1]]
         self.young_diagrams_s_2 = [[2], [1, 1]]
         self.young_diagrams_s_3 = [[3], [2, 1], [1, 1, 1]]
@@ -36,11 +43,68 @@ class TestYoungDiagrams(object):
                                    [2, 2, 2, 1], [2, 2, 1, 1, 1], [2, 1, 1, 1, 1, 1],
                                    [1, 1, 1, 1, 1, 1, 1]]
         self.default_s_n = default_s_n
+        _, self.s_1_file_name = get_young_diagrams_file_name(1)
+        _, self.s_1_full_file_name = get_young_diagrams_file_name(1, is_full_path=True)
+        _, self.s_n_finish_file_name = get_young_diagrams_finish_s_n_name()
+        _, self.s_n_finish_full_file_name = get_young_diagrams_finish_s_n_name(is_full_path=True)
+
+        _, self.s_4_full_file_name = get_young_diagrams_file_name(4, is_full_path=True)
 
     def teardown_class(self):
-        pass
+        self.protector.protector_teardown()
 
-    def test_calc_single_young_diagrams_sample(self):
+    # start with 0xx tests need test by order
+
+    def test_001_calc_young_diagrams_s_n_1(self):  # calc and save, return True, None
+        """for s_n=1, there is no finish db"""
+        # check other functions with no db
+        for ex in [".pkl", ".txt"]:
+            assert not os.path.exists(self.s_1_full_file_name + ex)
+            assert not os.path.exists(self.s_n_finish_full_file_name + ex)
+        flag, young_diagrams = load_young_diagrams(1, is_return_false_if_not_s_n=True)
+        assert flag
+        assert young_diagrams is False
+        flag, young_diagrams = load_young_diagrams(1, is_return_false_if_not_s_n=False)
+        assert not flag
+        assert isinstance(young_diagrams, str)
+        flag, finish_s_n = get_young_diagrams_finish_s_n()
+        assert flag
+        assert finish_s_n == 0
+
+        # check calc_young_diagrams_s_n_1
+        flag, msg = calc_young_diagrams(1)
+        assert flag
+        assert msg is None
+
+        for ex in [".pkl", ".txt"]:
+            assert os.path.exists(self.s_1_full_file_name + ex)
+            assert os.path.exists(self.s_n_finish_full_file_name + ex)
+        flag, young_diagrams = load_young_diagrams(1, is_return_false_if_not_s_n=True)
+        assert flag
+        assert young_diagrams == self.young_diagrams_s_1
+        flag, finish_s_n = get_young_diagrams_finish_s_n()
+        assert flag
+        assert finish_s_n == 1
+
+    def test_002_calc_young_diagrams_s_n_2_to_4(self):
+        # check calc_young_diagrams_s_n 2 to 4
+        flag, msg = calc_young_diagrams(4)
+        assert flag
+        assert msg is None
+
+        for ex in [".pkl", ".txt"]:
+            assert os.path.exists(self.s_4_full_file_name + ex)
+            assert os.path.exists(self.s_n_finish_full_file_name + ex)
+        for i in [1, 2, 3, 4]:
+            flag, young_diagrams = load_young_diagrams(i, is_return_false_if_not_s_n=True)
+            assert flag
+            assert young_diagrams == eval("self.young_diagrams_s_{}".format(i))
+        flag, finish_s_n = get_young_diagrams_finish_s_n()
+        assert flag
+        assert finish_s_n == 4
+
+    def test_003_calc_single_young_diagrams(self):
+        """1 to 4 is finish, 5 to 7 is needing calc"""
         head_s_n = 1
         tail_s_n = 7
         head_time = time.time()
@@ -59,6 +123,3 @@ class TestYoungDiagrams(object):
         assert flag
         assert young_diagrams is False
 
-    @pytest.mark.skip("pass")
-    def test_calc_single_young_diagrams_recursion(self):
-        pass

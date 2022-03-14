@@ -40,7 +40,6 @@ class TestDBProtectorInFunc(object):
     def teardown(self):
         # delete test db
         shutil.rmtree(self.tmp_1_path)
-        pass
 
     def test_protector_mv(self):
         protector = DBProtector("tmp_1")
@@ -148,6 +147,12 @@ class TestDBProtectorInClassMV(object):
         os.makedirs(self.test_file_path)
         assert os.path.exists(self.test_file_path)  # 保护期间写入一个文件
 
+    # def test_raise(self):
+    #     self.test_file_path = os.path.join(self.tmp_1_path, "test_folder")
+    #     os.makedirs(self.test_file_path)
+    #     assert os.path.exists(self.test_file_path)  # 保护期间写入一个文件
+    #     raise Exception("Raise id support here!")
+
 
 class TestDBProtectorInClassCP(object):
 
@@ -211,6 +216,17 @@ class TestDBProtectorInClassCP(object):
         os.makedirs(self.test_file_path)
         assert os.path.exists(self.test_file_path)  # 保护期间写入一个文件
 
+    # def test_makedir_wrong(self):
+    #     self.test_file_path = os.path.join(self.tmp_1_path, "test_folder")
+    #     os.makedirs(self.test_file_path)
+    #     assert os.path.exists(self.test_file_path)  # 保护期间写入一个文件
+
+    # def test_raise(self):
+    #     self.test_file_path = os.path.join(self.tmp_2_path, "test_folder")
+    #     os.makedirs(self.test_file_path)
+    #     assert os.path.exists(self.test_file_path)  # 保护期间写入一个文件
+    #     raise Exception("Raise id support here!")
+
 
 class TestDBProtectorInClassMVWithNoDB(object):
 
@@ -263,3 +279,12 @@ class TestDBProtectorInClassMVWithNoDB(object):
         self.test_file_path_2 = os.path.join(self.tmp_2_path, "test_folder")
         os.makedirs(self.test_file_path_2)
         assert os.path.exists(self.test_file_path_2)  # 保护期间写入一个文件
+
+    # def test_raise(self):
+    #     self.test_file_path_1 = os.path.join(self.tmp_1_path, "test_folder")
+    #     os.makedirs(self.test_file_path_1)
+    #     assert os.path.exists(self.test_file_path_1)  # 写在外部的
+    #     self.test_file_path_2 = os.path.join(self.tmp_2_path, "test_folder")
+    #     os.makedirs(self.test_file_path_2)
+    #     assert os.path.exists(self.test_file_path_2)  # 保护期间写入一个文件
+    #     raise Exception("Raise id support here!")

@@ -37,6 +37,7 @@ class YoungDiagramInfo(CGCLocalDb):
     杨图的落盘格式为：
     <top_path>/cgc_results/young_diagrams_info/Sn.pkl ->
     {
+    "file_name": "Sn",
     "data": [[gamma_i], ...]
     "flags": {"speed_time": speed_time}
     }
@@ -53,15 +54,19 @@ class YoungDiagramInfo(CGCLocalDb):
 
     另存：
     <top_path>/cgc_results/young_diagrams_info/Finish_Sn.pkl ->
-    {"data": [], "flags": {"finish_s_n": s_n}}
+    {
+    "file_name": "Finish_Sn",
+    "data": [],
+    "flags": {"finish_s_n": s_n}
+    }
 
     其中，
     Finish_Sn是固定名称，所有计算结果里都有
     s_n表示当前计算完成的最大阶数，是int型
     """
 
-    def __init__(self, s_n=0):
-        super(CGCLocalDb, self).__init__()
+    def __init__(self, s_n):
+        super(YoungDiagramInfo, self).__init__()
         self.table_type = "young_diagrams_info"
         self.map_id = "file_name"
         self.design_table_type.update({

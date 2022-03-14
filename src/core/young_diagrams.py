@@ -4,6 +4,7 @@ this code for creating Young Diagrams by Sn
 """
 
 
+import time
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo
 from core.cgc_utils.cgc_local_db import get_young_diagrams_file_name, get_young_diagrams_finish_s_n_name
 from conf.cgc_config import default_s_n
@@ -15,7 +16,7 @@ logger = get_logger(__name__)
 
 def calc_young_diagrams(s_n=default_s_n):
     """
-    提供给workflow的函数，负责计算和存储
+    提供给workflow的函数，负责调用计算和存储实体
     返回格式：
     flag, msg
     1，合法：True, None
@@ -26,7 +27,9 @@ def calc_young_diagrams(s_n=default_s_n):
         logger.error(err_msg)
         return False, err_msg
 
-    # 先查询数据库中完成到S几：如果s_n超过它，给出循环头；如果s_n被计算过了，则给出完成标记（注意不是返回结果）
+    logger.info("#### calc_young_diagrams get input s_n={}".format(s_n))
+
+    # 先查询数据库中完成到S几：如果输入s_n未计算，直接从循环中cut掉算好的部分；如果s_n被计算过了，则给出完成标记（注意不是返回结果）
     flag, finish_s_n = get_young_diagrams_finish_s_n()
     if not flag:
         err_msg = "get young_diagrams finish s_n meet error with msg={}".format(finish_s_n)
@@ -38,12 +41,14 @@ def calc_young_diagrams(s_n=default_s_n):
         logger.info(msg)
         return True, None
     else:
-        msg = "finish_s_n={}, will calc s_n from={} to {}".format(finish_s_n, finish_s_n + 1, s_n)
+        msg = "finish_s_n={}, will calc s_n from {} to {}".format(finish_s_n, finish_s_n + 1, s_n)
         logger.info(msg)
 
     # 按照从小到大的顺序，逐个计算s_i的杨图并储存
     for s_i in range(finish_s_n + 1, s_n + 1):  # 循环体为[finish_s_n+1, finish_s_n+2, ..., s_n]
+        start_time = time.time()
         flag, s_i_young_diagrams = calc_single_young_diagrams(s_i)  # 因为逐次向上计算，所以recursion_deep可以限制为1
+        speed_time = time.time() - start_time
         if not flag:
             err_msg = "calc s_i_young_diagrams meet error with s_i={}, msg={}".format(s_i, s_i_young_diagrams)
             logger.error(err_msg)
@@ -53,12 +58,22 @@ def calc_young_diagrams(s_n=default_s_n):
             logger.error(err_msg)
             return False, err_msg
         # 既然没问题了，那就存（别忘了也要更新Finish_Sn）
+        flag, msg = save_young_diagrams(s_i, s_i_young_diagrams, speed_time)
+        if not flag:
+            err_msg = "save s_i_young_diagrams meet error with s_i={}, msg={}".format(s_i, s_i_young_diagrams)
+            logger.error(err_msg)
+            return False, err_msg
+        flag, msg = save_young_diagrams_finish_s_n(s_i, is_check_add_one=True)
+        if not flag:
+            err_msg = "save save_young_diagrams_finish_s_n meet error with s_i={}, msg={}".format(s_i, msg)
+            logger.error(err_msg)
+            return False, err_msg
 
-    # 返回消息
-    pass
+    logger.info("#### calc_young_diagrams s_n from {} to {} done".format(finish_s_n + 1, s_n))
+    return True, None
 
 
-def save_young_diagrams(s_n: int, young_diagrams: list, speed_time=None):
+def save_young_diagrams(s_n: int, young_diagrams: list, speed_time: float):
     """
     杨图的落盘格式为：
     <top_path>/cgc_results/young_diagrams_info/Sn.pkl ->
@@ -76,10 +91,59 @@ def save_young_diagrams(s_n: int, young_diagrams: list, speed_time=None):
     S3.pkl: [[3], [2, 1], [1, 1, 1]]
     S4.pkl: [[4], [3, 1], [2, 2], [2, 1, 1], [1, 1, 1, 1]]
     """
-    pass
+    db_info = YoungDiagramInfo(s_n)
+    _, file_name = get_young_diagrams_file_name(s_n)
+    table = {"file_name": file_name,
+             "data": young_diagrams,
+             "flags": {"speed_time": speed_time}}
+    flag, msg = db_info.insert(table)
+    if not flag:
+        return flag, msg
+    flag, msg = db_info.insert_txt(table)
+    if not flag:
+        return flag, msg
+
+    return True, None
 
 
-def save_young_diagrams_finish_s_n(s_n: int):
+def save_young_diagrams_finish_s_n(s_n: int, is_check_add_one=False):
+    if not isinstance(s_n, int) or s_n <= 0:
+        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+        logger.error(err_msg)
+        return False, err_msg
+
+    flag, finish_s_n_before = get_young_diagrams_finish_s_n()
+    if not flag:
+        return flag, finish_s_n_before
+
+    if is_check_add_one:
+        if s_n - finish_s_n_before != 1:
+            err_msg = "is_check_add_one=True require s_n={} - finish_s_n_before={} == 1".format(s_n, finish_s_n_before)
+            logger.error(err_msg)
+            return False, err_msg
+
+    db_info = YoungDiagramInfo(0)
+    _, file_name = get_young_diagrams_finish_s_n_name()
+    table = {"file_name": file_name,
+             "data": [],
+             "flags": {"finish_s_n": s_n}}
+    if finish_s_n_before == 0:
+        flag, msg = db_info.insert(table)
+        if not flag:
+            return flag, msg
+        flag, msg = db_info.insert_txt(table, point_key="flags")
+        if not flag:
+            return flag, msg
+    else:
+        _, finish_file_name = get_young_diagrams_finish_s_n_name()
+        flag, msg = db_info.update_by_file_name(finish_file_name, partial_table=table)
+        if not flag:
+            return flag, msg
+        flag, msg = db_info.update_txt_by_file_name(finish_file_name, partial_table=table, point_key="flags")
+        if not flag:
+            return flag, msg
+
+    return True, None
 
 
 def calc_single_young_diagrams(s_n: int, recursion_deep: int=1):
@@ -160,14 +224,6 @@ def calc_single_young_diagrams(s_n: int, recursion_deep: int=1):
         try:  # 由于不能保证取得的子杨图肯定是二维列表，所以使用try
             cut_sub_young_diagrams = [i for i in sub_young_diagrams if i[0] <= first_num]
             young_diagrams_batch = [[first_num] + i for i in cut_sub_young_diagrams]
-            # TODO log写在调用函数的地方吧，不然因为递归，会写很多
-            # logger.debug("calc young_diagrams_batch with \n"
-            #              "s_n={}, first_num={}, remain_num={}, \n"
-            #              "so, sub_young_diagrams={}, cut_sub_young_diagrams={}, \n "
-            #              "young_diagrams_batch={}, will be add to young_diagrams={}".format(
-            #     s_n, first_num, remain_num,
-            #     sub_young_diagrams, cut_sub_young_diagrams,
-            #     young_diagrams_batch, young_diagrams))
         except Exception as e:
             err_msg = "cut sub_young_diagrams meet error, " \
                       "with sub_young_diagrams={}, first_num={}".format(sub_young_diagrams, first_num)
@@ -185,8 +241,8 @@ def get_young_diagrams_finish_s_n():
     flag表示是否有报错，
     finish_s_n表示当前计算完成的Sn，如果没有，则finish_s_n=0
     """
-    finish_file_name = get_young_diagrams_finish_s_n_name()
-    flag, data = YoungDiagramInfo().query_by_file_name(finish_file_name)
+    _, finish_file_name = get_young_diagrams_finish_s_n_name()
+    flag, data = YoungDiagramInfo(0).query_by_file_name(finish_file_name)
     if not flag:
         err_msg = "get young_diagrams finish_s_n meet error with finish_file_name={}".format(finish_file_name)
         logger.error(err_msg)
@@ -228,7 +284,6 @@ def load_young_diagrams(s_n: int, is_return_false_if_not_s_n=True):
         young_diagrams = data.get("data")
         if young_diagrams:
             # 只检查有没有 不对内容做检查了
-            # TODO 谁用谁检查，目前就calc_single_young_diagrams用了，它也检查了
             return True, young_diagrams  # bingo！
 
         else:

@@ -117,8 +117,9 @@ class CGCLocalDb(LocalDb):
             return flag, file_path_without_type  # 此时的file_path_without_type是err_msg
         file_path_txt = file_path_without_type + ".txt"  # query目前操作pkl
         if not os.path.exists(file_path_txt):
-            err_msg = "file_path_txt={} not existed, will not load, pls check".format(file_path_txt)
-            logger.debug(err_msg)  # query不需要给warning，delete和update可以
+            # debug太多了 先注释掉
+            # err_msg = "file_path_txt={} not existed, will not load, pls check".format(file_path_txt)
+            # logger.debug(err_msg)  # query不需要给warning，delete和update可以
             return True, False
         flag, data = Load.load_txt(file_path_txt)
         return flag, data
@@ -255,21 +256,21 @@ class CGCLocalDb(LocalDb):
     TODO 以后如果发现更标准的屏蔽方法，替换掉它们
     '''
 
-    def delete_by_id(self, table_id):
+    def delete_by_id(self):
         # 相当于删去父类中的这个函数
         err_msg = "function={} cannot be used in class=CGCLocalDb and children class={}".format(
             sys._getframe().f_code.co_name, self.__class__.__name__)
         logger.error(err_msg)
         raise err_msg
 
-    def query_by_id(self, table_id):
+    def query_by_id(self):
         # 相当于删去父类中的这个函数
         err_msg = "function={} cannot be used in class=CGCLocalDb and children class={}".format(
             sys._getframe().f_code.co_name, self.__class__.__name__)
         logger.error(err_msg)
         raise err_msg
 
-    def update_by_id(self, table_id, partial_table):
+    def update_by_id(self):
         # 相当于删去父类中的这个函数
         err_msg = "function={} cannot be used in class=CGCLocalDb and children class={}".format(
             sys._getframe().f_code.co_name, self.__class__.__name__)
