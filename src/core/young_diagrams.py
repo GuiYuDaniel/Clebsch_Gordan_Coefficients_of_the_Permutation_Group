@@ -1,7 +1,25 @@
 # -*- coding: utf-8 -*-
 """
 this code for creating Young Diagrams by Sn
+计算Sn的杨图（配分）
 """
+
+# \subsection{配分}
+# 正整数n的配分是指n的这样一种分拆：
+#
+# \begin{equation}
+# n = \nu_1 + \nu_2 +...+\nu_n, ~~~~  \nu_1\ge \nu_2 \ge ...\ge \nu_n \ge 0
+# \end{equation}
+#
+# 其中$\nu_i$都是正整数。我们用$[\nu] = [\nu_1\nu_2...\nu_n]$标志n的一个配分，以后略去为0的那些$\nu_i$。
+# 于是n=3的配分有以下几种：$[3],[21],[111]$或者写成$[3],[21].[1^3]$。
+# 传统置换群理论证明了n的每一个配分标志了一个不可约表示，n的配分数也就是$S_n$群的不等价不可约表示数。
+
+
+# \subsection{杨图}
+#
+# 配分也可以用杨图来表示，对应配分$[\nu]$的图是n个方格的这样一个图案：
+# 第一行有$\nu_1$个相连的方格，第二行有$\nu_2$个相连的方格，...，前一行的方格数总是大等于后一行的方格数，合起来是n个方格。
 
 
 import time
@@ -14,12 +32,12 @@ from utils.log import get_logger
 logger = get_logger(__name__)
 
 
-def calc_young_diagrams(s_n=default_s_n):
+def create_young_diagrams(s_n=default_s_n):
     """
-    提供给workflow的函数，负责调用计算和存储实体
+    提供给workflow的函数，负责调用计算和存储杨图实体
     返回格式：
     flag, msg
-    1，合法：True, None
+    1，合法：True, s_n
     2，非法：False, msg
     """
     if not isinstance(s_n, int) or s_n <= 0:
@@ -27,7 +45,7 @@ def calc_young_diagrams(s_n=default_s_n):
         logger.error(err_msg)
         return False, err_msg
 
-    logger.info("#### calc_young_diagrams get input s_n={}".format(s_n))
+    logger.info("#### create_young_diagrams get input s_n={}".format(s_n))
 
     # 先查询数据库中完成到S几：如果输入s_n未计算，直接从循环中cut掉算好的部分；如果s_n被计算过了，则给出完成标记（注意不是返回结果）
     flag, finish_s_n = get_young_diagrams_finish_s_n()
@@ -39,7 +57,7 @@ def calc_young_diagrams(s_n=default_s_n):
         # 说明以前算过了
         msg = "s_n={} young_diagrams had been calculated, return True, None".format(s_n)
         logger.info(msg)
-        return True, None
+        return True, s_n
     else:
         msg = "finish_s_n={}, will calc s_n from {} to {}".format(finish_s_n, finish_s_n + 1, s_n)
         logger.info(msg)
@@ -69,8 +87,8 @@ def calc_young_diagrams(s_n=default_s_n):
             logger.error(err_msg)
             return False, err_msg
 
-    logger.info("#### calc_young_diagrams s_n from {} to {} done".format(finish_s_n + 1, s_n))
-    return True, None
+    logger.info("#### create_young_diagrams s_n from {} to {} done".format(finish_s_n + 1, s_n))
+    return True, s_n
 
 
 def save_young_diagrams(s_n: int, young_diagrams: list, speed_time: float):
@@ -186,7 +204,7 @@ def calc_single_young_diagrams(s_n: int, recursion_deep: int=1):
         pass
     else:
         # 落在recursion_deep范围外，礼貌推出
-        logger.debug("s_n={}, finish_s_n={}, deep need {} out of recursion_deep={}, will return True, False".format(
+        logger.info("s_n={}, finish_s_n={}, deep need {} out of recursion_deep={}, will return True, False".format(
             s_n, finish_s_n, s_n - finish_s_n, recursion_deep))
         return True, False
 

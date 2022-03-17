@@ -11,7 +11,7 @@ import pytest
 import time
 from conf.cgc_config import default_s_n, cgc_rst_folder
 from core.cgc_utils.cgc_local_db import get_young_diagrams_file_name, get_young_diagrams_finish_s_n_name
-from core.young_diagrams import calc_single_young_diagrams, calc_young_diagrams
+from core.young_diagrams import calc_single_young_diagrams, create_young_diagrams
 from core.young_diagrams import load_young_diagrams, get_young_diagrams_finish_s_n
 from db.local_db_protector import DBProtector
 from utils.log import get_logger
@@ -55,7 +55,7 @@ class TestYoungDiagrams(object):
 
     # start with 0xx tests need test by order
 
-    def test_001_calc_young_diagrams_s_n_1(self):  # calc and save, return True, None
+    def test_001_create_young_diagrams_s_n_1(self):  # calc and save, return True, None
         """for s_n=1, there is no finish db"""
         # check other functions with no db
         for ex in [".pkl", ".txt"]:
@@ -71,10 +71,10 @@ class TestYoungDiagrams(object):
         assert flag
         assert finish_s_n == 0
 
-        # check calc_young_diagrams_s_n_1
-        flag, msg = calc_young_diagrams(1)
+        # check create_young_diagrams_s_n_1
+        flag, msg = create_young_diagrams(1)
         assert flag
-        assert msg is None
+        assert msg == 1
 
         for ex in [".pkl", ".txt"]:
             assert os.path.exists(self.s_1_full_file_name + ex)
@@ -86,11 +86,11 @@ class TestYoungDiagrams(object):
         assert flag
         assert finish_s_n == 1
 
-    def test_002_calc_young_diagrams_s_n_2_to_4(self):
-        # check calc_young_diagrams_s_n 2 to 4
-        flag, msg = calc_young_diagrams(4)
+    def test_002_create_young_diagrams_s_n_2_to_4(self):
+        # check create_young_diagrams_s_n 2 to 4
+        flag, msg = create_young_diagrams(4)
         assert flag
-        assert msg is None
+        assert msg == 4
 
         for ex in [".pkl", ".txt"]:
             assert os.path.exists(self.s_4_full_file_name + ex)
