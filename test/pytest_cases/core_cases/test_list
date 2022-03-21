@@ -1,3 +1,5 @@
 # cat test_list|grep -v #|grep test|pytest -ra --durations=0 -vv
+# tests by workflow order
 test_cgc_db.py
 test_young_diagrams.py
+test_branching_laws.py

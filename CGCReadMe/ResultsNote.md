@@ -55,12 +55,12 @@
         同目录下：C:\CG\BranchLaw\Sn\BeforeS\[ri].txt                                   #存放S4群[2,2]构型的分支律的对应于k的之前的构型
         同目录下：C:\CG\BranchLaw\Sn\BeforeS\[ri].pkl
 
-    分支律存放于：<CG>/branching_law_info/Sn/[ν_i].pkl     #如<CG>/branching_law_info/S4/[2,2].pkl  #存放S4群[2,2]构型的分支律
-        数据结构：{"data": {"BL_num": k,              #1(int)                     #存放S4群[2,2]构型的分支律的分支数
-                          "rows": rows,             #[1](list(int))             #存放S4群[2,2]构型的分支律的对应于k的py横坐标
-                          "cols": cols,             #[1](list(int))             #存放S4群[2,2]构型的分支律的对应于k的py纵坐标
-                          "before_YD": [ν’]}}       #[[2, 1]](list(list(int)))  #存放S4群[2,2]构型的分支律的对应于k的之前的构型
-        txt展示：{"BL_num": k, "x": py_x, "y": py_y, "before_YD": [ν’]}
+    分支律存放于：<CG>/branching_laws_info/Sn/[ν_i].pkl   #如<CG>/branching_laws_info/S4/[2,2].pkl  #存放S4群[2,2]构型的分支律
+        数据结构：{"data": {"BL_num": bl_num,         #1(int)                     #S4群[2,2]构型分支律的分支数
+                          "rows": rows,             #[1](list(int))             #S4群[2,2]构型分支律去掉格子的py行号列表
+                          "cols": cols,             #[1](list(int))             #S4群[2,2]构型分支律去掉格子的py列号列表
+                          "before_YD": [ν’]}}       #[[2, 1]](list(list(int)))  #S4群[2,2]构型分支律前置杨盘列表
+        txt展示：{"BL_num": bl_num, "rows": rows, "cols": cols, "before_YD": [ν’]}
 
     杨图存放于：<CG>/young_diagrams_info/S{n}.pkl          #如<CG>/young_diagrams_info/S4.pkl           #存放S4群的所有构型
         数据结构：{"data": [ν]}                               #[[4], [3, 1], [2, 2], [2, 1, 1], [1, 1, 1, 1]]

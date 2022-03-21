@@ -6,6 +6,7 @@ core/branching_laws.py
 """
 
 
+import copy
 import os
 import pytest
 import time
@@ -51,23 +52,29 @@ class TestBranchingLaws(object):
         # regular
         for i in [1, 2, 3]:
             yd = eval("self.yd_{}".format(i))
+            yd_copy = copy.deepcopy(yd)
             bl = eval("self.bl_{}".format(i))
             flag, data = calc_single_branching_law(yd)
             assert flag
             assert data == bl
+            assert yd == yd_copy  # 保证入参不变
 
         # not regular
         for i in [1, 2]:
             yd = eval("self.yd_n{}".format(i))
+            yd_copy = copy.deepcopy(yd)
             bl = eval("self.bl_n{}".format(i))
             flag, data = calc_single_branching_law(yd)
             assert flag
             assert data == bl
+            assert yd == yd_copy  # 保证入参不变
 
         # must error
         for i in range(1, 8):
             yd = eval("self.yd_e{}".format(i))
+            yd_copy = copy.deepcopy(yd)
             flag, data = calc_single_branching_law(yd)
             logger.info("Error is supposed here!")
             assert not flag
             assert isinstance(data, str)
+            assert yd == yd_copy  # 保证入参不变

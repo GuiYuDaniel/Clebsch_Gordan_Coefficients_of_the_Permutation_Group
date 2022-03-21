@@ -20,42 +20,6 @@ from utils.log import get_logger
 logger = get_logger(__name__)
 
 
-global_finish_sn_name = "Finish_Sn"
-
-
-def get_young_diagrams_file_name(s_n: int, is_full_path=False):
-    """
-    Sn or <top_path>/cgc_results/young_diagrams_info/Sn
-    p.s. S7 or <top_path>/cgc_results/young_diagrams_info/S7
-    """
-    from conf.cgc_config import young_diagrams_file_name_format
-    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
-        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
-            s_n, type(s_n), is_full_path, type(is_full_path))
-        logger.error(err_msg)
-        return False, err_msg
-
-    file_name = young_diagrams_file_name_format.format(str(s_n))
-    if not is_full_path:
-        return True, file_name
-    else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "young_diagrams_info", file_name)
-        return True, full_path
-
-
-def get_young_diagrams_finish_s_n_name(is_full_path=False):
-    if not isinstance(is_full_path, bool):
-        err_msg = "is_full_path={} with type={} must be bool".format(is_full_path, type(is_full_path))
-        logger.error(err_msg)
-        return False, err_msg
-
-    if not is_full_path:
-        return True, global_finish_sn_name
-    else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "young_diagrams_info", global_finish_sn_name)
-        return True, full_path
-
-
 class CGCLocalDb(LocalDb):
     """
     这是一个为了CGC特化的父类
@@ -276,3 +240,76 @@ class CGCLocalDb(LocalDb):
             sys._getframe().f_code.co_name, self.__class__.__name__)
         logger.error(err_msg)
         raise err_msg
+
+
+global_finish_sn_name = "Finish_Sn"
+
+
+def get_young_diagrams_file_name(s_n: int, is_full_path=False):
+    """
+    Sn or <top_path>/cgc_results/young_diagrams_info/Sn
+    p.s. S7 or <top_path>/cgc_results/young_diagrams_info/S7
+    """
+    from conf.cgc_config import young_diagrams_file_name_format
+    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
+        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
+            s_n, type(s_n), is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+
+    file_name = young_diagrams_file_name_format.format(str(s_n))
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "young_diagrams_info", file_name)
+        return True, full_path
+
+
+def get_young_diagrams_finish_s_n_name(is_full_path=False):
+    if not isinstance(is_full_path, bool):
+        err_msg = "is_full_path={} with type={} must be bool".format(is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+
+    if not is_full_path:
+        return True, global_finish_sn_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "young_diagrams_info", global_finish_sn_name)
+        return True, full_path
+
+
+def get_branching_laws_file_name(s_n: int, yd: list, is_full_path=False):
+    """
+    Sn/[ν_i] or <top_path>/cgc_results/branching_laws_info/Sn/[ν_i]
+    p.s. S3/[2, 1] or <top_path>/cgc_results/branching_laws_info/S3/[2, 1]
+    """
+    from conf.cgc_config import branching_laws_file_name_format
+    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
+        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
+            s_n, type(s_n), is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(yd, list):
+        err_msg = "yd={} with type={} must be list".format(yd, type(yd))
+        logger.error(err_msg)
+        return False, err_msg
+
+    file_name = branching_laws_file_name_format.format(s_n, yd)
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "branching_laws_info", file_name)
+        return True, full_path
+
+
+def get_branching_laws_finish_s_n_name(is_full_path=False):
+    if not isinstance(is_full_path, bool):
+        err_msg = "is_full_path={} with type={} must be bool".format(is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+
+    if not is_full_path:
+        return True, global_finish_sn_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "branching_laws_info", global_finish_sn_name)
+        return True, full_path

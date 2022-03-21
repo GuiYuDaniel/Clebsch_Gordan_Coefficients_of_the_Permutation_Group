@@ -10,6 +10,7 @@ import os
 import pytest
 import time
 from conf.cgc_config import default_s_n, cgc_rst_folder
+from core.cgc_utils.cgc_db_typing import YoungDiagramInfo
 from core.cgc_utils.cgc_local_db import get_young_diagrams_file_name, get_young_diagrams_finish_s_n_name
 from core.young_diagrams import calc_single_young_diagrams, create_young_diagrams
 from core.young_diagrams import load_young_diagrams, get_young_diagrams_finish_s_n
@@ -85,6 +86,13 @@ class TestYoungDiagrams(object):
         flag, finish_s_n = get_young_diagrams_finish_s_n()
         assert flag
         assert finish_s_n == 1
+        _, finish_file_name = get_young_diagrams_finish_s_n_name()
+        flag, data = YoungDiagramInfo(0).query_by_file_name(finish_file_name)
+        assert flag
+        assert data.get("data") == []
+        assert isinstance(data.get("flags"), dict)
+        assert isinstance(data.get("flags").get("history_times"), dict)
+        assert isinstance(data.get("flags").get("history_times").get("S1"), float)
 
     def test_002_create_young_diagrams_s_n_2_to_4(self):
         # check create_young_diagrams_s_n 2 to 4
@@ -102,6 +110,16 @@ class TestYoungDiagrams(object):
         flag, finish_s_n = get_young_diagrams_finish_s_n()
         assert flag
         assert finish_s_n == 4
+        _, finish_file_name = get_young_diagrams_finish_s_n_name()
+        flag, data = YoungDiagramInfo(0).query_by_file_name(finish_file_name)
+        assert flag
+        assert data.get("data") == []
+        assert isinstance(data.get("flags"), dict)
+        assert isinstance(data.get("flags").get("history_times"), dict)
+        for i in [1, 2, 3, 4]:
+            assert isinstance(data.get("flags").get("history_times").get("S{}".format(i)), float)
+        for i in [5, 6, 7]:
+            assert data.get("flags").get("history_times").get("S{}".format(i)) is None
 
     def test_003_calc_single_young_diagrams(self):
         """1 to 4 is finish, 5 to 7 is needing calc"""
@@ -115,6 +133,12 @@ class TestYoungDiagrams(object):
             assert young_diagrams == eval("self.young_diagrams_s_{}".format(s_n)), "s_n={}".format(s_n)
         tail_time = time.time()
         logger.debug("calc young_diagrams from S{} to S{}, used {}s".format(head_s_n, tail_s_n, tail_time - head_time))
+        _, finish_file_name = get_young_diagrams_finish_s_n_name()
+        flag, data = YoungDiagramInfo(0).query_by_file_name(finish_file_name)
+        for i in [1, 2, 3, 4]:
+            assert isinstance(data.get("flags").get("history_times").get("S{}".format(i)), float)
+        for i in [5, 6, 7]:
+            assert data.get("flags").get("history_times").get("S{}".format(i)) is None
 
     def test_calc_single_young_diagrams_out_of_recursion_deep(self):
         s_n = 1000

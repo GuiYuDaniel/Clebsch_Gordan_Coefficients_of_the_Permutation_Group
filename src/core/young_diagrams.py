@@ -23,16 +23,16 @@ this code for creating Young Diagrams by Sn
 
 
 import time
+from conf.cgc_config import default_s_n
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo
 from core.cgc_utils.cgc_local_db import get_young_diagrams_file_name, get_young_diagrams_finish_s_n_name
-from conf.cgc_config import default_s_n
 from utils.log import get_logger
 
 
 logger = get_logger(__name__)
 
 
-def create_young_diagrams(s_n=default_s_n):
+def create_young_diagrams(s_n: int=default_s_n):
     """
     提供给workflow的函数，负责调用计算和存储杨图实体
     返回格式：
@@ -55,18 +55,18 @@ def create_young_diagrams(s_n=default_s_n):
         return False, err_msg
     if s_n <= finish_s_n:
         # 说明以前算过了
-        msg = "s_n={} young_diagrams had been calculated, return True, None".format(s_n)
+        msg = "s_n={} young_diagrams had been calculated, return True, s_n".format(s_n)
         logger.info(msg)
         return True, s_n
     else:
-        msg = "finish_s_n={}, will calc s_n from {} to {}".format(finish_s_n, finish_s_n + 1, s_n)
+        msg = "finish_s_n={}, will calc young_diagrams s_n from {} to {}".format(finish_s_n, finish_s_n + 1, s_n)
         logger.info(msg)
 
     # 按照从小到大的顺序，逐个计算s_i的杨图并储存
     for s_i in range(finish_s_n + 1, s_n + 1):  # 循环体为[finish_s_n+1, finish_s_n+2, ..., s_n]
-        start_time = time.time()
-        flag, s_i_young_diagrams = calc_single_young_diagrams(s_i)  # 因为逐次向上计算，所以recursion_deep可以限制为1
-        speed_time = time.time() - start_time
+        s_i_start_time = time.time()
+        flag, s_i_young_diagrams = calc_single_young_diagrams(s_i, recursion_deep=1)  # 因为逐次向上计算，所以recursion_deep可以限制为1
+        s_i_speed_time = time.time() - s_i_start_time
         if not flag:
             err_msg = "calc s_i_young_diagrams meet error with s_i={}, msg={}".format(s_i, s_i_young_diagrams)
             logger.error(err_msg)
@@ -76,22 +76,22 @@ def create_young_diagrams(s_n=default_s_n):
             logger.error(err_msg)
             return False, err_msg
         # 既然没问题了，那就存（别忘了也要更新Finish_Sn）
-        flag, msg = save_young_diagrams(s_i, s_i_young_diagrams, speed_time)
+        flag, msg = save_single_young_diagrams(s_i, s_i_young_diagrams, s_i_speed_time)
         if not flag:
             err_msg = "save s_i_young_diagrams meet error with s_i={}, msg={}".format(s_i, s_i_young_diagrams)
             logger.error(err_msg)
             return False, err_msg
-        flag, msg = save_young_diagrams_finish_s_n(s_i, is_check_add_one=True)
+        flag, msg = save_young_diagrams_finish_s_n(s_i, s_i_start_time, is_check_add_one=True)
         if not flag:
             err_msg = "save save_young_diagrams_finish_s_n meet error with s_i={}, msg={}".format(s_i, msg)
             logger.error(err_msg)
             return False, err_msg
 
-    logger.info("#### create_young_diagrams s_n from {} to {} done".format(finish_s_n + 1, s_n))
+    logger.info("#### create_young_diagrams s_n from {} to {} done, return True, s_n".format(finish_s_n + 1, s_n))
     return True, s_n
 
 
-def save_young_diagrams(s_n: int, young_diagrams: list, speed_time: float):
+def save_single_young_diagrams(s_n: int, young_diagrams: list, speed_time: float):
     """
     杨图的落盘格式为：
     <top_path>/cgc_results/young_diagrams_info/Sn.pkl ->
@@ -109,6 +109,19 @@ def save_young_diagrams(s_n: int, young_diagrams: list, speed_time: float):
     S3.pkl: [[3], [2, 1], [1, 1, 1]]
     S4.pkl: [[4], [3, 1], [2, 2], [2, 1, 1], [1, 1, 1, 1]]
     """
+    if not isinstance(s_n, int) or s_n <= 0:
+        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(young_diagrams, list):
+        err_msg = "young_diagrams={} with type={} must be list".format(young_diagrams, type(young_diagrams))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(speed_time, float) or speed_time <= 0:
+        err_msg = "speed_time={} with type={} must be float and > 0".format(speed_time, type(speed_time))
+        logger.error(err_msg)
+        return False, err_msg
+
     db_info = YoungDiagramInfo(s_n)
     _, file_name = get_young_diagrams_file_name(s_n)
     table = {"file_name": file_name,
@@ -124,9 +137,14 @@ def save_young_diagrams(s_n: int, young_diagrams: list, speed_time: float):
     return True, None
 
 
-def save_young_diagrams_finish_s_n(s_n: int, is_check_add_one=False):
+def save_young_diagrams_finish_s_n(s_n: int, s_n_speed_time: float, is_check_add_one=False):
+    """finish_s_n都存txt副本用来展示"""
     if not isinstance(s_n, int) or s_n <= 0:
         err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(s_n_speed_time, float) or s_n_speed_time <= 0:
+        err_msg = "s_n_speed_time={} with type={} must be float and > 0".format(s_n_speed_time, type(s_n_speed_time))
         logger.error(err_msg)
         return False, err_msg
 
@@ -141,10 +159,13 @@ def save_young_diagrams_finish_s_n(s_n: int, is_check_add_one=False):
             return False, err_msg
 
     db_info = YoungDiagramInfo(0)
-    _, file_name = get_young_diagrams_finish_s_n_name()
-    table = {"file_name": file_name,
+    _, finish_file_name = get_young_diagrams_finish_s_n_name()
+    table = {"file_name": finish_file_name,
              "data": [],
-             "flags": {"finish_s_n": s_n}}
+             "flags": {"finish_s_n": s_n,
+                       "history_times": {
+                           "S{}".format(s_n): s_n_speed_time
+                       }}}
     if finish_s_n_before == 0:
         flag, msg = db_info.insert(table)
         if not flag:
@@ -153,7 +174,17 @@ def save_young_diagrams_finish_s_n(s_n: int, is_check_add_one=False):
         if not flag:
             return flag, msg
     else:
-        _, finish_file_name = get_young_diagrams_finish_s_n_name()
+        flag, data = db_info.query_by_file_name(finish_file_name)
+        if not flag:
+            return flag, data
+        history_times = data.get("flags", {}).get("history_times")
+        if not history_times or not isinstance(history_times, dict):  # 有，就不应该是空字典
+            err_msg = "old history_times={} must real dict, but not, with data={}".format(history_times, data)
+            logger.error(err_msg)
+            return False, err_msg
+        # 更新table里的历史时间
+        history_times.update({"S{}".format(s_n): s_n_speed_time})
+        table["flags"]["speed_times"] = history_times
         flag, msg = db_info.update_by_file_name(finish_file_name, partial_table=table)
         if not flag:
             return flag, msg
@@ -268,7 +299,7 @@ def get_young_diagrams_finish_s_n():
     if data is False:
         # logger.debug("find no finish_s_n, return 0")
         return True, 0
-    finish_s_n = data.get("flags").get("finish_s_n")
+    finish_s_n = data.get("flags", {}).get("finish_s_n")
     if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= 1:
         return True, finish_s_n
     else:
@@ -305,7 +336,7 @@ def load_young_diagrams(s_n: int, is_return_false_if_not_s_n=True):
             return True, young_diagrams  # bingo！
 
         else:
-            err_msg = "young_diagrams queried form db, but cannot get young_diagrams from data" \
+            err_msg = "young_diagrams queried from db, but cannot get young_diagrams from data" \
                       "with data={}, young_diagrams={} from db".format(data, young_diagrams)
             logger.error(err_msg)
             return False, err_msg

@@ -14,10 +14,10 @@ import shutil
 import time
 from conf.cgc_config import top_path, cgc_rst_folder, default_s_n
 from core.cgc_utils.cgc_local_db import CGCLocalDb
-from core.cgc_utils.cgc_db_typing import YoungDiagramInfo
+from core.cgc_utils.cgc_db_typing import YoungDiagramInfo, BranchingLawInfo
 from db.local_db_protector import DBProtector
 from utils.log import get_logger
-from utils.utils import asctime_2_time
+# from utils.utils import asctime_2_time
 
 
 logger = get_logger(__name__)
@@ -37,6 +37,7 @@ class TmpTyping(CGCLocalDb):
         self._init_cgc_static_db_folder()
 
 
+# @pytest.mark.skip("pass")
 class TestCGCLocalDb(object):
     """
     test class CGCLocalDb functions
@@ -390,9 +391,10 @@ class TestCGCLocalDb(object):
         assert not os.path.exists(self.file_name_txt)
 
 
+# @pytest.mark.skip("pass")
 class TestYoungDiagramInfo(object):
     """
-    test python file cgc_db_typing.py functions
+    test python file cgc_db_typing.py:YoungDiagramInfo class
     TestCGCLocalDb中已经测过基础操作和基础报错了。所以，这里只测正向使用即可
     """
 
@@ -416,10 +418,14 @@ class TestYoungDiagramInfo(object):
         self.fake_finish_s_n_table = {
             "file_name": self.fake_finish_s_n_name,
             "data": [],
-            "flags": {"finish_s_n": self.fake_finish_s_n}
+            "flags": {"finish_s_n": self.fake_finish_s_n,
+                      "history_times": {"S1000": 0.01}}
         }
         self.fake_finish_s_n_table_copy = copy.deepcopy(self.fake_finish_s_n_table)
-        self.fake_finish_s_n_partial_table = {"flags": {"finish_s_n": 1001}}
+        self.fake_finish_s_n_partial_table = {"flags": {"finish_s_n": 1001,
+                                                        "history_times": {"S1000": 0.01,
+                                                                          "S1001": 0.03}
+                                                        }}
         self.fake_finish_s_n_partial_table_copy = copy.deepcopy(self.fake_finish_s_n_partial_table)
 
     def teardown(self):
@@ -495,18 +501,15 @@ class TestYoungDiagramInfo(object):
         assert isinstance(data.get("create_time"), str)
         assert isinstance(data.get("last_write_time"), str)
         create_time_1 = data.get("create_time")
-        last_write_time_1 = data.get("last_write_time")
         del data["create_time"]
         del data["last_write_time"]
         assert data == self.fake_finish_s_n_table_copy
         # update
-        time.sleep(1.1)
         flag, msg = db_info.update_by_file_name(self.fake_finish_s_n_name, self.fake_finish_s_n_partial_table)
         assert flag
         assert msg is True
         flag, data_2 = db_info.query({"file_name": self.fake_finish_s_n_name})
         assert data_2.get("create_time") == create_time_1
-        assert data_2.get("last_write_time") != last_write_time_1
         assert data_2.get("data") == self.fake_finish_s_n_table_copy.get("data")  # not update
         assert data_2.get("flags") == self.fake_finish_s_n_partial_table_copy.get("flags")
         # test delete
@@ -554,6 +557,181 @@ class TestYoungDiagramInfo(object):
         assert data is False
         # query again
         db_info = YoungDiagramInfo(0)
+        flag, data = db_info.query_txt_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert data is False
+
+
+class TestBranchingLawInfo(object):
+    """
+    test python file cgc_db_typing.py:BranchingLawInfo class
+    TestCGCLocalDb中已经测过基础操作和基础报错了。所以，这里只测正向使用即可
+    """
+
+    def setup(self):
+        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector.protector_setup()
+
+        self.fake_finish_s_n = 1000
+        self.fake_nu = [2, 1]
+        self.fake_file_name = "S{}/{}".format(self.fake_finish_s_n, self.fake_nu)
+        self.fake_table = {
+            "file_name": self.fake_file_name,
+            "data": {
+                "BL_num": 2,
+                "rows": [1, 0],
+                "cols": [0, 1],
+                "before_YD": [[2], [1, 1]]
+            },
+            "flags": {"speed_time": 0.1}
+        }
+        self.fake_table_copy = copy.deepcopy(self.fake_table)
+        self.fake_partial_table = {"data": {"fake": "fake"},
+                                   "flags": {"speed_time": 0.2}}
+        self.fake_partial_table_copy = copy.deepcopy(self.fake_partial_table)
+
+        self.fake_finish_s_n_name = "Finish_Sn"
+        self.fake_finish_s_n_table = {
+            "file_name": self.fake_finish_s_n_name,
+            "data": {},
+            "flags": {"finish_s_n": self.fake_finish_s_n,
+                      "history_times": {"S1000": 0.01}}
+        }
+        self.fake_finish_s_n_table_copy = copy.deepcopy(self.fake_finish_s_n_table)
+        self.fake_finish_s_n_partial_table = {"flags": {"finish_s_n": 1001,
+                                                        "history_times": {"S1000": 0.01,
+                                                                          "S1001": 0.03}}}
+        self.fake_finish_s_n_partial_table_copy = copy.deepcopy(self.fake_finish_s_n_partial_table)
+
+    def teardown(self):
+        self.protector.protector_teardown()
+
+    def test_branching_laws_info(self):
+        db_info = BranchingLawInfo(self.fake_finish_s_n)
+        # insert
+        flag, msg = db_info.insert(self.fake_table)
+        assert flag
+        assert msg is True
+        # query
+        flag, data = db_info.query_by_file_name(self.fake_file_name)
+        assert flag
+        assert isinstance(data.get("create_time"), str)
+        assert isinstance(data.get("last_write_time"), str)
+        create_time_1 = data.get("create_time")
+        last_write_time_1 = data.get("last_write_time")
+        del data["create_time"]
+        del data["last_write_time"]
+        assert data == self.fake_table_copy
+        # update
+        time.sleep(1.1)
+        flag, msg = db_info.update_by_file_name(self.fake_file_name, self.fake_partial_table)
+        assert flag
+        assert msg is True
+        flag, data_2 = db_info.query({"file_name": self.fake_file_name})
+        assert data_2.get("create_time") == create_time_1
+        assert data_2.get("last_write_time") != last_write_time_1
+        assert data_2.get("data") == self.fake_partial_table_copy.get("data")
+        assert data_2.get("flags") == self.fake_partial_table_copy.get("flags")
+        # test delete
+        flag, msg = db_info.delete_by_file_name(self.fake_file_name)
+        assert flag
+        assert msg is True
+        flag, data_3 = db_info.query({"file_name": self.fake_file_name})
+        assert flag
+        assert data_3 is False
+
+    def test_branching_laws_info_txt(self):
+        db_info = BranchingLawInfo(0)
+        # insert
+        flag, msg = db_info.insert_txt(self.fake_table)
+        assert flag
+        assert msg is True
+        # query
+        flag, data = db_info.query_txt_by_file_name(self.fake_file_name)
+        assert flag
+        assert data == str(self.fake_table_copy.get("data"))
+        # update
+        flag, msg = db_info.update_txt_by_file_name(self.fake_file_name, self.fake_partial_table)
+        assert flag
+        assert msg is True
+        flag, data_2 = db_info._query_txt({"file_name": self.fake_file_name})
+        assert data_2 == str(self.fake_partial_table_copy.get("data"))
+        # test delete
+        flag, msg = db_info.delete_txt_by_file_name(self.fake_file_name)
+        assert flag
+        assert msg is True
+        flag, data_3 = db_info._query_txt({"file_name": self.fake_file_name})
+        assert flag
+        assert data_3 is False
+
+    def test_branching_laws_finish_s_n_info(self):
+        db_info = BranchingLawInfo(self.fake_finish_s_n)
+        # insert
+        flag, msg = db_info.insert(self.fake_finish_s_n_table)
+        assert flag
+        assert msg is True
+        # query
+        flag, data = db_info.query_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert isinstance(data.get("create_time"), str)
+        assert isinstance(data.get("last_write_time"), str)
+        create_time_1 = data.get("create_time")
+        del data["create_time"]
+        del data["last_write_time"]
+        assert data == self.fake_finish_s_n_table_copy
+        # update
+        flag, msg = db_info.update_by_file_name(self.fake_finish_s_n_name, self.fake_finish_s_n_partial_table)
+        assert flag
+        assert msg is True
+        flag, data_2 = db_info.query({"file_name": self.fake_finish_s_n_name})
+        assert data_2.get("create_time") == create_time_1
+        assert data_2.get("data") == self.fake_finish_s_n_table_copy.get("data")  # not update
+        assert data_2.get("flags") == self.fake_finish_s_n_partial_table_copy.get("flags")
+        # test delete
+        flag, msg = db_info.delete_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert msg is True
+        flag, data_3 = db_info.query({"file_name": self.fake_finish_s_n_name})
+        assert flag
+        assert data_3 is False
+
+    def test_branching_laws_finish_s_n_info_txt(self):
+        db_info = BranchingLawInfo(0)
+        # insert
+        flag, msg = db_info.insert_txt(self.fake_finish_s_n_table, point_key="flags")
+        assert flag
+        assert msg is True
+        # query
+        flag, data = db_info.query_txt_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert data == str(self.fake_finish_s_n_table_copy.get("flags"))
+        # update
+        flag, msg = db_info.update_txt_by_file_name(
+            self.fake_finish_s_n_name, self.fake_finish_s_n_partial_table, point_key="flags")
+        assert flag
+        assert msg is True
+        flag, data_2 = db_info._query_txt({"file_name": self.fake_finish_s_n_name})
+        assert data_2 == str(self.fake_finish_s_n_partial_table_copy.get("flags"))
+        # test delete
+        flag, msg = db_info.delete_txt_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert msg is True
+        flag, data_3 = db_info._query_txt({"file_name": self.fake_finish_s_n_name})
+        assert flag
+        assert data_3 is False
+
+    def test_limit_txt(self):
+        db_info = BranchingLawInfo(default_s_n + 1)
+        # insert
+        flag, msg = db_info.insert_txt(self.fake_finish_s_n_table, point_key="flags")
+        assert flag
+        assert msg is False
+        # query
+        flag, data = db_info.query_txt_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert data is False
+        # query again
+        db_info = BranchingLawInfo(0)
         flag, data = db_info.query_txt_by_file_name(self.fake_finish_s_n_name)
         assert flag
         assert data is False
