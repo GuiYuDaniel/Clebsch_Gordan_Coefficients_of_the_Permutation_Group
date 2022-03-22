@@ -67,7 +67,7 @@ class BranchingLawInfo(CGCLocalDb):
     其中，
     Finish_Sn是固定名称，所有计算结果里都有
     s_n表示当前计算完成的最大阶数，是int型
-    time_of_s_n表示Sn的计算时间，float型，外部是不断update的字典
+    time_of_s_n表示Sn的计算时间，int型，外部是不断update的字典
     """
 
     def __init__(self, s_n):
@@ -117,7 +117,7 @@ class YoungDiagramInfo(CGCLocalDb):
     其中，
     Finish_Sn是固定名称，所有计算结果里都有
     s_n表示当前计算完成的最大阶数，是int型
-    time_of_s_n表示Sn的计算时间，float型，外部是不断update的字典
+    time_of_s_n表示Sn的计算时间，int型，外部是不断update的字典
     """
 
     def __init__(self, s_n):

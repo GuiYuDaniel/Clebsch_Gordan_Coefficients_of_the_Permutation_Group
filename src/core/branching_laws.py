@@ -74,7 +74,7 @@ def create_branching_laws(s_n: int=default_s_n):
         for yd_i in young_diagrams:  # 循环体为[nu_1, nu_2, ...]
             start_time = time.time()
             flag, branching_law_i = calc_single_branching_law(yd_i)  # branching_law_i=(bl_num, rows, cols, before_yd)
-            speed_time = time.time() - start_time
+            speed_time = int(time.time() - start_time)
             if not flag:
                 err_msg = "calc branching_law_i meet error with s_i={}, yd_i={}, msg={}".format(
                     s_i, yd_i, branching_law_i)
@@ -93,14 +93,15 @@ def create_branching_laws(s_n: int=default_s_n):
                 logger.error(err_msg)
                 return False, err_msg
 
-        s_i_speed_time = time.time() - s_i_start_time
+        s_i_speed_time = int(time.time() - s_i_start_time)
         flag, msg = save_branching_laws_finish_s_n(s_i, s_i_speed_time, is_check_add_one=True)
         if not flag:
             err_msg = "save save_branching_laws_finish_s_n meet error with s_i={}, msg={}".format(s_i, msg)
             logger.error(err_msg)
             return False, err_msg
 
-    logger.info("#### create_branching_laws s_n from {} to {} done, return True, s_n".format(finish_s_n + 1, s_n))
+    logger.info("#### create_branching_laws s_n from {} to {} done, return True, finish_s_n={}".format(
+        finish_s_n + 1, s_n, s_n))
     return True, s_n
 
 
@@ -152,8 +153,8 @@ def save_single_branching_law(s_n: int, yd: list,
         err_msg = "before_yd={} with type={} must be list".format(before_yd, type(before_yd))
         logger.error(err_msg)
         return False, err_msg
-    if not isinstance(speed_time, float) or speed_time <= 0:
-        err_msg = "speed_time={} with type={} must be float and > 0".format(speed_time, type(speed_time))
+    if not isinstance(speed_time, int) or speed_time < 0:
+        err_msg = "speed_time={} with type={} must be int and >= 0".format(speed_time, type(speed_time))
         logger.error(err_msg)
         return False, err_msg
 
@@ -183,8 +184,8 @@ def save_branching_laws_finish_s_n(s_n: int, s_n_speed_time: float, is_check_add
         err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
         logger.error(err_msg)
         return False, err_msg
-    if not isinstance(s_n_speed_time, float) or s_n_speed_time <= 0:
-        err_msg = "s_n_speed_time={} with type={} must be float and > 0".format(s_n_speed_time, type(s_n_speed_time))
+    if not isinstance(s_n_speed_time, int) or s_n_speed_time < 0:
+        err_msg = "s_n_speed_time={} with type={} must be int and >= 0".format(s_n_speed_time, type(s_n_speed_time))
         logger.error(err_msg)
         return False, err_msg
 
@@ -201,7 +202,7 @@ def save_branching_laws_finish_s_n(s_n: int, s_n_speed_time: float, is_check_add
     db_info = BranchingLawInfo(0)
     _, finish_file_name = get_branching_laws_finish_s_n_name()
     table = {"file_name": finish_file_name,
-             "data": [],
+             "data": {},
              "flags": {"finish_s_n": s_n,
                        "history_times": {
                            "S{}".format(s_n): s_n_speed_time
@@ -224,7 +225,7 @@ def save_branching_laws_finish_s_n(s_n: int, s_n_speed_time: float, is_check_add
             return False, err_msg
         # 更新table里的历史时间
         history_times.update({"S{}".format(s_n): s_n_speed_time})
-        table["flags"]["speed_times"] = history_times
+        table["flags"]["history_times"] = history_times
         flag, msg = db_info.update_by_file_name(finish_file_name, partial_table=table)
         if not flag:
             return flag, msg
@@ -258,6 +259,10 @@ def get_branching_laws_finish_s_n():
 
 
 def load_branching_law(s_n: int, yd: list, is_return_false_if_not_s_n=True):
+    """
+    取得s_n的杨图(二维列表)
+    如果没有，根据is_return_true_if_not_s_n决定返回True or False
+    """
     if not isinstance(s_n, int) or s_n <= 0:
         err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
         logger.error(err_msg)
@@ -279,14 +284,15 @@ def load_branching_law(s_n: int, yd: list, is_return_false_if_not_s_n=True):
         return False, err_msg
 
     if data:
-        branching_law = data.get("data")
-        if branching_law:
+        bl = data.get("data")
+        rst = (bl.get("BL_num"), bl.get("rows"), bl.get("cols"), bl.get("before_YD"),)
+        if bl and rst:
             # 只检查有没有 不对内容做检查了
-            return True, branching_law  # bingo！
+            return True, rst  # bingo！
 
         else:
             err_msg = "branching_law queried from db, but cannot get branching_law from data" \
-                      "with data={}, branching_law={} from db".format(data, branching_law)
+                      "with data={}, branching_law={} from db".format(data, bl)
             logger.error(err_msg)
             return False, err_msg
     else:

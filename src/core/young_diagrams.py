@@ -66,7 +66,7 @@ def create_young_diagrams(s_n: int=default_s_n):
     for s_i in range(finish_s_n + 1, s_n + 1):  # 循环体为[finish_s_n+1, finish_s_n+2, ..., s_n]
         s_i_start_time = time.time()
         flag, s_i_young_diagrams = calc_single_young_diagrams(s_i, recursion_deep=1)  # 因为逐次向上计算，所以recursion_deep可以限制为1
-        s_i_speed_time = time.time() - s_i_start_time
+        s_i_speed_time = int(time.time() - s_i_start_time)
         if not flag:
             err_msg = "calc s_i_young_diagrams meet error with s_i={}, msg={}".format(s_i, s_i_young_diagrams)
             logger.error(err_msg)
@@ -81,17 +81,18 @@ def create_young_diagrams(s_n: int=default_s_n):
             err_msg = "save s_i_young_diagrams meet error with s_i={}, msg={}".format(s_i, s_i_young_diagrams)
             logger.error(err_msg)
             return False, err_msg
-        flag, msg = save_young_diagrams_finish_s_n(s_i, s_i_start_time, is_check_add_one=True)
+        flag, msg = save_young_diagrams_finish_s_n(s_i, s_i_speed_time, is_check_add_one=True)
         if not flag:
             err_msg = "save save_young_diagrams_finish_s_n meet error with s_i={}, msg={}".format(s_i, msg)
             logger.error(err_msg)
             return False, err_msg
 
-    logger.info("#### create_young_diagrams s_n from {} to {} done, return True, s_n".format(finish_s_n + 1, s_n))
+    logger.info("#### create_young_diagrams s_n from {} to {} done, return True, finish_s_n={}".format(
+        finish_s_n + 1, s_n, s_n))
     return True, s_n
 
 
-def save_single_young_diagrams(s_n: int, young_diagrams: list, speed_time: float):
+def save_single_young_diagrams(s_n: int, young_diagrams: list, speed_time: int):
     """
     杨图的落盘格式为：
     <top_path>/cgc_results/young_diagrams_info/Sn.pkl ->
@@ -117,8 +118,8 @@ def save_single_young_diagrams(s_n: int, young_diagrams: list, speed_time: float
         err_msg = "young_diagrams={} with type={} must be list".format(young_diagrams, type(young_diagrams))
         logger.error(err_msg)
         return False, err_msg
-    if not isinstance(speed_time, float) or speed_time <= 0:
-        err_msg = "speed_time={} with type={} must be float and > 0".format(speed_time, type(speed_time))
+    if not isinstance(speed_time, int) or speed_time < 0:
+        err_msg = "speed_time={} with type={} must be int and >= 0".format(speed_time, type(speed_time))
         logger.error(err_msg)
         return False, err_msg
 
@@ -143,8 +144,8 @@ def save_young_diagrams_finish_s_n(s_n: int, s_n_speed_time: float, is_check_add
         err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
         logger.error(err_msg)
         return False, err_msg
-    if not isinstance(s_n_speed_time, float) or s_n_speed_time <= 0:
-        err_msg = "s_n_speed_time={} with type={} must be float and > 0".format(s_n_speed_time, type(s_n_speed_time))
+    if not isinstance(s_n_speed_time, int) or s_n_speed_time < 0:
+        err_msg = "s_n_speed_time={} with type={} must be int and >= 0".format(s_n_speed_time, type(s_n_speed_time))
         logger.error(err_msg)
         return False, err_msg
 
@@ -184,7 +185,7 @@ def save_young_diagrams_finish_s_n(s_n: int, s_n_speed_time: float, is_check_add
             return False, err_msg
         # 更新table里的历史时间
         history_times.update({"S{}".format(s_n): s_n_speed_time})
-        table["flags"]["speed_times"] = history_times
+        table["flags"]["history_times"] = history_times
         flag, msg = db_info.update_by_file_name(finish_file_name, partial_table=table)
         if not flag:
             return flag, msg

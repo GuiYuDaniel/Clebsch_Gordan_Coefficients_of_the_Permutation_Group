@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# TODO note some debug logger when coding
 
 
 import os
@@ -207,7 +208,7 @@ class Save(object):
         try:
             with open(file_path, "wb") as f:
                 pickle.dump(data, f)
-                logger.debug("save data={} to db={}".format(data, file_path))
+                #logger.debug("save data={} to db={}".format(data, file_path))
         except Exception as e:
             logger.error("save data to file_path={} meet error".format(file_path))
             logger.error(e)
@@ -223,7 +224,7 @@ class Save(object):
         try:
             with open(file_path, "w") as f:
                 f.write(data)
-                logger.debug("save data={} in={}".format(data, file_path))
+                #logger.debug("save data={} in={}".format(data, file_path))
         except Exception as e:
             logger.error("save data to file_path={} meet error".format(file_path))
             logger.error(e)
@@ -243,7 +244,7 @@ class Load(object):
         try:
             with open(file_path, "rb") as f:
                 data = pickle.load(f)
-                logger.debug("load data={} from db={}".format(data, file_path))
+                # logger.debug("load data={} from db={}".format(data, file_path))
         except Exception as e:
             logger.error("load data from file_path={} meet error".format(file_path))
             logger.error(e)
@@ -258,7 +259,7 @@ class Load(object):
         try:
             with open(file_path, "r") as f:
                 data = f.read()
-                logger.debug("load data={} from db={}".format(data, file_path))
+                # logger.debug("load data={} from db={}".format(data, file_path))
         except Exception as e:
             logger.error("load data from file_path={} meet error".format(file_path))
             logger.error(e)
@@ -277,7 +278,7 @@ class Delete(object):
     def delete_pickle(file_path):
         try:
             os.remove(file_path)
-            logger.debug("delete data from db={}".format(file_path))
+            # logger.debug("delete data from db={}".format(file_path))
         except Exception as e:
             logger.error("delete data from file_path={} meet error".format(file_path))
             logger.error(e)
@@ -289,7 +290,7 @@ class Delete(object):
     def delete_txt(file_path):
         try:
             os.remove(file_path)
-            logger.debug("delete data from {}".format(file_path))
+            # logger.debug("delete data from {}".format(file_path))
         except Exception as e:
             logger.error("delete data from file_path={} meet error".format(file_path))
             logger.error(e)
