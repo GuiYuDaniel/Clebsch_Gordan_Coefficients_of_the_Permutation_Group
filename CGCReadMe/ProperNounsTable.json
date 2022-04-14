@@ -1,7 +1,15 @@
 {
   "杨图": "Young Diagrams",
-  "置换群的特征标": "Characters of Permutation Groups",
-  "杨盘": "Young Tableaux",
   "分支律": "Branching Laws",
+  "杨盘": "Young Tableaux",
+  "杨盘编号的编号顺序": "in decreasing page order",
+  "Yamanouchi数": "Yamanouchi symbol",
+  "Yamanouchi矩阵": "Yamanouchi Matrix",
+  "轮换": "cycle",
+  "对换": "transposition",
+  "临近对换": "adjacent transposition",
+  "轴距": "axial distance",
+
+  "置换群的特征标": "Characters of Permutation Groups",
   "CG序列": "CG Series"
 }

@@ -102,3 +102,23 @@ def output_all_str_func(flag):
 
 def is_input_all_str_func(*args):
     return True if all(isinstance(i, str) for i in args) else False
+
+
+def hello_yield(num):
+    """yield 是一个类似 return 的关键字，迭代一次遇到yield时就返回yield后面(右边)的值。
+    重点是：下一次迭代时，从上一次迭代遇到的yield后面的代码(下一行)开始执行。"""
+    print("a1")
+    if not isinstance(num, int):
+        yield num
+        return
+    print("a2")
+    for i in range(num):
+        print("b1")
+        yield 10 + i
+        print("b2")
+    print("c")
+    for j in range(num):
+        print("d1")
+        yield 20 + j
+        print("d2")
+    print("e")

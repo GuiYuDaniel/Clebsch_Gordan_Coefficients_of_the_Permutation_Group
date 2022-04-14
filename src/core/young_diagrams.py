@@ -46,11 +46,12 @@ def create_young_diagrams(s_n: int=default_s_n):
         return False, err_msg
 
     logger.info("#### create_young_diagrams get input s_n={}".format(s_n))
+    start_time_c = time.time()
 
     # 先查询数据库中完成到S几：如果输入s_n未计算，直接从循环中cut掉算好的部分；如果s_n被计算过了，则给出完成标记（注意不是返回结果）
     flag, finish_s_n = get_young_diagrams_finish_s_n()
     if not flag:
-        err_msg = "get young_diagrams finish s_n meet error with msg={}".format(finish_s_n)
+        err_msg = "get young_diagrams finish_s_n meet error with msg={}".format(finish_s_n)
         logger.error(err_msg)
         return False, err_msg
     if s_n <= finish_s_n:
@@ -83,12 +84,13 @@ def create_young_diagrams(s_n: int=default_s_n):
             return False, err_msg
         flag, msg = save_young_diagrams_finish_s_n(s_i, s_i_speed_time, is_check_add_one=True)
         if not flag:
-            err_msg = "save save_young_diagrams_finish_s_n meet error with s_i={}, msg={}".format(s_i, msg)
+            err_msg = "save_young_diagrams_finish_s_n meet error with s_i={}, msg={}".format(s_i, msg)
             logger.error(err_msg)
             return False, err_msg
 
-    logger.info("#### create_young_diagrams s_n from {} to {} done, return True, finish_s_n={}".format(
-        finish_s_n + 1, s_n, s_n))
+    c_time = time.time() - start_time_c
+    logger.info("#### create_young_diagrams s_n from {} to {} done, return True, finish_s_n={}, using time={}s".format(
+        finish_s_n + 1, s_n, s_n, c_time))
     return True, s_n
 
 
@@ -138,7 +140,7 @@ def save_single_young_diagrams(s_n: int, young_diagrams: list, speed_time: int):
     return True, None
 
 
-def save_young_diagrams_finish_s_n(s_n: int, s_n_speed_time: float, is_check_add_one=False):
+def save_young_diagrams_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
     """finish_s_n都存txt副本用来展示"""
     if not isinstance(s_n, int) or s_n <= 0:
         err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
@@ -225,7 +227,7 @@ def calc_single_young_diagrams(s_n: int, recursion_deep: int=1):
         return False, err_msg
     if s_n <= finish_s_n:
         # 说明以前算过了，直接返回结果，拿不到要抛错！
-        flag, young_diagrams = load_young_diagrams(s_n, is_return_false_if_not_s_n=False)
+        flag, young_diagrams = load_young_diagrams(s_n, is_flag_true_if_not_s_n=False)
         if not flag:
             err_msg = "get young_diagrams db meet error with s_n={}".format(s_n)
             logger.error(err_msg)
@@ -308,14 +310,14 @@ def get_young_diagrams_finish_s_n():
         return False, err_msg
 
 
-def load_young_diagrams(s_n: int, is_return_false_if_not_s_n=True):
+def load_young_diagrams(s_n: int, is_flag_true_if_not_s_n=True):
     """
     取得s_n的杨图(二维列表)
-    如果没有，根据is_return_true_if_not_s_n决定返回True or False
+    如果没有，根据is_flag_true_if_not_s_n决定返回True or False
     """
-    if not isinstance(s_n, int) or not isinstance(is_return_false_if_not_s_n, bool):
-        err_msg = "s_n={} with type={} must be int, is_return_false_if_not_s_n={} with type={} must be bool".format(
-            s_n, type(s_n), is_return_false_if_not_s_n, type(is_return_false_if_not_s_n))
+    if not isinstance(s_n, int) or not isinstance(is_flag_true_if_not_s_n, bool):
+        err_msg = "s_n={} with type={} must be int, is_flag_true_if_not_s_n={} with type={} must be bool".format(
+            s_n, type(s_n), is_flag_true_if_not_s_n, type(is_flag_true_if_not_s_n))
         logger.error(err_msg)
         return False, err_msg
 
@@ -342,7 +344,7 @@ def load_young_diagrams(s_n: int, is_return_false_if_not_s_n=True):
             logger.error(err_msg)
             return False, err_msg
     else:
-        if is_return_false_if_not_s_n:
+        if is_flag_true_if_not_s_n:
             return True, False
         else:
             err_msg = "query not exist young_diagrams db with s_n={}, file_name={}, err_msg={}".format(

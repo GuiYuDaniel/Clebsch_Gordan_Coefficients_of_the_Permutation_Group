@@ -64,10 +64,10 @@ class TestYoungDiagrams(object):
         for ex in [".pkl", ".txt"]:
             assert not os.path.exists(self.s_1_full_file_name + ex)
             assert not os.path.exists(self.s_n_finish_full_file_name + ex)
-        flag, young_diagrams = load_young_diagrams(1, is_return_false_if_not_s_n=True)
+        flag, young_diagrams = load_young_diagrams(1, is_flag_true_if_not_s_n=True)
         assert flag
         assert young_diagrams is False
-        flag, young_diagrams = load_young_diagrams(1, is_return_false_if_not_s_n=False)
+        flag, young_diagrams = load_young_diagrams(1, is_flag_true_if_not_s_n=False)
         assert not flag
         assert isinstance(young_diagrams, str)
         flag, finish_s_n = get_young_diagrams_finish_s_n()
@@ -87,7 +87,7 @@ class TestYoungDiagrams(object):
         for ex in [".pkl", ".txt"]:
             assert os.path.exists(self.s_1_full_file_name + ex)
             assert os.path.exists(self.s_n_finish_full_file_name + ex)
-        flag, young_diagrams = load_young_diagrams(1, is_return_false_if_not_s_n=True)
+        flag, young_diagrams = load_young_diagrams(1, is_flag_true_if_not_s_n=True)
         assert flag
         assert young_diagrams == self.young_diagrams_s_1
 
@@ -126,7 +126,7 @@ class TestYoungDiagrams(object):
             assert os.path.exists(self.s_4_full_file_name + ex)
             assert os.path.exists(self.s_n_finish_full_file_name + ex)
         for i in [1, 2, 3, 4]:
-            flag, young_diagrams = load_young_diagrams(i, is_return_false_if_not_s_n=True)
+            flag, young_diagrams = load_young_diagrams(i, is_flag_true_if_not_s_n=True)
             assert flag
             assert young_diagrams == eval("self.young_diagrams_s_{}".format(i))
         flag, finish_s_n = get_young_diagrams_finish_s_n()

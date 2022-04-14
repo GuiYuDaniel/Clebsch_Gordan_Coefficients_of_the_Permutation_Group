@@ -209,7 +209,7 @@ class LocalDb(object):
         return self.update({self.map_id: table_id}, partial_table)
 
     def update(self, condition, partial_table):
-        """
+        """update
         本update的逻辑是：根据condition找数据，按照partial_table里的内容，只更新对应的，没提到的不变
         另外，对于pickle假扮的db，update实质是删了重新存。真的db会支持真正的update
         这里update有三种可能结果：

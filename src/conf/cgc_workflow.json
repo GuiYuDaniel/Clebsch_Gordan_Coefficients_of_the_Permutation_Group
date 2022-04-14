@@ -17,7 +17,7 @@
 
     "### workflow图 ###",
     "### l: layer, n: node",
-    "###               |> l2n1 -> f4 --|              ###",
+    "###               |> l3n1 -> f4 --|              ###",
     "### l1n1 -> l2n1 -|                |--> f6 --> f7 ###",
     "###               |> f5 ---------|              ###",
     {
@@ -39,18 +39,18 @@
         "outputs": ["l2n1:::flag", "l2n1:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
-        "next_nodes": ["f3", "f5"],
+        "next_nodes": ["l3n1_young_tableaux"],
         "flags": []
     },
     {
-        "name": "f3",
-        "func": ["None.test.fake.fake_core", "what_is_my_uid", ""],
+        "name": "l3n1_young_tableaux",
+        "func": ["None.src.core.young_tableaux", "create_young_tableaux", ""],
         "type": "cold",
-        "inputs": ["param2:::flag:flag"],
-        "outputs": ["uid"],
+        "inputs": ["l2n1:::s_n:s_n"],
+        "outputs": ["l3n1:::flag", "l3n1:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
-        "next_nodes": ["f4"],
+        "next_nodes": [""],
         "flags": []
     },
     {

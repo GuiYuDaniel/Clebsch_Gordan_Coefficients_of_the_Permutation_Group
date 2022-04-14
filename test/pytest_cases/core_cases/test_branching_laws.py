@@ -52,10 +52,10 @@ class TestBranchingLaws(object):
         flag, msg = create_young_diagrams(4)
         assert flag
         assert msg == 4
-        _, self.s_1_yd_list = load_young_diagrams(1, is_return_false_if_not_s_n=True)
-        _, self.s_2_yd_list = load_young_diagrams(2, is_return_false_if_not_s_n=True)
-        _, self.s_3_yd_list = load_young_diagrams(3, is_return_false_if_not_s_n=True)
-        _, self.s_4_yd_list = load_young_diagrams(4, is_return_false_if_not_s_n=True)
+        _, self.s_1_yd_list = load_young_diagrams(1, is_flag_true_if_not_s_n=True)
+        _, self.s_2_yd_list = load_young_diagrams(2, is_flag_true_if_not_s_n=True)
+        _, self.s_3_yd_list = load_young_diagrams(3, is_flag_true_if_not_s_n=True)
+        _, self.s_4_yd_list = load_young_diagrams(4, is_flag_true_if_not_s_n=True)
         self.create_time_dict = {}  # 用于检查计算好的部分不会重复计算
 
     def teardown_class(self):

@@ -41,19 +41,37 @@
             同目录下C:\CG\YamanouchiMatrix(ij)\Sn\ij[i,j]\[ri].txt                      #存放Sn<=5的Sn群[ri]构型的（i，j）交换矩阵
 
         (i,n)对换：C:\CG\YamanouchiMatrix(in)\Sn\in[i,n]\[ri].pkl    #如C:\CG\YamanouchiMatrix(in)\S4\in[2,4]\[2,1,1].pkl
+                                                                                      #存放S4群[2,1,1]构型的（24）交换矩阵
             同目录下C:\CG\YamanouchiMatrix(in)\Sn\in[i,n]\[ri].npy                      #是在python中易于存取的相同文件
             同目录下C:\CG\YamanouchiMatrix(in)\Sn\in[i,n]\[ri].txt                      #存放Sn<=5的Sn群[ri]构型的（i，n）交换矩阵
                                                                                       #存放S4群[2,1,1]构型的（24）交换矩阵
 
-    杨盘存放于：C:\CG\YangPic\Sn\[ri]\m.txt        #如C:\CG\YangPic\S4\[2,2]\2.txt      #存放S4群[2,2]构型的第2种表示
-        同目录下：C:\CG\YangPic\Sn\[ri]\m.pkl                                           #是在python中易于存取的相同文件
-        同目录下：C:\CG\YangPic\Sn\[ri]\Mm.txt                                          #存放Sn群[ri]构型一共有多少种表示
+    对换矩阵存放于：
+        (i,j)对换：<CG>/yamanouchi_matrix_info/Sn/[ν_i]/ij(i,j).pkl #如<CG>/yamanouchi_matrix_info/S4/[2,1,1]/ij(2,3).pkl
+            数据结构：{"data": matrix_ij}           #list(list(float))                  #存放S4群[2,1,1]构型的（23）交换矩阵
+            txt展示：value of "data"
+            #[[-0.5, 0.8660254037844386, 0], [0.8660254037844386, 0.5, 0], [0, 0, -1]]
 
-    分支律存放于：C:\CG\BranchLaw\Sn\k\[ri].txt    #如C:\CG\BranchLaw\S4\k\[2,2].txt    #存放S4群[2,2]构型的分支律的个数
-        同目录下：C:\CG\BranchLaw\Sn\SeatX\[ri].pkl                                     #存放S4群[2,2]构型的分支律的对应于k的横坐标
-        同目录下：C:\CG\BranchLaw\Sn\SeatY\[ri].pkl                                     #存放S4群[2,2]构型的分支律的对应于k的纵坐标
-        同目录下：C:\CG\BranchLaw\Sn\BeforeS\[ri].txt                                   #存放S4群[2,2]构型的分支律的对应于k的之前的构型
-        同目录下：C:\CG\BranchLaw\Sn\BeforeS\[ri].pkl
+        (i,n)对换：<CG>/yamanouchi_matrix_info/Sn/[ν_i]/in(i,n).pkl #如<CG>/yamanouchi_matrix_info/S4/[2,1,1]/in(2,4).pkl
+            数据结构：{"data": matrix_in}           #list(list(float))                  #存放S4群[2,1,1]构型的（24）交换矩阵
+            txt展示：value of "data"
+            #[[-0.5, 0.28867513459481287, -0.8164965809277259],
+              [0.28867513459481287, -0.8333333333333334, -0.4714045207910317],
+              [-0.8164965809277259, -0.4714045207910317, 0.3333333333333333]]
+        注：有且仅有 ij(Sn-1,Sn) 与 in(Sn-1,Sn) 是重复的
+
+    杨盘存放于：<CG>/young_tableaux_info/Sn/[ν_i].pkl  #如<CG>/young_tableaux_info/S3/[2,1].pkl  #存放S3群[2,1]构型的所有杨盘
+        数据结构：{"data": {"m_i": young_table}}       #"2":[[1,3],[2]](str:list(list(int)))    #杨盘编号：杨盘
+        txt展示：value of "data"
+        #{"1": [[1, 2], [3]], "2": [[1, 3], [2]]}
+
+        另存：杨盘总数
+        <CG>/young_tableaux_info/Sn/[ν_i]_num.pkl #如<CG>/young_tableaux_info/S3/[2,1]_num.pkl #存放S3群[2,1]构型的杨盘总数
+        数据结构：{"data": {"total_num": total_num}}                  #2(int)
+        txt展示：value of "data"
+        #{"total_num": 2}
+
+        #len({"m_i": young_table}) = total_num
 
     分支律存放于：<CG>/branching_laws_info/Sn/[ν_i].pkl   #如<CG>/branching_laws_info/S4/[2,2].pkl  #存放S4群[2,2]构型的分支律
         数据结构：{"data": {"BL_num": bl_num,         #1(int)                     #S4群[2,2]构型分支律的分支数
@@ -63,7 +81,7 @@
         txt展示：{"BL_num": bl_num, "rows": rows, "cols": cols, "before_YD": [ν’]}
 
     杨图存放于：<CG>/young_diagrams_info/S{n}.pkl          #如<CG>/young_diagrams_info/S4.pkl           #存放S4群的所有构型
-        数据结构：{"data": [ν]}                               #[[4], [3, 1], [2, 2], [2, 1, 1], [1, 1, 1, 1]]
+        数据结构：{"data": [ν]}                           #[[4], [3, 1], [2, 2], [2, 1, 1], [1, 1, 1, 1]](list(list(int)))
         txt展示：[ν]
 
 

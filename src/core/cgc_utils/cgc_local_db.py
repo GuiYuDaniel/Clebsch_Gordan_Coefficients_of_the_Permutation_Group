@@ -13,6 +13,7 @@ from conf.cgc_config import (
     top_path, cgc_rst_folder
 )
 from db.local_db import LocalDb
+# from functools import partial
 from utils.io import Save, Load, Delete
 from utils.log import get_logger
 
@@ -242,9 +243,26 @@ class CGCLocalDb(LocalDb):
         raise err_msg
 
 
-global_finish_sn_name = "Finish_Sn"
+def _get_xxx_finish_s_n_name(is_full_path=False, xxx_info_name=None):
+    """this function is a factory function"""
+    if not isinstance(is_full_path, bool):
+        err_msg = "is_full_path={} with type={} must be bool".format(is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+    if not xxx_info_name or not isinstance(xxx_info_name, str):
+        err_msg = "xxx_info_name={} with type={} must be real str".format(is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+
+    general_finish_sn_name = "Finish_Sn"
+    if not is_full_path:
+        return True, general_finish_sn_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, xxx_info_name, general_finish_sn_name)
+        return True, full_path
 
 
+# young_diagrams
 def get_young_diagrams_file_name(s_n: int, is_full_path=False):
     """
     Sn or <top_path>/cgc_results/young_diagrams_info/Sn
@@ -266,18 +284,10 @@ def get_young_diagrams_file_name(s_n: int, is_full_path=False):
 
 
 def get_young_diagrams_finish_s_n_name(is_full_path=False):
-    if not isinstance(is_full_path, bool):
-        err_msg = "is_full_path={} with type={} must be bool".format(is_full_path, type(is_full_path))
-        logger.error(err_msg)
-        return False, err_msg
-
-    if not is_full_path:
-        return True, global_finish_sn_name
-    else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "young_diagrams_info", global_finish_sn_name)
-        return True, full_path
+    return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="young_diagrams_info")
 
 
+# branching_laws
 def get_branching_laws_file_name(s_n: int, yd: list, is_full_path=False):
     """
     Sn/[ν_i] or <top_path>/cgc_results/branching_laws_info/Sn/[ν_i]
@@ -303,13 +313,97 @@ def get_branching_laws_file_name(s_n: int, yd: list, is_full_path=False):
 
 
 def get_branching_laws_finish_s_n_name(is_full_path=False):
-    if not isinstance(is_full_path, bool):
-        err_msg = "is_full_path={} with type={} must be bool".format(is_full_path, type(is_full_path))
+    return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="branching_laws_info")
+
+
+# young_tableaux
+def get_young_tableaux_file_name(s_n: int, yd: list, is_full_path=False):
+    """
+    Sn/[ν_i] or <top_path>/cgc_results/young_tableaux_info/Sn/[ν_i]
+    p.s. S3/[2, 1] or <top_path>/cgc_results/young_tableaux_info/S3/[2, 1]
+    """
+    from conf.cgc_config import young_tableaux_file_name_format
+    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
+        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
+            s_n, type(s_n), is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(yd, list):
+        err_msg = "yd={} with type={} must be list".format(yd, type(yd))
         logger.error(err_msg)
         return False, err_msg
 
+    file_name = young_tableaux_file_name_format.format(s_n, yd)
     if not is_full_path:
-        return True, global_finish_sn_name
+        return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "branching_laws_info", global_finish_sn_name)
+        full_path = os.path.join(top_path, cgc_rst_folder, "young_tableaux_info", file_name)
         return True, full_path
+
+
+def get_young_tableaux_num_file_name(s_n: int, yd: list, is_full_path=False):
+    """
+    Sn/[ν_i]_num or <top_path>/cgc_results/young_tableaux_info/Sn/[ν_i]_num
+    p.s. S3/[2, 1]_num or <top_path>/cgc_results/young_tableaux_info/S3/[2, 1]_num
+    """
+    from conf.cgc_config import young_tableaux_num_file_name_format
+    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
+        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
+            s_n, type(s_n), is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(yd, list):
+        err_msg = "yd={} with type={} must be list".format(yd, type(yd))
+        logger.error(err_msg)
+        return False, err_msg
+
+    file_name = young_tableaux_num_file_name_format.format(s_n, yd)
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "young_tableaux_info", file_name)
+        return True, full_path
+
+
+def get_young_tableaux_finish_s_n_name(is_full_path=False):
+    return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="young_tableaux_info")
+
+
+# yamanouchi_matrix
+def get_yamanouchi_matrix_file_name(s_n: int, yd: list, ix: tuple, mode=None, is_full_path=False):
+    """
+    Sn/[ν_i]/ij(i,j) or <top_path>/cgc_results/yamanouchi_matrix_info/Sn/[ν_i]/ij(i,j)
+    Sn/[ν_i]/in(i,n) or <top_path>/cgc_results/yamanouchi_matrix_info/Sn/[ν_i]/in(i,n)
+    p.s. S3/[2, 1]/ij(1, 2) or <top_path>/cgc_results/yamanouchi_matrix_info/S3/[2, 1]/ij(1, 2)
+    p.s. S3/[2, 1]/in(1, 3) or <top_path>/cgc_results/yamanouchi_matrix_info/S3/[2, 1]/in(1, 3)
+    """
+    from conf.cgc_config import yamanouchi_matrix_file_name_format
+    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
+        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
+            s_n, type(s_n), is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(yd, list):
+        err_msg = "yd={} with type={} must be list".format(yd, type(yd))
+        logger.error(err_msg)
+        return False, err_msg
+    mode_list = ["ij", "in"]  # 这里涉及到调用者必须清楚物理意义，所以不设置"auto"
+    if mode not in mode_list:
+        err_msg = "mode={} only supported in mode_list={}".format(mode, mode_list)
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(ix, tuple):
+        err_msg = "ix={} with type={} must be tuple".format(ix, type(ix))
+        logger.error(err_msg)
+        return False, err_msg
+
+    file_name = yamanouchi_matrix_file_name_format.format(s_n, yd, mode, ix)
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "yamanouchi_matrix_info", file_name)
+        return True, full_path
+
+
+def get_yamanouchi_matrix_finish_s_n_name(is_full_path=False):
+    return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="yamanouchi_matrix_info")

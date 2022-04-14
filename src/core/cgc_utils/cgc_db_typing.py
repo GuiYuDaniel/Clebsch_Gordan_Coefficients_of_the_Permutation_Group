@@ -7,7 +7,7 @@ cgc db会自动创建两个时间键值：create_time，last_write_time
 
 
 from core.cgc_utils.cgc_local_db import CGCLocalDb
-from conf.cgc_config import young_diagrams_txt_limit, branching_laws_txt_limit
+from conf.cgc_config import default_s_n
 
 
 # class StatisticInfo(CGCLocalDb):
@@ -27,6 +27,125 @@ from conf.cgc_config import young_diagrams_txt_limit, branching_laws_txt_limit
 #         })
 #         self.txt_limit = calculated_tables_txt_limit
 #         self._init_cgc_static_db_folder()
+
+class YamanouchiMatrixInfo(CGCLocalDb):
+    """
+    这个db用来存Yamanouchi对换矩阵（仅限(ij)和(in)）
+
+    Yamanouchi对换矩阵的落盘格式为：
+    <CG>/yamanouchi_matrix_info/Sn/[ν_i]/ij(i,j).pkl 或
+    <CG>/yamanouchi_matrix_info/Sn/[ν_i]/in(i,n).pkl     ->
+    {
+    "file_name": "Sn/[ν_i]/ij(i,j)",
+    "data": matrix_ij 或 matrix_in,           # list(list(float))
+    "flags": {"speed_time": speed_time}
+    }
+
+    其中，
+    Sn表示n阶置换群;
+    [ν_i]表示杨图;
+    ij表示临近对换;
+    in表示末尾对换;
+    speed_time表示计算用时（秒）
+
+    例如：
+    S3/[2, 1]/ij(2, 3).pkl: {(2,3): [[-0.5, 0.8660254037844386], [0.8660254037844386, 0.5]]}
+    S3/[2, 1]/in(1, 3).pkl: {(1,3): [[-0.5, -0.8660254037844386], [-0.8660254037844386, 0.5]]}
+
+    另存：
+    <CG>/yamanouchi_matrix_info/Finish_Sn.pkl ->
+    {
+    "file_name": "Finish_Sn",
+    "data": [],
+    "flags": {"finish_s_n": s_n,
+              "history_times": {"S{n}": time_of_s_n}}
+    }
+
+    其中，
+    Finish_Sn是固定名称，所有计算结果里都有
+    s_n表示当前计算完成的最大阶数，是int型
+    time_of_s_n表示Sn的计算时间，int型，外部是不断update的字典
+    """
+
+    def __init__(self, s_n):
+        super(YamanouchiMatrixInfo, self).__init__()
+        self.table_type = "yamanouchi_matrix_info"
+        self.map_id = "file_name"
+        self.design_table_type.update({
+            "data": list,
+            "flags": dict
+        })
+        self.s_n = s_n
+        self.txt_limit = default_s_n
+        self._init_cgc_static_db_folder()
+
+
+class YoungTableInfo(CGCLocalDb):
+    """
+    这个db用来存杨盘
+
+    杨盘的落盘格式为：
+    <CG>/young_tableaux_info/Sn/[ν_i].pkl  ->
+    {
+    "file_name": "Sn/[ν_i]",
+    "data": {"m_i": young_table}
+    "flags": {"speed_time": speed_time
+              "total_num": total_num}  # 注意，这里的total_num就是[ν_i]_num里的total_num
+    }
+
+    其中，
+    Sn表示n阶置换群;
+    [ν_i]表示杨图;
+    total_num就是len({"m_i": young_table})，表示杨盘总数;
+    speed_time表示计算用时（秒）
+
+    例如：
+    S3/[2, 1].pkl: {"1": [[1, 2], [3]], "2": [[1, 3], [2]]}
+
+
+    另存：
+    <CG>/young_tableaux_info/Finish_Sn.pkl ->
+    {
+    "file_name": "Finish_Sn",
+    "data": {},
+    "flags": {"finish_s_n": s_n,
+              "history_times": {"S{n}": time_of_s_n}}
+    }
+
+    其中，
+    Finish_Sn是固定名称，所有计算结果里都有
+    s_n表示当前计算完成的最大阶数，是int型
+    time_of_s_n表示Sn的计算时间，int型，外部是不断update的字典
+
+
+    另存：
+    <CG>/young_tableaux_info/Sn/[ν_i]_num.pkl   ->
+    {
+    "file_name": "Sn/[ν_i]_num",
+    "data": {"total_num": total_num}
+    "flags": {}
+    }
+
+    其中，
+    Sn表示n阶置换群;
+    [ν_i]表示杨图;
+    total_num就是len({"m_i": young_table})，表示杨盘总数;
+
+    例如：
+    S3/[2, 1]_num.pkl: {"total_num": 2}
+    """
+
+    def __init__(self, s_n):
+        super(YoungTableInfo, self).__init__()
+        self.table_type = "young_tableaux_info"
+        self.map_id = "file_name"
+        self.design_table_type.update({
+            "data": dict,
+            "flags": dict
+        })
+        self.s_n = s_n
+        self.txt_limit = default_s_n
+        self._init_cgc_static_db_folder()
 
 
 class BranchingLawInfo(CGCLocalDb):
@@ -79,7 +198,7 @@ class BranchingLawInfo(CGCLocalDb):
             "flags": dict
         })
         self.s_n = s_n
-        self.txt_limit = branching_laws_txt_limit
+        self.txt_limit = default_s_n
         self._init_cgc_static_db_folder()
 
 
@@ -129,5 +248,5 @@ class YoungDiagramInfo(CGCLocalDb):
             "flags": dict
         })
         self.s_n = s_n
-        self.txt_limit = young_diagrams_txt_limit
+        self.txt_limit = default_s_n
         self._init_cgc_static_db_folder()
