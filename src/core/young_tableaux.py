@@ -19,12 +19,12 @@ this code for creating Young Tableaux by Sn, young_diagrams and branching_laws
 
 
 # 我们同样关注各种符号、公式、定义背后的物理意义！
-# 利用杨图/杨盘可以直观地分类置换群格子之间的对称性（详见《群表示论的新途径》陈金全（上海科学技术出版社1984）2.6；3.4），例如
+# 利用杨图/杨盘可以直观地分类置换群格子之间的对称性（详见《群表示论的新途径》陈金全（上海科学技术出版社1984）2.6；3.4）
 # 比如我们看到 [[1, 2, 3]]这个杨盘，
 #   a）当它表示粒子的时候，可以代表1，2，3之间具有交换不变性，比方说全同粒子
 #   b）当它表示波函数的时候，
 #       b1）可以表示α^3（每个粒子可能取值只有α这1种状态）既三个全同粒子，的全部对称性状态(|ααα>)
-#       b2）可以表示(α^2)β（每个粒子可能取值有α和β这2种状态，但有两个是一致的）既两个全同粒子+一个可以能全同也可能不同的粒子，的部分对称性状态。
+#       b2）可以表示(α^2)β（每个粒子可能取值有α和β这2种状态，但有两个是一致的）的部分对称状态（群空间，不是坐标空间，是表示三个群空间基失全对称）
 #           （说明：坐标空间可以用|ααβ>，|αβα>，|βαα>表示，但群空间上他们体现不出对称性关系；
 #                 群空间里重新线性组合并正交归一化，
 #                 用(|ααβ>+|αβα>+|βαα>)/sqrt(3), (2|ααβ>-|αβα>-|βαα>)/sqrt(6), (|αβα>-|βαα>)/sqrt(2) 三个新基失表示，
@@ -41,6 +41,8 @@ from core.cgc_utils.cgc_local_db import get_young_tableaux_file_name, get_young_
     get_young_tableaux_num_file_name
 from core.cgc_utils.cgc_db_typing import YoungTableInfo
 from core.young_diagrams import load_young_diagrams
+from core.young_diagrams import is_young_diagram, calc_s_n_from_young_diagram, calc_s_n_from_young_diagram_without_check
+from functools import lru_cache
 from utils.log import get_logger
 
 
@@ -122,6 +124,7 @@ def create_young_tableaux(s_n: int=default_s_n):
                 logger.error(err_msg)
                 return False, err_msg
 
+        # 别忘了也要更新Finish_Sn
         s_i_speed_time = int(time.time() - s_i_start_time)
         flag, msg = save_young_tableaux_finish_s_n(s_i, s_i_speed_time, is_check_add_one=True)
         if not flag:
@@ -501,14 +504,89 @@ def load_young_table_num(s_n: int, yd: list, is_flag_true_if_not_s_n=True):
             return False, err_msg
 
 
+def is_young_table(young_table):
+    """
+    1，检查类型为list
+    2，检查非空
+    3，检查内部类型为list非空
+    4，检查内部的内部为int
+    5，检查升序性
+    6，检查满编
+    """
+    if not young_table or not isinstance(young_table, list):
+        err_msg = "young_table={} with type={} must be real list".format(young_table, type(young_table))
+        logger.error(err_msg)
+        return False
+
+    yd = []
+    all_number = []
+    for yt_layer in young_table:
+        if not yt_layer or not isinstance(yt_layer, list):
+            err_msg = "yt_layer={} with type={} must be real list".format(yt_layer, type(yt_layer))
+            logger.error(err_msg)
+            return False
+        if not all(isinstance(i, int) for i in yt_layer):
+            err_msg = "yt_layer={} must have all int element but {}".format(yt_layer, [type(i) for i in yt_layer])
+            logger.error(err_msg)
+            return False
+        ascending_yt_layer = sorted(yt_layer)
+        if yt_layer != ascending_yt_layer:
+            err_msg = "yt_layer={} must be ascending order, like {}".format(yt_layer, ascending_yt_layer)
+            logger.error(err_msg)
+            return False
+        yd.append(len(yt_layer))
+        all_number += yt_layer
+
+    if not is_young_diagram(yd):
+        err_msg = "young_table={} have wrong young_diagram={}, pls check".format(young_table, yd)
+        logger.error(err_msg)
+        return False
+
+    ascending_all_number = sorted(all_number)
+    if ascending_all_number != list(range(1, len(all_number) + 1)):
+        err_msg = "young_table={} have wrong all_number={}, it must be {}".format(
+            young_table, all_number, list(range(1, len(all_number) + 1)))
+        logger.error(err_msg)
+        return False
+
+    return True
+
+
+def calc_young_diagram_from_young_table_without_check(young_table):
+    yd = [len(i) for i in young_table]
+    return True, yd
+
+
+def calc_young_diagram_from_young_table(young_table):
+    if not is_young_table(young_table):
+        err_msg = "cannot calc young_diagram with wrong young_table={}".format(young_table)
+        logger.error(err_msg)
+        return False, None
+    return calc_young_diagram_from_young_table_without_check(young_table)
+
+
+def calc_s_n_from_young_table_without_check(young_table):
+    s_n = max([max(i) for i in young_table])
+    return True, s_n
+
+
+def calc_s_n_from_young_table(young_table):
+    if not is_young_table(young_table):
+        err_msg = "cannot calc s_n with wrong young_table={}".format(young_table)
+        logger.error(err_msg)
+        return False, None
+
+    return calc_s_n_from_young_table_without_check(young_table)
+
+
 def get_s_i_index_in_young_table(s_i, young_table):
     """返回s_i格子在杨盘中的py坐标"""
-    # TODO 这个函数，需要和原始函数放同样的input去测试！
     yt_row_num = len(young_table)
     for row, sub_list in zip(range(yt_row_num), young_table):
         if s_i in sub_list:
             col = sub_list.index(s_i)
             return row, col
+
     return False, "s_i={} not in young_table={}, pls check".format(s_i, young_table)
 
 
@@ -519,40 +597,82 @@ def _quickly_calc_in_decreasing_page_order():
     pass
 
 
-def quickly_calc_young_table_in_decreasing_page_order(young_table, yd=None, s_n=None):
+def read_young_table_in_decreasing_page_order(young_table, all_yts_with_same_yt, is_rst_int=False):
     """
-    快速计算杨盘编号（也称作Yamanouchi编号）（不递归）
-    TODO 这就是我那个定理嘛 1，独立成可以对外的api；2，贴上描述
-    TODO 这个函数，需要和原始函数放同样的input去测试！
+    1，错误：返回False, err_msg
+    2，没有：返回True, None
+    3，有  ：返回True, str/int(idp_order)
     """
-    if not isinstance(young_table, list):
-        # TODO 叫young_table还是young_table_like还未可知
-        err_msg = "young_table={} with type={} must be list".format(young_table, type(young_table))
+    # 简单检查
+    if not young_table or not isinstance(young_table, list):
+        err_msg = "young_table={} with type={} must be real list".format(young_table, type(young_table))
         logger.error(err_msg)
         return False, err_msg
-    if yd is None:
-        # TODO 这个yt算yd未来可以考虑拿出来独立
-        yd = [len(i) for i in young_table]
-    if not isinstance(yd, list):
-        err_msg = "yd={} with type={} must be list".format(yd, type(yd))
-        logger.error(err_msg)
-        return False, err_msg
-    if s_n is None:
-        # TODO 这个yd算s_n未来可以考虑拿出来独立
-        s_n_1 = sum(yd)
-        # TODO 这个yt算s_n未来可以考虑拿出来独立
-        s_n_2 = max([max(i) for i in young_table])
-        if s_n_1 != s_n_2:
-            err_msg = "calc s_n={} by yd={} not eq s_n={} by yt={}".format(s_n_1, yd, s_n_2, young_table)
-            logger.error(err_msg)
-            return False, err_msg
-        else:
-            s_n = s_n_1
-    if not isinstance(s_n, int):
-        err_msg = "s_n={} with type={} must be int".format(s_n, type(s_n))
+    if not all_yts_with_same_yt or not isinstance(all_yts_with_same_yt, dict):
+        err_msg = "all_yts_with_same_yt={} with type={} must be real dict".format(
+            all_yts_with_same_yt, type(all_yts_with_same_yt))
         logger.error(err_msg)
         return False, err_msg
 
+    # 判断
+    for idp_order, v in all_yts_with_same_yt.items():
+        if young_table == v:
+            if is_rst_int:
+                return True, int(idp_order)
+            else:
+                return True, idp_order
+    return True, None
+
+
+def quickly_calc_young_table_in_decreasing_page_order(young_table, yd=None, s_n=None, is_rst_int=False):
+    """
+    快速计算杨盘编号（也称作Yamanouchi编号）（不递归）
+    TODO 这就是我那个定理嘛 1，独立成可以对外的api；2，贴上描述
+    """
+    # 检查手续
+    if not is_young_table(young_table):
+        err_msg = "young_table={} with must be is_young_table".format(young_table)
+        logger.error(err_msg)
+        return False, err_msg
+    if yd is None:
+        flag, yd = calc_young_diagram_from_young_table_without_check(young_table)
+        if not flag:
+            err_msg = "calc_young_diagram_from_young_table_without_check meet error with msg={}".format(yd)
+            logger.error(err_msg)
+            return False, err_msg
+    else:
+        # if not is_young_diagram(yd):
+        #     err_msg = "yd={} with must be is_young_diagram".format(yd)
+        #     logger.error(err_msg)
+        #     return False, err_msg
+        if not yd or not isinstance(yd, list):  # 对于传入的yd为了快，我们只简单检查
+            err_msg = "yd={} with type={} must be real list".format(yd, type(yd))
+            logger.error(err_msg)
+            return False, err_msg
+    if s_n is None:
+        flag, s_n_from_yt = calc_s_n_from_young_table_without_check(young_table)
+        if not flag:
+            err_msg = "calc_s_n_from_young_table_without_check meet error with msg={}".format(s_n_from_yt)
+            logger.error(err_msg)
+            return False, err_msg
+        flag, s_n_from_yd = calc_s_n_from_young_diagram_without_check(yd)
+        if not flag:
+            err_msg = "calc_s_n_from_young_diagram_without_check meet error with msg={}".format(s_n_from_yd)
+            logger.error(err_msg)
+            return False, err_msg
+        if s_n_from_yt != s_n_from_yd:
+            err_msg = "calc s_n={} by yt={} must eq s_n={} by yd={}".format(s_n_from_yt, young_table, s_n_from_yd, yd)
+            logger.error(err_msg)
+            return False, err_msg
+        else:
+            s_n = s_n_from_yt
+    else:
+        if not s_n >= 1 or not isinstance(s_n, int):
+            err_msg = "s_n={} with type={} must be >=1 and int".format(s_n, type(s_n))
+            logger.error(err_msg)
+            return False, err_msg
+
+    # 计算程序
     idp_order = 0
     remain_yd_s_max = copy.deepcopy(yd)
     for s_max in range(s_n, 0, -1):  # [Sn, Sn-1, Sn-2, ..., 1]  # s_max表示剩余杨图的最大格子
@@ -569,7 +689,7 @@ def quickly_calc_young_table_in_decreasing_page_order(young_table, yd=None, s_n=
 
             # 计算去掉当前最大格子的剩余杨图
             row_s_max, _ = get_s_i_index_in_young_table(s_max, young_table)
-            if remain_yd_s_max[row_s_max] == 1:  # 表示剩余最大格子在剩余杨图中那行只剩一个格子了，该行就一定是尾行 # TODO 一定看下[[2], [1]]怎么回事
+            if remain_yd_s_max[row_s_max] == 1:  # 表示剩余最大格子在剩余杨图中那行只剩一个格子了，该行就一定是尾行
                 remain_yd_s_max = remain_yd_s_max[:-1]  # 去掉这种格子，相当于去掉尾行
             else:  # 表示剩余最大格子在剩余杨图中那行不止一个格子
                 remain_yd_s_max[row_s_max] += -1  # 去掉这种格子，相当于对该行减1
@@ -589,4 +709,7 @@ def quickly_calc_young_table_in_decreasing_page_order(young_table, yd=None, s_n=
                     return False, err_msg
                 idp_order += before_yt_s_max_j_num
 
-    return True, idp_order
+    if is_rst_int:
+        return True, idp_order
+    else:
+        return True, str(idp_order)

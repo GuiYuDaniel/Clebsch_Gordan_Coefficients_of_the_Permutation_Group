@@ -6,6 +6,7 @@ cgc db会自动创建两个时间键值：create_time，last_write_time
 """
 
 
+import numpy as np
 from core.cgc_utils.cgc_local_db import CGCLocalDb
 from conf.cgc_config import default_s_n
 
@@ -37,7 +38,7 @@ class YamanouchiMatrixInfo(CGCLocalDb):
     <CG>/yamanouchi_matrix_info/Sn/[ν_i]/in(i,n).pkl     ->
     {
     "file_name": "Sn/[ν_i]/ij(i,j)",
-    "data": matrix_ij 或 matrix_in,           # list(list(float))
+    "data": matrix_ij 或 matrix_in,           # np.ndarray(float)
     "flags": {"speed_time": speed_time}
     }
 
@@ -72,7 +73,7 @@ class YamanouchiMatrixInfo(CGCLocalDb):
         self.table_type = "yamanouchi_matrix_info"
         self.map_id = "file_name"
         self.design_table_type.update({
-            "data": list,
+            "data": (list, np.ndarray,),
             "flags": dict
         })
         self.s_n = s_n

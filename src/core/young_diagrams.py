@@ -26,6 +26,7 @@ import time
 from conf.cgc_config import default_s_n
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo
 from core.cgc_utils.cgc_local_db import get_young_diagrams_file_name, get_young_diagrams_finish_s_n_name
+from functools import lru_cache
 from utils.log import get_logger
 
 
@@ -350,6 +351,49 @@ def load_young_diagrams(s_n: int, is_flag_true_if_not_s_n=True):
             err_msg = "query not exist young_diagrams db with s_n={}, file_name={}, err_msg={}".format(
                 s_n, file_name, data)
             return False, err_msg
+
+
+def is_young_diagram(young_diagram):
+    """
+    1，检查类型为list
+    2，检查非空
+    3，检查内部类型为int
+    4，检查降序性
+    5，检查最小值
+    """
+    if not young_diagram or not isinstance(young_diagram, list):
+        err_msg = "young_diagram={} with type={} must be real list".format(young_diagram, type(young_diagram))
+        logger.error(err_msg)
+        return False
+    if not all(isinstance(i, int) for i in young_diagram):
+        err_msg = "young_diagram={} must have all int element but {}".format(
+            young_diagram, [type(i) for i in young_diagram])
+        logger.error(err_msg)
+        return False
+    descending_yd = sorted(young_diagram, reverse=True)
+    if young_diagram != descending_yd:
+        err_msg = "young_diagram={} must be descending order, like {}".format(young_diagram, descending_yd)
+        logger.error(err_msg)
+        return False
+    if not descending_yd[-1] >= 1:  # 就是min(young_diagram)
+        err_msg = "min(young_diagram)={} must >= 1 but not".format(min(young_diagram))
+        logger.error(err_msg)
+        return False
+
+    return True
+
+
+def calc_s_n_from_young_diagram_without_check(young_diagram):
+    s_n = sum(young_diagram)
+    return True, s_n
+
+
+def calc_s_n_from_young_diagram(young_diagram):
+    if not is_young_diagram(young_diagram):
+        err_msg = "cannot calc s_n with wrong young_diagram={}".format(young_diagram)
+        logger.error(err_msg)
+        return False, None
+    return calc_s_n_from_young_diagram_without_check(young_diagram)
 
 
 """

@@ -50,18 +50,18 @@
         "outputs": ["l3n1:::flag", "l3n1:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
-        "next_nodes": [""],
+        "next_nodes": ["l4n1_yamanouchi_matrix"],
         "flags": []
     },
     {
-        "name": "f4",
-        "func": ["None.test.fake.fake_core", "who_am_i", ""],
+        "name": "l4n1_yamanouchi_matrix",
+        "func": ["None.src.core.yamanouchi_matrix", "create_yamanouchi_matrix", ""],
         "type": "cold",
-        "inputs": ["uid"],
-        "outputs": ["pw_name"],
+        "inputs": ["l3n1:::s_n:s_n"],
+        "outputs": ["l4n1:::flag", "l4n1:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
-        "next_nodes": ["f6"],
+        "next_nodes": ["..."],
         "flags": []
     },
     {

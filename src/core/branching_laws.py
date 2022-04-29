@@ -15,6 +15,11 @@ this code for creating Branching Laws by Sn and young_diagram
 # 例如：$S_8$群IR[431]中包含$S_7$群IR[43]，[421]，[331]各一次。
 
 
+# 我们同样关注各种符号、公式、定义背后的物理意义！
+# 分支律的意义是，描述可Sn群与Sn-1群的关系
+# 不仅仅是+关系，很多具体的量，更是暗藏着带有数学运算的"生成"关系
+
+
 import copy
 import time
 from conf.cgc_config import default_s_n
