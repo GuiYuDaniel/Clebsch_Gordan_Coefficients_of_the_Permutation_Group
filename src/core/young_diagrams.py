@@ -23,10 +23,10 @@ this code for creating Young Diagrams by Sn
 
 
 import time
+import numpy as np
 from conf.cgc_config import default_s_n
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo
 from core.cgc_utils.cgc_local_db import get_young_diagrams_file_name, get_young_diagrams_finish_s_n_name
-from functools import lru_cache
 from utils.log import get_logger
 
 
@@ -394,6 +394,30 @@ def calc_s_n_from_young_diagram(young_diagram):
         logger.error(err_msg)
         return False, None
     return calc_s_n_from_young_diagram_without_check(young_diagram)
+
+
+def calc_young_diagram_dagger(young_diagram, is_check_yd=True):
+    if is_check_yd:
+        if not is_young_diagram(young_diagram):
+            err_msg = "cannot calc dagger with wrong young_diagram={}".format(young_diagram)
+            logger.error(err_msg)
+            return False, err_msg
+    else:
+        if not isinstance(young_diagram, list):
+            err_msg = "cannot calc dagger with wrong young_diagram={}".format(young_diagram)
+            logger.error(err_msg)
+            return False, err_msg
+
+    row, col = len(young_diagram), max(young_diagram)
+    yd_matrix_np = np.zeros([row, col], dtype=int)
+    for row_i in range(row):
+        col_i = young_diagram[row_i]
+        yd_matrix_np[row_i, :col_i] = 1
+    # young_diagram_np = np.sum(yd_matrix_np, axis=1)
+    young_diagram_dagger_np = np.sum(yd_matrix_np, axis=0)
+    young_diagram_dagger = young_diagram_dagger_np.tolist()
+
+    return True, young_diagram_dagger
 
 
 """

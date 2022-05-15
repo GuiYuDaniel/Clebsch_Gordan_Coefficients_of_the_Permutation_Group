@@ -51,7 +51,7 @@ logger = get_logger(__name__)
 
 def create_yamanouchi_matrix(s_n: int=default_s_n):
     """
-    提供给workflow的函数，负责调用计算和存储杨盘(以及杨盘总数)实体
+    提供给workflow的函数，负责调用计算和存储Yamanouchi矩阵实体
     返回格式：
     flag, msg
     1，合法：True, s_n

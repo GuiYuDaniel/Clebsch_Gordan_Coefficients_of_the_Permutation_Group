@@ -11,7 +11,7 @@ import math
 import numpy as np
 import pytest
 from conf.cgc_config import cgc_rst_folder
-from core.cgc_utils.cgc_db_typing import YoungDiagramInfo, BranchingLawInfo, YoungTableInfo, YamanouchiMatrixInfo
+from core.cgc_utils.cgc_db_typing import YamanouchiMatrixInfo
 from core.branching_laws import create_branching_laws
 from core.young_diagrams import create_young_diagrams
 from core.young_tableaux import create_young_tableaux
@@ -33,8 +33,8 @@ logger = get_logger(__name__)
 class TestYamanouchiMatirx(object):
 
     def setup_class(self):
-        # self.protector = DBProtector(cgc_rst_folder, extension_name=".test_yamanouchi_matrix_protected")
-        # self.protector.protector_setup()
+        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_yamanouchi_matrix_protected")
+        self.protector.protector_setup()
 
         # 准备前文
         flag, msg = create_young_diagrams(6)
@@ -132,7 +132,7 @@ class TestYamanouchiMatirx(object):
         pass
 
     def teardown_class(self):
-        # self.protector.protector_teardown()
+        self.protector.protector_teardown()
         pass
 
     # start with 0xx tests need test by order
@@ -319,3 +319,11 @@ class TestYamanouchiMatirx(object):
             flag, matrix_in = _calc_s_b_to_s_n_part(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, yt_all_s_n)
             assert flag
             assert np.allclose(ym, matrix_in, atol=0.0000000000001)
+
+    def test_orthonormal(self):
+        # TODO 测试正交归一性
+        pass
+
+    def test_trace(self):
+        # TODO 测试矩阵的迹
+        pass

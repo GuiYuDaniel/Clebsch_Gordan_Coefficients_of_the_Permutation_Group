@@ -35,13 +35,12 @@ calculated_tables_txt_limit = -1  # -1表示永远存txt
 # db table name
 # young diagrams file name format
 young_diagrams_file_name_format = "S{}"
-# young diagrams txt limit
-#young_diagrams_txt_limit = default_s_n  # 除了CGC，ISF其他都是存到default_s_n
 # branching laws file name format
 branching_laws_file_name_format = os.path.join("S{}", "{}")  # "S{}/{}"
-# branching laws txt limit
-#branching_laws_txt_limit = default_s_n
-# branching laws file name format
+# young tableaux file name format
 young_tableaux_file_name_format = os.path.join("S{}", "{}")  # "S{}/{}"
 young_tableaux_num_file_name_format = os.path.join("S{}", "{}_num")  # "S{}/{}_num"
+# yamanouchi matrix file name format
 yamanouchi_matrix_file_name_format = os.path.join("S{}", "{}", "{}{}")  # "S{}/{}/{}{}"
+# characters and gi file name format
+characters_and_gi_file_name_format = "S{}"

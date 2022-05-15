@@ -15,6 +15,7 @@ from core.cgc_utils.cgc_local_db import get_young_diagrams_file_name, get_young_
 from core.young_diagrams import calc_single_young_diagrams, create_young_diagrams
 from core.young_diagrams import load_young_diagrams, get_young_diagrams_finish_s_n
 from core.young_diagrams import is_young_diagram, calc_s_n_from_young_diagram
+from core.young_diagrams import calc_young_diagram_dagger
 from db.local_db_protector import DBProtector
 from utils.log import get_logger
 
@@ -45,6 +46,8 @@ class TestYoungDiagrams(object):
                                    [2, 2, 2, 1], [2, 2, 1, 1, 1], [2, 1, 1, 1, 1, 1],
                                    [1, 1, 1, 1, 1, 1, 1]]
         self.wrong_young_diagram_list = [None, [], [1, 2], [3, 0], [3, 2, -1], [-1, -2]]
+        self.young_diagrams_dict = {"+": [[3, 2], [3, 1, 1], [2, 2], [1], [1, 1, 1, 1]],
+                                    "-": [[2, 2, 1], [3, 1, 1], [2, 2], [1], [4]]}
         self.default_s_n = default_s_n
         _, self.s_1_file_name = get_young_diagrams_file_name(1)
         _, self.s_1_full_file_name = get_young_diagrams_file_name(1, is_full_path=True)
@@ -209,4 +212,26 @@ class TestYoungDiagrams(object):
                 flag, s_n_calc = calc_s_n_from_young_diagram(yd)
                 assert flag
                 assert s_n_calc == s_n
+
+    def test_calc_young_diagram_dagger(self):
+        yd_list_1, yd_list_2 = self.young_diagrams_dict["+"], self.young_diagrams_dict["-"]
+        for yd_1, yd_2 in zip(yd_list_1, yd_list_2):
+            flag, yd_1_dagger = calc_young_diagram_dagger(yd_1)
+            assert flag
+            assert yd_1_dagger == yd_2
+            flag, yd_1_dagger_dagger = calc_young_diagram_dagger(yd_1_dagger)
+            assert flag
+            assert yd_1 == yd_1_dagger_dagger
+
+        head_s_n = 1
+        tail_s_n = 7
+        for s_n in range(head_s_n, tail_s_n + 1):
+            young_diagrams = eval("self.young_diagrams_s_{}".format(s_n))
+            for yd in young_diagrams:
+                flag, yd_dagger = calc_young_diagram_dagger(yd)
+                assert flag
+                assert is_young_diagram(yd_dagger)
+                flag, yd_dagger_dagger = calc_young_diagram_dagger(yd_dagger)
+                assert flag
+                assert yd == yd_dagger_dagger
 

@@ -284,6 +284,9 @@ def get_young_diagrams_file_name(s_n: int, is_full_path=False):
 
 
 def get_young_diagrams_finish_s_n_name(is_full_path=False):
+    """
+    Finish_Sn or <top_path>/cgc_results/young_diagrams_info/Finish_Sn
+    """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="young_diagrams_info")
 
 
@@ -313,6 +316,9 @@ def get_branching_laws_file_name(s_n: int, yd: list, is_full_path=False):
 
 
 def get_branching_laws_finish_s_n_name(is_full_path=False):
+    """
+    Finish_Sn or <top_path>/cgc_results/branching_laws_info/Finish_Sn
+    """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="branching_laws_info")
 
 
@@ -366,6 +372,9 @@ def get_young_tableaux_num_file_name(s_n: int, yd: list, is_full_path=False):
 
 
 def get_young_tableaux_finish_s_n_name(is_full_path=False):
+    """
+    Finish_Sn or <top_path>/cgc_results/young_tableaux_info/Finish_Sn
+    """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="young_tableaux_info")
 
 
@@ -406,4 +415,35 @@ def get_yamanouchi_matrix_file_name(s_n: int, yd: list, ix: tuple, mode=None, is
 
 
 def get_yamanouchi_matrix_finish_s_n_name(is_full_path=False):
+    """
+    Finish_Sn or <top_path>/cgc_results/yamanouchi_matrix_info/Finish_Sn
+    """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="yamanouchi_matrix_info")
+
+
+# characters and gi
+def get_characters_and_gi_file_name(s_n: int, is_full_path=False):
+    """
+    Sn or <top_path>/cgc_results/characters_and_gi_info/Sn
+    p.s. S3 or <top_path>/cgc_results/characters_and_gi_info/S3
+    """
+    from conf.cgc_config import characters_and_gi_file_name_format
+    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
+        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
+            s_n, type(s_n), is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+
+    file_name = characters_and_gi_file_name_format.format(s_n)
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "characters_and_gi_info", file_name)
+        return True, full_path
+
+
+def get_characters_and_gi_finish_s_n_name(is_full_path=False):
+    """
+    Finish_Sn or <top_path>/cgc_results/characters_and_gi_info/Finish_Sn
+    """
+    return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="characters_and_gi_info")

@@ -65,14 +65,14 @@
         "flags": []
     },
     {
-        "name": "f5",
-        "func": ["None.test.fake.fake_core", "where_am_i", ""],
+        "name": "l2n2_characters_and_gi",
+        "func": ["None.src.core.characters_and_gi", "create_characters_and_gi", ""],
         "type": "cold",
-        "inputs": ["param2:::flag:normal_flag"],
-        "outputs": ["path"],
+        "inputs": ["l1n1:::s_n:s_n"],
+        "outputs": ["l2n1:::flag", "l2n1:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
-        "next_nodes": ["f6"],
+        "next_nodes": ["..."],
         "flags": []
     },
     {

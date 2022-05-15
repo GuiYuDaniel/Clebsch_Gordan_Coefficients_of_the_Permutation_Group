@@ -34,26 +34,37 @@
                                                                                       #存放S3群二循环类算符本征值等于0的构型————[2,1]
         同目录下：/Users/guiyu/Desktop/CG/eigenvalue2r/Sn/λ.txt                         #同内容txt文件
 
-    对换矩阵存放于：
-        (i,j)对换：C:\CG\YamanouchiMatrix(ij)\Sn\ij[i,j]\[ri].pkl    #如C:\CG\YamanouchiMatrix(ij)\S4\ij[2,3]\[2,1,1].pkl
-                                                                                       #存放S4群[2,1,1]构型的（23）交换矩阵
-            同目录下C:\CG\YamanouchiMatrix(ij)\Sn\ij[i,j]\[ri].npy                      #是在python中易于存取的相同文件
-            同目录下C:\CG\YamanouchiMatrix(ij)\Sn\ij[i,j]\[ri].txt                      #存放Sn<=5的Sn群[ri]构型的（i，j）交换矩阵
 
-        (i,n)对换：C:\CG\YamanouchiMatrix(in)\Sn\in[i,n]\[ri].pkl    #如C:\CG\YamanouchiMatrix(in)\S4\in[2,4]\[2,1,1].pkl
-                                                                                      #存放S4群[2,1,1]构型的（24）交换矩阵
-            同目录下C:\CG\YamanouchiMatrix(in)\Sn\in[i,n]\[ri].npy                      #是在python中易于存取的相同文件
-            同目录下C:\CG\YamanouchiMatrix(in)\Sn\in[i,n]\[ri].txt                      #存放Sn<=5的Sn群[ri]构型的（i，n）交换矩阵
-                                                                                      #存放S4群[2,1,1]构型的（24）交换矩阵
+
+    特征标表存放于：../CG/KAI/Sn/[r].pkl     #如<CG>/young_diagrams_info/S4.pkl
+               ../CG/KAI/Sn/[r].txt(手动录入的，便于检查)
+               ../CG/KAI/Sn/gi.pkl
+               ../CG/KAI/Sn/gi.txt（手动录入的，便于检查）
+        (P205,《群论习题精解》,马中骐；按列存入,编程检查正交归一)
+
+    特征标表存放于：
+        特征标&gi：
+            <CG>/characters_and_gi_info/Sn.pkl     #如<CG>/characters_and_gi_info/S4.pkl
+            #按照Littlewood书中给的表格和Yamanouchi序存放特征标矩阵和gi
+            数据结构：{"data":
+                      {"character": character_matrix,   #np.ndarray(int)    #特征标矩阵
+                       "gi": gi_array}}                 #np.ndarray(int)    #已经和特征标矩阵的列对齐的gi
+            txt展示：value of "data"
+            #{"character": [[ 1  1  1  1  1]
+                            [ 3  1  0 -1 -1]
+                            [ 2  0 -1  0  2]
+                            [ 3 -1  0  1 -1]
+                            [ 1 -1  1 -1  1]],
+              "gi": [1, 6, 8, 6, 3]}
 
     对换矩阵存放于：
         (i,j)对换：<CG>/yamanouchi_matrix_info/Sn/[ν_i]/ij(i,j).pkl #如<CG>/yamanouchi_matrix_info/S4/[2,1,1]/ij(2,3).pkl
-            数据结构：{"data": matrix_ij}           #list(list(float))                  #存放S4群[2,1,1]构型的（23）交换矩阵
+            数据结构：{"data": matrix_ij}           #np.ndarray(float)                  #存放S4群[2,1,1]构型的（23）交换矩阵
             txt展示：value of "data"
             #[[-0.5, 0.8660254037844386, 0], [0.8660254037844386, 0.5, 0], [0, 0, -1]]
 
         (i,n)对换：<CG>/yamanouchi_matrix_info/Sn/[ν_i]/in(i,n).pkl #如<CG>/yamanouchi_matrix_info/S4/[2,1,1]/in(2,4).pkl
-            数据结构：{"data": matrix_in}           #list(list(float))                  #存放S4群[2,1,1]构型的（24）交换矩阵
+            数据结构：{"data": matrix_in}           #np.ndarray(float)                  #存放S4群[2,1,1]构型的（24）交换矩阵
             txt展示：value of "data"
             #[[-0.5, 0.28867513459481287, -0.8164965809277259],
               [0.28867513459481287, -0.8333333333333334, -0.4714045207910317],
