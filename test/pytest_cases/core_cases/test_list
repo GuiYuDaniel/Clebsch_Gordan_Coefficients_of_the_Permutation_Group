@@ -3,3 +3,7 @@
 test_cgc_db.py
 test_young_diagrams.py
 test_branching_laws.py
+test_young_tableaux.py
+test_yamanouchi_matrix.py
+test_characters_and_gi.py
+test_cg_order.py

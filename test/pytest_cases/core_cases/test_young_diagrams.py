@@ -202,6 +202,7 @@ class TestYoungDiagrams(object):
         # 反例
         for wrong_yd in self.wrong_young_diagram_list:
             assert not is_young_diagram(wrong_yd)
+            logger.info("Error is supposed here!")
 
     def test_calc_s_n_from_young_diagram(self):
         head_s_n = 1

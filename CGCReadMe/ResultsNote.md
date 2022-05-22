@@ -18,13 +18,7 @@
         ../CG/ISF/Sn/[σ]_[μ]／folder_list.pkl              # 记录全部有效[[ν],[ν’]]
 
 
-    CGorder存放于：../CG/CG_order/Sn/[σ]_[μ]/[ν].pkl      # /Users/guiyu/Desktop/CG/CG_order/S3/[2,1]_[2,1]/[3].pkl
 
-    特征标表存放于：../CG/KAI/Sn/[r].pkl
-               ../CG/KAI/Sn/[r].txt(手动录入的，便于检查)
-               ../CG/KAI/Sn/gi.pkl
-               ../CG/KAI/Sn/gi.txt（手动录入的，便于检查）
-        (P205,《群论习题精解》,马中骐；按列存入,编程检查正交归一)
 
     二循环类算符本征值存放于：/Users/guiyu/Desktop/CG/eigenvalue/Sn/[ri].pkl    #如/Users/guiyu/Desktop/CG/eigenvalue/S3/[2，1].pkl
                                                                                       #存放S3群[2,1]构型的二循环类算符本征值
@@ -36,26 +30,28 @@
 
 
 
-    特征标表存放于：../CG/KAI/Sn/[r].pkl     #如<CG>/young_diagrams_info/S4.pkl
-               ../CG/KAI/Sn/[r].txt(手动录入的，便于检查)
-               ../CG/KAI/Sn/gi.pkl
-               ../CG/KAI/Sn/gi.txt（手动录入的，便于检查）
-        (P205,《群论习题精解》,马中骐；按列存入,编程检查正交归一)
 
-    特征标表存放于：
-        特征标&gi：
-            <CG>/characters_and_gi_info/Sn.pkl     #如<CG>/characters_and_gi_info/S4.pkl
-            #按照Littlewood书中给的表格和Yamanouchi序存放特征标矩阵和gi
-            数据结构：{"data":
-                      {"character": character_matrix,   #np.ndarray(int)    #特征标矩阵
-                       "gi": gi_array}}                 #np.ndarray(int)    #已经和特征标矩阵的列对齐的gi
-            txt展示：value of "data"
-            #{"character": [[ 1  1  1  1  1]
-                            [ 3  1  0 -1 -1]
-                            [ 2  0 -1  0  2]
-                            [ 3 -1  0  1 -1]
-                            [ 1 -1  1 -1  1]],
-              "gi": [1, 6, 8, 6, 3]}
+
+    CG序列存放于：
+        <CG>/cg_order_info/Sn/[σ]_[μ].pkl           #<CG>/cg_order_info/Sn/[3]_[2, 1].pkl
+        数据结构：{"data": cg_order_array}            #np.ndarray(int)
+        txt展示：value of "data"
+        #{[0, 1, 0]}
+
+    特征标表和gi存放于：
+        <CG>/characters_and_gi_info/Sn.pkl          #如<CG>/characters_and_gi_info/S4.pkl
+        #按照Littlewood书中给的表格和Yamanouchi序存放特征标矩阵和gi
+        数据结构：{"data":
+                  {"character": character_matrix,   #np.ndarray(int)    #特征标矩阵
+                   "gi": gi_array}}                 #np.ndarray(int)    #已经和特征标矩阵的列对齐的gi
+        # flags中会列出young_diagram_index
+        txt展示：value of "data"
+        #{"character": [[ 1  1  1  1  1]
+                        [ 3  1  0 -1 -1]
+                        [ 2  0 -1  0  2]
+                        [ 3 -1  0  1 -1]
+                        [ 1 -1  1 -1  1]],
+          "gi": [1, 6, 8, 6, 3]}
 
     对换矩阵存放于：
         (i,j)对换：<CG>/yamanouchi_matrix_info/Sn/[ν_i]/ij(i,j).pkl #如<CG>/yamanouchi_matrix_info/S4/[2,1,1]/ij(2,3).pkl

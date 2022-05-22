@@ -12,7 +12,6 @@ this code for creating Characters and Gi of Permutation Groups by Sn
 
 import copy
 import numpy as np
-import math
 import time
 from conf.cgc_config import default_s_n
 from core.young_diagrams import load_young_diagrams
@@ -242,7 +241,13 @@ def create_characters_and_gi(s_n: int=default_s_n):
     # 按照从小到大的顺序，逐个计算s_i的杨图并储存
     for s_i in range(finish_s_n + 1, s_n + 1):  # 循环体为[finish_s_n+1, finish_s_n+2, ..., s_n]
         s_i_start_time = time.time()
-        flag, s_i_characters_and_gi = calc_single_characters_and_gi(s_i)
+        flag, yd_list_s_i = load_young_diagrams(s_i, is_flag_true_if_not_s_n=False)
+        if not flag:
+            err_msg = "get young_diagrams db for create_characters_and_gi meet error with s_n={}, msg={}".format(
+                s_n, yd_list_s_i)
+            logger.error(err_msg)
+            return False, err_msg
+        flag, s_i_characters_and_gi = calc_single_characters_and_gi(s_i, yd_list=yd_list_s_i)
         s_i_speed_time = int(time.time() - s_i_start_time)
         if not flag:
             err_msg = "calc s_i_characters_and_gi meet error with s_i={}, msg={}".format(s_i, s_i_characters_and_gi)
@@ -253,7 +258,7 @@ def create_characters_and_gi(s_n: int=default_s_n):
             logger.error(err_msg)
             return False, err_msg
         # 既然没问题了，那就存（别忘了也要更新Finish_Sn）
-        flag, msg = save_characters_and_gi(s_i, s_i_characters_and_gi, s_i_speed_time)
+        flag, msg = save_characters_and_gi(s_i, s_i_characters_and_gi, yd_list_s_i, s_i_speed_time)
         if not flag:
             err_msg = "save s_i_characters_and_gi meet error with s_i={}, msg={}".format(s_i, s_i_characters_and_gi)
             logger.error(err_msg)
@@ -270,14 +275,15 @@ def create_characters_and_gi(s_n: int=default_s_n):
     return True, s_n
 
 
-def save_characters_and_gi(s_n: int, characters_and_gi_dict: dict, speed_time: int):
+def save_characters_and_gi(s_n: int, characters_and_gi_dict: dict, yd_list: list, speed_time: int):
     """
     它们的落盘格式为：
     <CG>/characters_and_gi_info/Sn.pkl       ->
     {
     "file_name": "Sn",
     "data": {"character": character_matrix, "gi": gi_array},
-    "flags": {"speed_time": speed_time}
+    "flags": {"speed_time": speed_time,
+              "young_diagram_index": young_diagram_list_by_yamanouchi}  # 作为参考，非数据
     }
 
     其中，
@@ -304,6 +310,10 @@ def save_characters_and_gi(s_n: int, characters_and_gi_dict: dict, speed_time: i
             characters_and_gi_dict, type(characters_and_gi_dict))
         logger.error(err_msg)
         return False, err_msg
+    if not isinstance(yd_list, list):
+        err_msg = "get yd_list={} with type={} must be list".format(yd_list, type(yd_list))
+        logger.error(err_msg)
+        return False, err_msg
     if not isinstance(speed_time, int) or speed_time < 0:
         err_msg = "speed_time={} with type={} must be int and >= 0".format(speed_time, type(speed_time))
         logger.error(err_msg)
@@ -313,7 +323,8 @@ def save_characters_and_gi(s_n: int, characters_and_gi_dict: dict, speed_time: i
     _, file_name = get_characters_and_gi_file_name(s_n)
     table = {"file_name": file_name,
              "data": characters_and_gi_dict,
-             "flags": {"speed_time": speed_time}}
+             "flags": {"speed_time": speed_time,
+                       "young_diagram_index": yd_list}}
     flag, msg = db_info.insert(table)
     if not flag:
         return flag, msg
@@ -353,6 +364,7 @@ def save_characters_and_gi_finish_s_n(s_n: int, s_n_speed_time: int, is_check_ad
                        "history_times": {
                            "S{}".format(s_n): s_n_speed_time
                        }}}
+
     if finish_s_n_before == 0:
         flag, msg = db_info.insert(table)
         if not flag:
@@ -446,7 +458,7 @@ def load_characters_and_gi(s_n: int, is_flag_true_if_not_s_n=True):
             return False, err_msg
 
 
-def calc_single_characters_and_gi(s_n: int):
+def calc_single_characters_and_gi(s_n: int, yd_list: list=None):
     """
     按照Yamanouchi序把录入的字典转换成矩阵，同时取得gi
     """
@@ -454,6 +466,18 @@ def calc_single_characters_and_gi(s_n: int):
         err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
         logger.error(err_msg)
         return False, err_msg
+    if yd_list is None:
+        flag, yd_list = load_young_diagrams(s_n, is_flag_true_if_not_s_n=False)
+        if not flag:
+            err_msg = "get young_diagrams db for single_characters_and_gi meet error with s_n={}, msg={}".format(
+                s_n, yd_list)
+            logger.error(err_msg)
+            return False, err_msg
+    else:  # 如果是获得的yd_list，采取信任态度
+        if not isinstance(yd_list, list):
+            err_msg = "get yd_list={} with type={} must be list".format(yd_list, type(yd_list))
+            logger.error(err_msg)
+            return False, err_msg
 
     character_data = CharacterData()
     gi_data = GiData()
@@ -467,12 +491,6 @@ def calc_single_characters_and_gi(s_n: int):
     gi_list = gi_data.get_s_n_gi(s_n)
     if not character_dict or not gi_list:
         err_msg = "cannot get character_dict={} and gi_list={}".format(character_dict, gi_list)
-        logger.error(err_msg)
-        return False, err_msg
-    flag, yd_list = load_young_diagrams(s_n, is_flag_true_if_not_s_n=False)
-    if not flag:
-        err_msg = "get young_diagrams db for single_characters_and_gi meet error with s_n={}, msg={}".format(
-            s_n, yd_list)
         logger.error(err_msg)
         return False, err_msg
 

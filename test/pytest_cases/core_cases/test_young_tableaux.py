@@ -240,6 +240,7 @@ class TestYoungTableaux(object):
         # 反例
         for wrong_yt in self.wrong_yts:
             assert not is_young_table(wrong_yt)
+            logger.info("Error is supposed here!")
 
     def test_calc_young_diagram_from_young_table(self):
         # 正
@@ -256,6 +257,7 @@ class TestYoungTableaux(object):
         # 反
         for wrong_yt in self.wrong_yts:
             flag, yd = calc_young_diagram_from_young_table(wrong_yt)
+            logger.info("Error is supposed here!")
             assert not flag
             assert yd is None
 
@@ -274,6 +276,7 @@ class TestYoungTableaux(object):
         # 反
         for wrong_yt in self.wrong_yts:
             flag, s_n_calc = calc_s_n_from_young_table(wrong_yt)
+            logger.info("Error is supposed here!")
             assert not flag
             assert s_n_calc is None
 
@@ -298,13 +301,13 @@ class TestYoungTableaux(object):
                     break
             Seat = [x, y]
             return Seat
-        yt_1, point_1, row_answer_1, col_answer_1 = [[1, 2], [3]], 1, 0, 0
-        yt_2, point_2, row_answer_2, col_answer_2 = [[1, 2], [3]], 2, 0, 1
-        yt_3, point_3, row_answer_3, col_answer_3 = [[1, 2], [3]], 3, 1, 0
-        yt_4, point_4, row_answer_4, col_answer_4 = [[1, 2], [3, 4]], 4, 1, 1
+        # 格式：yt, point, row_answer, col_answer
+        data_1 = ([[1, 2], [3]], 1, 0, 0)
+        data_2 = ([[1, 2], [3]], 2, 0, 1)
+        data_3 = ([[1, 2], [3]], 3, 1, 0)
+        data_4 = ([[1, 2], [3, 4]], 4, 1, 1)
         for i in range(1, 5):  # [1, 2, 3, 4]
-            yt, point, row_answer, col_answer = eval("yt_{}".format(i)), eval("point_{}".format(i)), \
-                                                eval("row_answer_{}".format(i)), eval("col_answer_{}".format(i))
+            yt, point, row_answer, col_answer = eval("data_{}".format(i))
             row_1, col_1 = FindSeat(yt, point)
             row_2, col_2 = get_s_i_index_in_young_table(point, yt)
             assert row_1 == row_2 == row_answer

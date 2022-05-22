@@ -12,8 +12,10 @@ core/characters_and_gi.py
 # 4，用（-1^n检查）；
 # 5，用len检查；
 # 6，用生成的杨图检查
+# 7，用sum(gi) == n!检查
 import os
 import time
+import math
 import numpy as np
 from conf.cgc_config import cgc_rst_folder
 from core.branching_laws import create_branching_laws, load_branching_law
@@ -116,8 +118,11 @@ class TestCharacterData(object):
                     assert (i_dagger_array == i_array * last_array).all(), \
                         "with yd={}, yd_dagger={}".format(yd, yd_dagger)
 
-            # 用正交归一性检查
+            # 用sum(gi) == n!检查
             big_g = sum(new_gi_list)
+            assert big_g == math.factorial(s_i)
+
+            # 用正交归一性检查
             # logger.warning("@@@@ new_ch_matrix={}".format(new_ch_matrix))
             for i in range(matrix_div):
                 # yd = yd_list[i]
@@ -256,6 +261,11 @@ class TestCharacters(object):
             assert flag
             assert (characters_and_gi["character"] == eval("self.characters_and_gi_s_{}".format(i))["character"]).all()
             assert (characters_and_gi["gi"] == eval("self.characters_and_gi_s_{}".format(i))["gi"]).all()
+            _, file_name = get_characters_and_gi_file_name(i)
+            _, data = CharacterAndGiInfo(i).query_by_file_name(file_name)
+            _, yd_list_s_i = load_young_diagrams(i, is_flag_true_if_not_s_n=False)
+            assert isinstance(data, dict)
+            assert data.get("flags").get("young_diagram_index") == yd_list_s_i
         flag, finish_s_n = get_characters_and_gi_finish_s_n()
         assert flag
         assert finish_s_n == 4

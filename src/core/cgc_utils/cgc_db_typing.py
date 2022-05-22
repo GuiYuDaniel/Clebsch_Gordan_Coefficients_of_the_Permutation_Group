@@ -29,6 +29,58 @@ from conf.cgc_config import default_s_n
 #         self.txt_limit = calculated_tables_txt_limit
 #         self._init_cgc_static_db_folder()
 
+class CGOrderInfo(CGCLocalDb):
+    """
+    这个db用来存CG序列
+
+    CG序列的落盘格式为：
+    <CG>/cg_order_info/Sn/[σ]_[μ].pkl        ->
+    {
+    "file_name": "Sn/[σ]_[μ]",
+    "data": {"[ν]": cg_order},
+    "flags": {"speed_time": speed_time}
+    }
+
+    其中，
+    Sn表示n阶置换群;
+    [σ][μ]表示参与内积的两个置换群构型；
+    [ν]表示内积后的可能构型；
+    cg_order是[ν]的线性组合系数；
+    speed_time表示计算用时（秒）
+
+    例如：
+    <CG>/cg_order_info/Sn/[3]_[2, 1].pkl
+    {[0, 1, 0]}
+
+    另存：
+    <CG>/cg_order_info/Finish_Sn.pkl ->
+    {
+    "file_name": "Finish_Sn",
+    "data": {},
+    "flags": {"finish_s_n": s_n,
+              "history_times": {"S{n}": time_of_s_n},
+              "young_diagram_index": "young diagram list of Sn by young-yamanouchi"}
+    }
+
+    其中，
+    Finish_Sn是固定名称，所有计算结果里都有
+    s_n表示当前计算完成的最大阶数，是int型
+    time_of_s_n表示Sn的计算时间，int型，外部是不断update的字典
+    """
+
+    def __init__(self, s_n):
+        super(CGOrderInfo, self).__init__()
+        self.table_type = "cg_order_info"
+        self.map_id = "file_name"
+        self.design_table_type.update({
+            "data": np.ndarray,
+            "flags": dict
+        })
+        self.s_n = s_n
+        self.txt_limit = default_s_n
+        self._init_cgc_static_db_folder()
+
+
 class CharacterAndGiInfo(CGCLocalDb):
     """
     这个db用来存特征标矩阵和与之对应的g_i
@@ -38,7 +90,8 @@ class CharacterAndGiInfo(CGCLocalDb):
     {
     "file_name": "Sn",
     "data": {"character": character_matrix, "gi": gi_array},
-    "flags": {"speed_time": speed_time}
+    "flags": {"speed_time": speed_time,
+              "young_diagram_index": young_diagram_list_by_yamanouchi}  # 作为参考，非数据
     }
 
     其中，
@@ -93,7 +146,7 @@ class YamanouchiMatrixInfo(CGCLocalDb):
     <CG>/yamanouchi_matrix_info/Sn/[ν_i]/in(i,n).pkl     ->
     {
     "file_name": "Sn/[ν_i]/ij(i,j)",
-    "data": matrix_ij 或 matrix_in,           # np.ndarray(float)
+    "data": matrix_ij 或 matrix_in,         #np.ndarray(float)    #它的维度可以在<CG>/young_tableaux_info/Sn/[ν_i]_num里取得
     "flags": {"speed_time": speed_time}
     }
 

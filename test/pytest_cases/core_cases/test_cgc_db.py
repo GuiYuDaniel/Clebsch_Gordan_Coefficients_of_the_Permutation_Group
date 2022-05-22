@@ -16,7 +16,7 @@ import numpy as np
 from conf.cgc_config import top_path, cgc_rst_folder, default_s_n
 from core.cgc_utils.cgc_local_db import CGCLocalDb
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo, BranchingLawInfo, YoungTableInfo
-from core.cgc_utils.cgc_db_typing import YamanouchiMatrixInfo, CharacterAndGiInfo
+from core.cgc_utils.cgc_db_typing import YamanouchiMatrixInfo, CharacterAndGiInfo, CGOrderInfo
 from db.local_db_protector import DBProtector
 from utils.log import get_logger
 # from utils.utils import asctime_2_time
@@ -1133,6 +1133,7 @@ class TestYamanouchiMatrixInfo(object):
         assert data is False
 
 
+@pytest.mark.skip("pass")
 class TestCharacterAndGiInfo(object):
     """
     test python file cgc_db_typing.py:CharacterAndGiInfo class
@@ -1150,11 +1151,13 @@ class TestCharacterAndGiInfo(object):
         self.fake_table = {
             "file_name": self.fake_file_name,
             "data": {"character": self.character_2_matrix, "gi": self.gi_2},
-            "flags": {"speed_time": 0}
+            "flags": {"speed_time": 0,
+                      "young_diagram_index": [[2], [1, 1]]}
         }
         self.fake_table_copy = copy.deepcopy(self.fake_table)
         self.fake_partial_table = {"data": {"fake": "fake"},
-                                   "flags": {"speed_time": 2}}
+                                   "flags": {"speed_time": 2,
+                                             "young_diagram_index": [[3], [2, 1], [1, 1, 1]]}}
         self.fake_partial_table_copy = copy.deepcopy(self.fake_partial_table)
 
         self.fake_finish_s_n_name = "Finish_Sn"
@@ -1301,6 +1304,178 @@ class TestCharacterAndGiInfo(object):
         assert data is False
         # query again
         db_info = CharacterAndGiInfo(0)
+        flag, data = db_info.query_txt_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert data is False
+
+
+class TestCGOrderInfo(object):
+    """
+    test python file cgc_db_typing.py:CGOrderInfo class
+    TestCGCLocalDb中已经测过基础操作和基础报错了。所以，这里只测正向使用即可
+    """
+
+    def setup(self):
+        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector.protector_setup()
+
+        self.fake_finish_s_n = 1000
+        self.fake_file_name = "S{}/{}_{}".format(self.fake_finish_s_n, [3], [2, 1])
+        self.fake_table = {
+            "file_name": self.fake_file_name,
+            "data": np.array([0, 1, 0]),
+            "flags": {"speed_time": 0}
+        }
+        self.fake_table_copy = copy.deepcopy(self.fake_table)
+        self.fake_partial_table = {"data": np.array([0, 1, 0, 10000]),
+                                   "flags": {"speed_time": 2}}
+        self.fake_partial_table_copy = copy.deepcopy(self.fake_partial_table)
+
+        self.fake_finish_s_n_name = "Finish_Sn"
+        self.fake_finish_s_n_table = {
+            "file_name": self.fake_finish_s_n_name,
+            "data": np.array([0]),
+            "flags": {"finish_s_n": self.fake_finish_s_n,
+                      "history_times": {"S1000": 1},
+                      "young_diagram_index": [[3], [2, 1], [1, 1, 1]]}
+        }
+        self.fake_finish_s_n_table_copy = copy.deepcopy(self.fake_finish_s_n_table)
+        self.fake_finish_s_n_partial_table = {"flags": {"finish_s_n": 1001,
+                                                        "history_times": {"S1000": 1,
+                                                                          "S1001": 3},
+                                                        "young_diagram_index": [[3], [2, 1], [1, 1, 1], [10000]]}}
+        self.fake_finish_s_n_partial_table_copy = copy.deepcopy(self.fake_finish_s_n_partial_table)
+
+    def teardown(self):
+        self.protector.protector_teardown()
+
+    def test_cg_order_info(self):
+        db_info = CGOrderInfo(self.fake_finish_s_n)
+        # insert
+        flag, msg = db_info.insert(self.fake_table)
+        assert flag
+        assert msg is True
+        # query
+        flag, data = db_info.query_by_file_name(self.fake_file_name)
+        assert flag
+        assert isinstance(data.get("create_time"), str)
+        assert isinstance(data.get("last_write_time"), str)
+        create_time_1 = data.get("create_time")
+        last_write_time_1 = data.get("last_write_time")
+        del data["create_time"]
+        del data["last_write_time"]
+        assert (data.get("data") == self.fake_table_copy["data"]).all()
+        assert data.get("flags") == self.fake_table_copy["flags"]
+        # update
+        time.sleep(1.1)
+        flag, msg = db_info.update_by_file_name(self.fake_file_name, self.fake_partial_table)
+        assert flag
+        assert msg is True
+        flag, data_2 = db_info.query({"file_name": self.fake_file_name})
+        assert data_2.get("create_time") == create_time_1
+        assert data_2.get("last_write_time") != last_write_time_1
+        assert (data_2.get("data") == self.fake_partial_table_copy.get("data")).all()
+        assert data_2.get("flags") == self.fake_partial_table_copy.get("flags")
+        # test delete
+        flag, msg = db_info.delete_by_file_name(self.fake_file_name)
+        assert flag
+        assert msg is True
+        flag, data_3 = db_info.query({"file_name": self.fake_file_name})
+        assert flag
+        assert data_3 is False
+
+    def test_cg_order_info_txt(self):
+        db_info = CGOrderInfo(0)
+        # insert
+        flag, msg = db_info.insert_txt(self.fake_table)
+        assert flag
+        assert msg is True
+        # query
+        flag, data = db_info.query_txt_by_file_name(self.fake_file_name)
+        assert flag
+        assert data == str(self.fake_table_copy.get("data"))
+        # update
+        flag, msg = db_info.update_txt_by_file_name(self.fake_file_name, self.fake_partial_table)
+        assert flag
+        assert msg is True
+        flag, data_2 = db_info._query_txt({"file_name": self.fake_file_name})
+        assert data_2 == str(self.fake_partial_table_copy.get("data"))
+        # test delete
+        flag, msg = db_info.delete_txt_by_file_name(self.fake_file_name)
+        assert flag
+        assert msg is True
+        flag, data_3 = db_info._query_txt({"file_name": self.fake_file_name})
+        assert flag
+        assert data_3 is False
+
+    def test_cg_order_finish_s_n_info(self):
+        db_info = CGOrderInfo(self.fake_finish_s_n)
+        # insert
+        flag, msg = db_info.insert(self.fake_finish_s_n_table)
+        assert flag
+        assert msg is True
+        # query
+        flag, data = db_info.query_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert isinstance(data.get("create_time"), str)
+        assert isinstance(data.get("last_write_time"), str)
+        create_time_1 = data.get("create_time")
+        del data["create_time"]
+        del data["last_write_time"]
+        assert data == self.fake_finish_s_n_table_copy
+        # update
+        flag, msg = db_info.update_by_file_name(self.fake_finish_s_n_name, self.fake_finish_s_n_partial_table)
+        assert flag
+        assert msg is True
+        flag, data_2 = db_info.query({"file_name": self.fake_finish_s_n_name})
+        assert data_2.get("create_time") == create_time_1
+        assert data_2.get("data") == self.fake_finish_s_n_table_copy.get("data")  # not update
+        assert data_2.get("flags") == self.fake_finish_s_n_partial_table_copy.get("flags")
+        # test delete
+        flag, msg = db_info.delete_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert msg is True
+        flag, data_3 = db_info.query({"file_name": self.fake_finish_s_n_name})
+        assert flag
+        assert data_3 is False
+
+    def test_cg_order_finish_s_n_info_txt(self):
+        db_info = CGOrderInfo(0)
+        # insert
+        flag, msg = db_info.insert_txt(self.fake_finish_s_n_table, point_key="flags")
+        assert flag
+        assert msg is True
+        # query
+        flag, data = db_info.query_txt_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert data == str(self.fake_finish_s_n_table_copy.get("flags"))
+        # update
+        flag, msg = db_info.update_txt_by_file_name(
+            self.fake_finish_s_n_name, self.fake_finish_s_n_partial_table, point_key="flags")
+        assert flag
+        assert msg is True
+        flag, data_2 = db_info._query_txt({"file_name": self.fake_finish_s_n_name})
+        assert data_2 == str(self.fake_finish_s_n_partial_table_copy.get("flags"))
+        # test delete
+        flag, msg = db_info.delete_txt_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert msg is True
+        flag, data_3 = db_info._query_txt({"file_name": self.fake_finish_s_n_name})
+        assert flag
+        assert data_3 is False
+
+    def test_limit_txt(self):
+        db_info = CGOrderInfo(default_s_n + 1)
+        # insert
+        flag, msg = db_info.insert_txt(self.fake_finish_s_n_table, point_key="flags")
+        assert flag
+        assert msg is False
+        # query
+        flag, data = db_info.query_txt_by_file_name(self.fake_finish_s_n_name)
+        assert flag
+        assert data is False
+        # query again
+        db_info = CGOrderInfo(0)
         flag, data = db_info.query_txt_by_file_name(self.fake_finish_s_n_name)
         assert flag
         assert data is False

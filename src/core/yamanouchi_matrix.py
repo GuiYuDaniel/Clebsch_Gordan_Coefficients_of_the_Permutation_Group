@@ -612,7 +612,7 @@ def load_yamanouchi_matrix(s_n: int, yd: list, ix: tuple, mode=None, is_flag_tru
 
     if data:
         yamanouchi_matrix = data.get("data")
-        if yamanouchi_matrix.size > 0 and isinstance(yamanouchi_matrix, np.ndarray):
+        if isinstance(yamanouchi_matrix, np.ndarray) and yamanouchi_matrix.size > 0:
             # 只检查有没有 不对内容做检查了
             return True, yamanouchi_matrix  # bingo！
 

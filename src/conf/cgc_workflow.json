@@ -17,9 +17,10 @@
 
     "### workflow图 ###",
     "### l: layer, n: node",
-    "###               |> l3n1 -> f4 --|              ###",
-    "### l1n1 -> l2n1 -|                |--> f6 --> f7 ###",
-    "###               |> f5 ---------|              ###",
+    "###                                               ###",
+    "### l1n1 -> l2n1 -> l3n1 -> l4n1        ###",
+    "###      |                                ###",
+    "###      -> l2n2 -> l3n2             ###",
     {
         "name": "l1n1_young_diagrams",
         "func": ["None.src.core.young_diagrams", "create_young_diagrams", ""],
@@ -69,21 +70,21 @@
         "func": ["None.src.core.characters_and_gi", "create_characters_and_gi", ""],
         "type": "cold",
         "inputs": ["l1n1:::s_n:s_n"],
-        "outputs": ["l2n1:::flag", "l2n1:::s_n:s_n"],
+        "outputs": ["l2n2:::flag", "l2n2:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
-        "next_nodes": ["..."],
+        "next_nodes": ["l3n2_cg_order"],
         "flags": []
     },
     {
-        "name": "f6",
-        "func": ["None.test.fake.fake_core", "merge", "merge_merge"],
+        "name": "l3n2_cg_order",
+        "func": ["None.src.core.cg_order", "create_cg_order", ""],
         "type": "cold",
-        "inputs": ["pw_name:param_1", "path:param_2"],
-        "outputs": ["rst"],
+        "inputs": ["l2n2:::s_n:s_n"],
+        "outputs": ["l3n2:::flag", "l3n2:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
-        "next_nodes": ["f7"],
+        "next_nodes": ["..."],
         "flags": []
     },
     {

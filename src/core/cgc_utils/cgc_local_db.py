@@ -133,8 +133,8 @@ class CGCLocalDb(LocalDb):
             return False, err_msg
         if is_auto_limit and self.txt_limit != -1 and self.s_n > self.txt_limit:
             # 自动判断 并且判断结果为应该限制
-            logger.debug("limit txt with is_auto_limit={}, s_n={}, txt_limit".format(
-                is_auto_limit, self.s_n, self.txt_limit))
+            # logger.debug("limit txt with is_auto_limit={}, s_n={}, txt_limit".format(
+            #     is_auto_limit, self.s_n, self.txt_limit))
             return True, False
 
         # insert要根据design_table_type检查table
@@ -447,3 +447,35 @@ def get_characters_and_gi_finish_s_n_name(is_full_path=False):
     Finish_Sn or <top_path>/cgc_results/characters_and_gi_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="characters_and_gi_info")
+
+
+# cg_order
+def get_cg_order_file_name(s_n: int, yd_1: list, yd_2: list, is_full_path=False):
+    """
+    Sn or <top_path>/cgc_results/cg_order_info/Sn/[σ]_[μ]
+    p.s. S3 or <top_path>/cgc_results/cg_order_info/S3/[3]_[2, 1]
+    """
+    from conf.cgc_config import cg_order_file_name_format
+    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
+        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
+            s_n, type(s_n), is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(yd_1, list) or not isinstance(yd_2, list):
+        err_msg = "yd_1={} and yd_2={} with type={}, {} all must be list".format(yd_1, yd_2, type(yd_1), type(yd_2))
+        logger.error(err_msg)
+        return False, err_msg
+
+    file_name = cg_order_file_name_format.format(s_n, yd_1, yd_2)
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "cg_order_info", file_name)
+        return True, full_path
+
+
+def get_cg_order_finish_s_n_name(is_full_path=False):
+    """
+    Finish_Sn or <top_path>/cgc_results/cg_order_info/Finish_Sn
+    """
+    return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="cg_order_info")
