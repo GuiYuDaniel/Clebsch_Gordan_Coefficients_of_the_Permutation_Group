@@ -84,6 +84,8 @@ class TestCGOrder(object):
         self.protector.protector_teardown()
         pass
 
+    # start with 0xx tests need test by order
+
     def test_001_create_cg_order(self):
         """for s_n=1, there is no finish db"""
         # check with no db

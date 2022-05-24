@@ -288,7 +288,7 @@ class TestCharacters(object):
         for i in [5, 6, 7]:
             assert data.get("history_times").get("S{}".format(i)) is None
 
-    def test_003_calc_single_characters_and_gi(self):
+    def test_calc_single_characters_and_gi(self):
         """1 to 4 is finish, 5 is needing calc"""
         head_s_n = 1
         tail_s_n = 5

@@ -32,6 +32,14 @@
 
 
 
+
+
+    二循环类算符本征值存放于：(本征值to构型不存了，使用函数计算)
+        <CG>/eigenvalues_info/Sn.pkl                #<CG>/eigenvalues_info/S6.pkl
+        数据结构：{"data": eigenvalues}               #list(int)
+        txt展示：value of "data"
+        #[15, 9, 5, 3, 3, 0, -3, -3, -5, -9, -15]
+
     CG序列存放于：
         <CG>/cg_order_info/Sn/[σ]_[μ].pkl           #<CG>/cg_order_info/Sn/[3]_[2, 1].pkl
         数据结构：{"data": cg_order_array}            #np.ndarray(int)

@@ -12,7 +12,6 @@ this code for creating CG Order by Sn, young_diagrams, kai
 # (ν_1 ν_2 ν) = sum_i{g_i χ_i^ν_1 χ_i^ν_2 χ_i^ν} / g
 # 其中，
 # Sn(x)的IR[ν_1] 和 Sn(s)的IR[ν_2] 的乘积表示中包含 Sn(q)的IR[ν] （CG序列正是它的线性组合系数）
-# TODO 关闭老代码，重新用文献写公式，再对照
 
 
 import copy
