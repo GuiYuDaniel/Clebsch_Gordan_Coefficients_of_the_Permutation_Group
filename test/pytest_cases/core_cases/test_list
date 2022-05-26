@@ -8,3 +8,4 @@ test_yamanouchi_matrix.py
 test_characters_and_gi.py
 test_cg_series.py
 test_eigenvalues.py
+test_concat.py
