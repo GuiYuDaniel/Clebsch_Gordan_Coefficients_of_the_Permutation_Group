@@ -479,3 +479,31 @@ def get_cg_order_finish_s_n_name(is_full_path=False):
     Finish_Sn or <top_path>/cgc_results/cg_order_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="cg_order_info")
+
+
+# eigenvalues
+def get_eigenvalues_file_name(s_n: int, is_full_path=False):
+    """
+    Sn or <top_path>/cgc_results/eigenvalues_info/Sn
+    p.s. S6 or <top_path>/cgc_results/eigenvalues_info/S6
+    """
+    from conf.cgc_config import eigenvalues_file_name_format
+    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
+        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
+            s_n, type(s_n), is_full_path, type(is_full_path))
+        logger.error(err_msg)
+        return False, err_msg
+
+    file_name = eigenvalues_file_name_format.format(s_n)
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "eigenvalues_info", file_name)
+        return True, full_path
+
+
+def get_eigenvalues_finish_s_n_name(is_full_path=False):
+    """
+    Finish_Sn or <top_path>/cgc_results/eigenvalues_info/Finish_Sn
+    """
+    return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="eigenvalues_info")

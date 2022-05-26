@@ -66,7 +66,7 @@ def create_cg_order(s_n: int=default_s_n):
         msg = "finish_s_n={}, will calc cg_order s_n from {} to {}".format(finish_s_n, finish_s_n + 1, s_n)
         logger.info(msg)
 
-    # 按照从小到大的顺序，逐个计算s_i的杨图并储存
+    # 按照从小到大的顺序，逐个计算s_i的CG order并储存
     for s_i in range(finish_s_n + 1, s_n + 1):  # 循环体为[finish_s_n+1, finish_s_n+2, ..., s_n]
         s_i_start_time = time.time()
 
@@ -128,8 +128,9 @@ def create_cg_order(s_n: int=default_s_n):
                 k3_array = kai_left * kai_right * characters_matrix
                 order_array = np.sum(gi_array * k3_array, axis=1) / factorial_n  # 按照行求和 # 按照[ν]的Yamanouchi序排列
                 order_array = order_array.astype(np.int)
-                single_cg_order_speed_time = int(time.time() - single_cg_order_start_time)
+
                 # 既然没问题了，那就存（别忘了也要更新Finish_Sn）
+                single_cg_order_speed_time = int(time.time() - single_cg_order_start_time)
                 flag, msg = save_cg_order(s_i, yd_left, yd_right, order_array, single_cg_order_speed_time)
                 if not flag:
                     err_msg = "save cg order meet error with s_i={}, yd_left={}, yd_right={}, order_array={}, " \
@@ -168,7 +169,7 @@ def save_cg_order(s_n: int, yd_1: list, yd_2: list, cg_order: np.ndarray, speed_
 
     例如：
     <CG>/cg_order_info/Sn/[3]_[2, 1].pkl
-    {[0, 1, 0]}
+    np.array([0, 1, 0])
     """
     if not isinstance(s_n, int) or s_n <= 0:
         err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
@@ -299,7 +300,7 @@ def load_cg_order(s_n: int, yd_1: list, yd_2: list, is_flag_true_if_not_s_n=True
 
     flag, file_name = get_cg_order_file_name(s_n, yd_1, yd_2)
     if not flag:
-        err_msg = "cannot get file_name by s_n={} because {}".format(s_n, file_name)
+        err_msg = "cannot get file_name by s_n={}, yd_1={}, yd_2={} because {}".format(s_n, yd_1, yd_2, file_name)
         logger.error(err_msg)
         return False, err_msg
     flag, data = CGOrderInfo(s_n).query_by_file_name(file_name)
@@ -310,7 +311,7 @@ def load_cg_order(s_n: int, yd_1: list, yd_2: list, is_flag_true_if_not_s_n=True
 
     if data:
         cg_order_array = data.get("data")
-        if isinstance(cg_order_array, np.ndarray) and cg_order_array.size > 0 :
+        if isinstance(cg_order_array, np.ndarray) and cg_order_array.size > 0:
             # 只检查有没有 不对内容做检查了
             return True, cg_order_array  # bingo！
 

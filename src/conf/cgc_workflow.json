@@ -21,6 +21,8 @@
     "### l1n1 -> l2n1 -> l3n1 -> l4n1        ###",
     "###      |                                ###",
     "###      -> l2n2 -> l3n2             ###",
+    "###      |                                 ###",
+    "###      -> l2n3             ###",
     {
         "name": "l1n1_young_diagrams",
         "func": ["None.src.core.young_diagrams", "create_young_diagrams", ""],
@@ -88,14 +90,14 @@
         "flags": []
     },
     {
-        "name": "f7",
-        "func": ["None.test.fake.fake_core", "self_defined_print", ""],
+        "name": "l2n3_eigenvalues",
+        "func": ["None.src.core.eigenvalues", "create_eigenvalues", ""],
         "type": "cold",
-        "inputs": ["rst:print_str"],
-        "outputs": ["flag"],
+        "inputs": ["l1n1:::s_n:s_n"],
+        "outputs": ["l2n3:::flag", "l2n3:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
-        "next_nodes": [],
+        "next_nodes": ["..."],
         "flags": []
     }
 ]
