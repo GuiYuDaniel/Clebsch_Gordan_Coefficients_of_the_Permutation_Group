@@ -75,12 +75,12 @@
         "outputs": ["l2n2:::flag", "l2n2:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
-        "next_nodes": ["l3n2_cg_order"],
+        "next_nodes": ["l3n2_cg_series"],
         "flags": []
     },
     {
-        "name": "l3n2_cg_order",
-        "func": ["None.src.core.cg_order", "create_cg_order", ""],
+        "name": "l3n2_cg_series",
+        "func": ["None.src.core.cg_series", "create_cg_series", ""],
         "type": "cold",
         "inputs": ["l2n2:::s_n:s_n"],
         "outputs": ["l3n2:::flag", "l3n2:::s_n:s_n"],

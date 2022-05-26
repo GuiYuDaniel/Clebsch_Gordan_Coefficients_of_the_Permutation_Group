@@ -20,17 +20,6 @@
 
 
 
-    二循环类算符本征值存放于：/Users/guiyu/Desktop/CG/eigenvalue/Sn/[ri].pkl    #如/Users/guiyu/Desktop/CG/eigenvalue/S3/[2，1].pkl
-                                                                                      #存放S3群[2,1]构型的二循环类算符本征值
-        同目录下：/Users/guiyu/Desktop/CG/eigenvalue/Sn/[ri].txt                        #同内容txt文件
-
-    本征值to构型存放于：/Users/guiyu/Desktop/CG/eigenvalue2r/Sn/λ.pkl    #如/Users/guiyu/Desktop/CG/eigenvalue2r/S3/0.pkl
-                                                                                      #存放S3群二循环类算符本征值等于0的构型————[2,1]
-        同目录下：/Users/guiyu/Desktop/CG/eigenvalue2r/Sn/λ.txt                         #同内容txt文件
-
-
-
-
 
 
 
@@ -41,8 +30,8 @@
         #[15, 9, 5, 3, 3, 0, -3, -3, -5, -9, -15]
 
     CG序列存放于：
-        <CG>/cg_order_info/Sn/[σ]_[μ].pkl           #<CG>/cg_order_info/Sn/[3]_[2, 1].pkl
-        数据结构：{"data": cg_order_array}            #np.ndarray(int)
+        <CG>/cg_series_info/Sn/[σ]_[μ].pkl           #<CG>/cg_series_info/Sn/[3]_[2, 1].pkl
+        数据结构：{"data": cg_series_array}            #np.ndarray(int)
         txt展示：value of "data"
         #{[0, 1, 0]}
 

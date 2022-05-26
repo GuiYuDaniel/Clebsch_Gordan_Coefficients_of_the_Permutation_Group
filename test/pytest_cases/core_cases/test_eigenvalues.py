@@ -73,7 +73,7 @@ class TestEigenvalues(object):
 
     # start with 0xx tests need test by order
 
-    def test_001_create_eigenvalues(self):
+    def test_001_create_eigenvalues_s_n_1(self):
         """for s_n=1, there is no finish db"""
         # check with no db
         for ex in [".pkl", ".txt"]:
@@ -88,7 +88,7 @@ class TestEigenvalues(object):
         assert flag
         assert finish_s_n == 0
 
-        # check create_cg_order_s_n_1
+        # check create_eigenvalues_s_n_1
         flag, finish_s_n = create_eigenvalues(1)
         assert flag
         assert finish_s_n == 1
@@ -134,8 +134,8 @@ class TestEigenvalues(object):
         assert isinstance(data.get("history_times").get("S{}".format(1)), int)
         assert data.get("young_diagram_index") == "young diagram list of Sn by young-yamanouchi"
 
-    def test_002_create_cg_order_s_n_2_to_4(self):
-        # check create_cg_order_s_n_2_to_4
+    def test_002_create_eigenvalues_s_n_2_to_4(self):
+        # check create_eigenvalues_s_n_2_to_4
         flag, finish_s_n = create_eigenvalues(4)
         assert flag
         assert finish_s_n == 4

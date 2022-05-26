@@ -44,7 +44,7 @@ young_tableaux_num_file_name_format = os.path.join("S{}", "{}_num")  # "S{}/{}_n
 yamanouchi_matrix_file_name_format = os.path.join("S{}", "{}", "{}{}")  # "S{}/{}/{}{}"
 # characters and gi file name format
 characters_and_gi_file_name_format = "S{}"
-# CG order file name format
-cg_order_file_name_format = os.path.join("S{}", "{}_{}")  # "S{}/{}_{}"
+# CG series file name format
+cg_series_file_name_format = os.path.join("S{}", "{}_{}")  # "S{}/{}_{}"
 # eigenvalues file name format
 eigenvalues_file_name_format = "S{}"

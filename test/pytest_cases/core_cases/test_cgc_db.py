@@ -16,7 +16,7 @@ import numpy as np
 from conf.cgc_config import top_path, cgc_rst_folder, default_s_n
 from core.cgc_utils.cgc_local_db import CGCLocalDb
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo, BranchingLawInfo, YoungTableInfo
-from core.cgc_utils.cgc_db_typing import YamanouchiMatrixInfo, CharacterAndGiInfo, CGOrderInfo
+from core.cgc_utils.cgc_db_typing import YamanouchiMatrixInfo, CharacterAndGiInfo, CGSeriesInfo
 from core.cgc_utils.cgc_db_typing import EigenvaluesInfo
 from db.local_db_protector import DBProtector
 from utils.log import get_logger
@@ -1311,9 +1311,9 @@ class TestCharacterAndGiInfo(object):
 
 
 # @pytest.mark.skip("pass")
-class TestCGOrderInfo(object):
+class TestCGSeriesInfo(object):
     """
-    test python file cgc_db_typing.py:CGOrderInfo class
+    test python file cgc_db_typing.py:CGSeriesInfo class
     TestCGCLocalDb中已经测过基础操作和基础报错了。所以，这里只测正向使用即可
     """
 
@@ -1351,8 +1351,8 @@ class TestCGOrderInfo(object):
     def teardown(self):
         self.protector.protector_teardown()
 
-    def test_cg_order_info(self):
-        db_info = CGOrderInfo(self.fake_finish_s_n)
+    def test_cg_series_info(self):
+        db_info = CGSeriesInfo(self.fake_finish_s_n)
         # insert
         flag, msg = db_info.insert(self.fake_table)
         assert flag
@@ -1386,8 +1386,8 @@ class TestCGOrderInfo(object):
         assert flag
         assert data_3 is False
 
-    def test_cg_order_info_txt(self):
-        db_info = CGOrderInfo(0)
+    def test_cg_series_info_txt(self):
+        db_info = CGSeriesInfo(0)
         # insert
         flag, msg = db_info.insert_txt(self.fake_table)
         assert flag
@@ -1410,8 +1410,8 @@ class TestCGOrderInfo(object):
         assert flag
         assert data_3 is False
 
-    def test_cg_order_finish_s_n_info(self):
-        db_info = CGOrderInfo(self.fake_finish_s_n)
+    def test_cg_series_finish_s_n_info(self):
+        db_info = CGSeriesInfo(self.fake_finish_s_n)
         # insert
         flag, msg = db_info.insert(self.fake_finish_s_n_table)
         assert flag
@@ -1441,8 +1441,8 @@ class TestCGOrderInfo(object):
         assert flag
         assert data_3 is False
 
-    def test_cg_order_finish_s_n_info_txt(self):
-        db_info = CGOrderInfo(0)
+    def test_cg_series_finish_s_n_info_txt(self):
+        db_info = CGSeriesInfo(0)
         # insert
         flag, msg = db_info.insert_txt(self.fake_finish_s_n_table, point_key="flags")
         assert flag
@@ -1467,7 +1467,7 @@ class TestCGOrderInfo(object):
         assert data_3 is False
 
     def test_limit_txt(self):
-        db_info = CGOrderInfo(default_s_n + 1)
+        db_info = CGSeriesInfo(default_s_n + 1)
         # insert
         flag, msg = db_info.insert_txt(self.fake_finish_s_n_table, point_key="flags")
         assert flag
@@ -1477,7 +1477,7 @@ class TestCGOrderInfo(object):
         assert flag
         assert data is False
         # query again
-        db_info = CGOrderInfo(0)
+        db_info = CGSeriesInfo(0)
         flag, data = db_info.query_txt_by_file_name(self.fake_finish_s_n_name)
         assert flag
         assert data is False

@@ -79,15 +79,15 @@ class EigenvaluesInfo(CGCLocalDb):
         self._init_cgc_static_db_folder()
 
 
-class CGOrderInfo(CGCLocalDb):
+class CGSeriesInfo(CGCLocalDb):
     """
     这个db用来存CG序列
 
     CG序列的落盘格式为：
-    <CG>/cg_order_info/Sn/[σ]_[μ].pkl        ->
+    <CG>/cg_series_info/Sn/[σ]_[μ].pkl        ->
     {
     "file_name": "Sn/[σ]_[μ]",
-    "data": cg_order,
+    "data": cg_series,
     "flags": {"speed_time": speed_time}
     }
 
@@ -95,15 +95,15 @@ class CGOrderInfo(CGCLocalDb):
     Sn表示n阶置换群;
     [σ][μ]表示参与内积的两个置换群构型；
     [ν]表示内积后的可能构型；
-    cg_order是[ν]的线性组合系数；
+    cg_series是[ν]的线性组合系数；
     speed_time表示计算用时（秒）
 
     例如：
-    <CG>/cg_order_info/Sn/[3]_[2, 1].pkl
+    <CG>/cg_series_info/Sn/[3]_[2, 1].pkl
     [0, 1, 0]
 
     另存：
-    <CG>/cg_order_info/Finish_Sn.pkl ->
+    <CG>/cg_series_info/Finish_Sn.pkl ->
     {
     "file_name": "Finish_Sn",
     "data": np.array([0]),
@@ -119,8 +119,8 @@ class CGOrderInfo(CGCLocalDb):
     """
 
     def __init__(self, s_n):
-        super(CGOrderInfo, self).__init__()
-        self.table_type = "cg_order_info"
+        super(CGSeriesInfo, self).__init__()
+        self.table_type = "cg_series_info"
         self.map_id = "file_name"
         self.design_table_type.update({
             "data": np.ndarray,
