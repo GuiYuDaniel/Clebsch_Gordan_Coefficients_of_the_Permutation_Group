@@ -9,7 +9,8 @@
   "对换": "transposition",
   "临近对换": "adjacent transposition",
   "轴距": "axial distance",
-
   "置换群的特征标": "Characters of Permutation Groups",
-  "CG序列": "CG Series"
+  "CG序列": "CG Series",
+  "同位标量因子": "Isoscalar Factor(ISF)",
+  "CG系数": "Clebsch-Gordan Coefficient(CGC)"
 }

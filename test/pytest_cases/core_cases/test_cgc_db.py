@@ -1322,7 +1322,7 @@ class TestCGSeriesInfo(object):
         self.protector.protector_setup()
 
         self.fake_finish_s_n = 1000
-        self.fake_file_name = "S{}/{}_{}".format(self.fake_finish_s_n, [3], [2, 1])
+        self.fake_file_name = "S{}/sigma{}_mu{}".format(self.fake_finish_s_n, [3], [2, 1])
         self.fake_table = {
             "file_name": self.fake_file_name,
             "data": np.array([0, 1, 0]),

@@ -30,7 +30,7 @@
         #[15, 9, 5, 3, 3, 0, -3, -3, -5, -9, -15]
 
     CG序列存放于：
-        <CG>/cg_series_info/Sn/[σ]_[μ].pkl           #<CG>/cg_series_info/Sn/[3]_[2, 1].pkl
+        <CG>/cg_series_info/Sn/sigma[σ]_mu[μ].pkl           #<CG>/cg_series_info/Sn/sigma[3]_mu[2, 1].pkl
         数据结构：{"data": cg_series_array}            #np.ndarray(int)
         txt展示：value of "data"
         #{[0, 1, 0]}

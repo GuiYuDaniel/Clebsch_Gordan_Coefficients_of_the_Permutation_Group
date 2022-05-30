@@ -18,11 +18,11 @@
     "### workflow图 ###",
     "### l: layer, n: node",
     "###                                               ###",
-    "### l1n1 -> l2n1 -> l3n1 -> l4n1        ###",
-    "###      |                                ###",
-    "###      -> l2n2 -> l3n2             ###",
-    "###      |                                 ###",
-    "###      -> l2n3             ###",
+    "### l1n1 --> l2n1 -> l3n1 -> l4n1 -|        ###",
+    "###      |                         |        ###",
+    "###      |-> l2n2 -> l3n2 ---------|        ###",
+    "###      |                         |        ###",
+    "###      |-> l2n3 -----------------|-> l5n1            ###",
     {
         "name": "l1n1_young_diagrams",
         "func": ["None.src.core.young_diagrams", "create_young_diagrams", ""],
@@ -64,7 +64,7 @@
         "outputs": ["l4n1:::flag", "l4n1:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
-        "next_nodes": ["..."],
+        "next_nodes": ["l5n1_concat"],
         "flags": []
     },
     {
@@ -86,7 +86,7 @@
         "outputs": ["l3n2:::flag", "l3n2:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
-        "next_nodes": ["..."],
+        "next_nodes": ["l5n1_concat"],
         "flags": []
     },
     {
@@ -95,6 +95,17 @@
         "type": "cold",
         "inputs": ["l1n1:::s_n:s_n"],
         "outputs": ["l2n3:::flag", "l2n3:::s_n:s_n"],
+        "extra_args": [],
+        "extra_kwargs": {},
+        "next_nodes": ["l5n1_concat"],
+        "flags": []
+    },
+    {
+        "name": "l5n1_concat",
+        "func": ["None.src.core.eigenvalues", "concat_s_n", ""],
+        "type": "cold",
+        "inputs": ["l4n1:::s_n:s_n", "l3n2:::s_n:s_n", "l2n3:::s_n:s_n"],
+        "outputs": ["l5n1:::flag", "l5n1:::s_n:s_n"],
         "extra_args": [],
         "extra_kwargs": {},
         "next_nodes": ["..."],
