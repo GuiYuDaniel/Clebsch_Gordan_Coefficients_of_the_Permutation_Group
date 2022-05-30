@@ -45,6 +45,6 @@ yamanouchi_matrix_file_name_format = os.path.join("S{}", "{}", "{}{}")  # "S{}/{
 # characters and gi file name format
 characters_and_gi_file_name_format = "S{}"
 # CG series file name format
-cg_series_file_name_format = os.path.join("S{}", "sigma{}_mu{}")  # "S{}/sigma{}_mu{}"
+cg_series_file_name_format = os.path.join("S{}", "{}_{}")  # "S{}/{}_{}"
 # eigenvalues file name format
 eigenvalues_file_name_format = "S{}"

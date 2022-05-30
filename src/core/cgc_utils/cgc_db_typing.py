@@ -84,9 +84,9 @@ class CGSeriesInfo(CGCLocalDb):
     这个db用来存CG序列
 
     CG序列的落盘格式为：
-    <CG>/cg_series_info/Sn/sigma[σ]_mu[μ].pkl        ->
+    <CG>/cg_series_info/Sn/[σ]_[μ].pkl        ->
     {
-    "file_name": "Sn/sigma[σ]_mu[μ]",
+    "file_name": "Sn/[σ]_[μ]",
     "data": cg_series,
     "flags": {"speed_time": speed_time}
     }
@@ -99,7 +99,7 @@ class CGSeriesInfo(CGCLocalDb):
     speed_time表示计算用时（秒）
 
     例如：
-    <CG>/cg_series_info/Sn/sigma[3]_mu[2, 1].pkl
+    <CG>/cg_series_info/Sn/[3]_[2, 1].pkl
     [0, 1, 0]
 
     另存：
