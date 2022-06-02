@@ -1,0 +1,3 @@
+# cat test_list|grep -v #|grep test|pytest -ra --durations=0 -vv
+# tests by ABC order
+test_numpy_fractions_and_sympy.py

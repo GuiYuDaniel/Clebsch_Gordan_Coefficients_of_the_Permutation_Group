@@ -29,6 +29,27 @@ from conf.cgc_config import default_s_n
 #         self.txt_limit = calculated_tables_txt_limit
 #         self._init_cgc_static_db_folder()
 
+class ISFInfo(CGCLocalDb):
+    """
+    这个db用来存ISF
+
+    TODO tmp
+    <CG>/isf_info/Sn/[σ]_[μ]/[ν]_beta__[ν’]_beta'.pkl
+    {
+    "file_name": "Sn/[σ]_[μ]/[ν]_beta__[ν’]_beta'",
+    "data": isf_square_dict,             # dict
+    "flags": {"speed_time": speed_time}
+    }
+
+    其中，
+    Sn表示n阶置换群;
+    [σ][μ]表示参与内积的两个置换群构型；[ν]表示内积后的可能构型； (Sn)
+    [σ’][μ’]表示参与内积的两个置换群构型；[ν’]表示内积后的可能构型； (Sn-1)
+    beta和beta'分别对应[ν]以及[ν’]的多重性
+    isf_square_dict数值是isf的平方，符号是平方前isf系数的符号
+    speed_time表示计算用时（秒）
+    """
+
 
 class EigenvaluesInfo(CGCLocalDb):
     """
@@ -189,6 +210,8 @@ class CharacterAndGiInfo(CGCLocalDb):
 
 class YamanouchiMatrixInfo(CGCLocalDb):
     """
+    TODO tmp 转int型分数 考虑用fractions.Fraction
+
     这个db用来存Yamanouchi对换矩阵（仅限(ij)和(in)）
 
     Yamanouchi对换矩阵的落盘格式为：

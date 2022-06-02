@@ -18,10 +18,19 @@
         ../CG/ISF/Sn/[σ]_[μ]／folder_list.pkl              # 记录全部有效[[ν],[ν’]]
 
 
+    # TODO tmp!
+    # TODO [σ]_[μ] 与 [μ]_[σ]
+    # TODO 尝试整分数化（可能不行，会遭遇多重根）
+    CG系数存放于：
+        <CG>/cgc_info/Sn/[σ]_[μ]/[ν]_beta_ν_m.pkl      # {(σ_m?, μ_m?): cgc_value, N: ?}   # TODO 矩阵优化存储
 
-
-
-
+    # TODO tmp!
+    # TODO 尝试整分数化
+    ISF存放于：
+        <CG>/isf_info/Sn/[σ]_[μ]/[ν]_beta__[ν’]_beta'.pkl      # {([σ’], [μ’], ?): isf_value_square}  # 优化存储
+        数据结构：{"data": isf_square_dict}               #list(int)
+        txt展示：value of "data"
+        #[15, 9, 5, 3, 3, 0, -3, -3, -5, -9, -15]
 
     二循环类算符本征值存放于：(本征值to构型不存了，使用函数计算)
         <CG>/eigenvalues_info/Sn.pkl                #<CG>/eigenvalues_info/S6.pkl
