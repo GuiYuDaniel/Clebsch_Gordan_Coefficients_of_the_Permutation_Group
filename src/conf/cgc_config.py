@@ -31,6 +31,7 @@ top_path = singleton_config.top_path
 # <CGC>/cgc_results = <CGC_rst>
 cgc_rst_folder = "cgc_results"
 calculated_tables_txt_limit = -1  # -1表示永远存txt
+isf_0_error_value = 0.000001  # abs小于它的被认为是0
 
 # db table name
 # young diagrams file name format
@@ -48,3 +49,7 @@ characters_and_gi_file_name_format = "S{}"
 cg_series_file_name_format = os.path.join("S{}", "{}_{}")  # "S{}/{}_{}"
 # eigenvalues file name format
 eigenvalues_file_name_format = "S{}"
+# isf file name format
+isf_file_name_format = os.path.join("S{}", "{}_{}", "{}\'")
+# cgc file name format
+cgc_file_name_format = os.path.join("S{}", "{}_{}", "{}_{}_m{}")

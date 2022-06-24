@@ -203,7 +203,7 @@ def save_eigenvalues_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=
 def get_eigenvalues_finish_s_n():
     """
     flag表示是否有报错，
-    finish_s_n表示当前计算完成的Sn，如果没有，则finish_s_n = 1
+    finish_s_n表示当前计算完成的Sn，如果没有，则finish_s_n = 0
     """
     _, finish_file_name = get_eigenvalues_finish_s_n_name()
     flag, data = EigenvaluesInfo(0).query_by_file_name(finish_file_name)

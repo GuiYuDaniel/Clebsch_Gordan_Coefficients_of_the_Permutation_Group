@@ -54,9 +54,9 @@ class TestCGCLocalDb(object):
         self.db_static_folder = os.path.join(top_path, cgc_rst_folder, "tmp_info")
         if os.path.exists(self.db_static_folder):
             shutil.rmtree(self.db_static_folder)
-        self.file_name = "S_3/sigema[1, 1, 1]_miu[2, 1]"  # 故意不带.pkl的
+        self.file_name = "S_3/sigma[1, 1, 1]_mu[2, 1]"  # 故意不带.pkl的
         self.file_name_fake_1 = "S_3"
-        self.file_name_fake_2 = "sigema[1, 1, 1]_miu[2, 1]"
+        self.file_name_fake_2 = "sigma[1, 1, 1]_mu[2, 1]"
         self.test_data = {
             "file_name": self.file_name,
             "data": {1: 1, "2": "2"},
@@ -977,7 +977,7 @@ class TestYamanouchiMatrixInfo(object):
         self.fake_file_name = "S{}/{}/ij{}".format(self.fake_finish_s_n, self.fake_nu, self.fake_ij)
         self.fake_table = {
             "file_name": self.fake_file_name,
-            "data": [[-0.5, 0.8660254037844386], [0.8660254037844386, 0.5]],
+            "data": np.array([[-0.5, 0.8660254037844386], [0.8660254037844386, 0.5]]),
             "flags": {"speed_time": 0,
                       "total_num": 2}
         }

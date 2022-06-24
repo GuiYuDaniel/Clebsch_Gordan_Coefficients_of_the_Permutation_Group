@@ -22,15 +22,31 @@
     # TODO [σ]_[μ] 与 [μ]_[σ]
     # TODO 尝试整分数化（可能不行，会遭遇多重根）
     CG系数存放于：
-        <CG>/cgc_info/Sn/[σ]_[μ]/[ν]_beta_ν_m.pkl      # {(σ_m?, μ_m?): cgc_value, N: ?}   # TODO 矩阵优化存储
+        <CG>/cgc_info/Sn/[σ]_[μ]/[ν]_β_m.pkl      # {(σ_m, μ_m): cgc_value, N: 平方和}   # TODO 矩阵优化存储
+        #<CG>/cgc_info/S4/[2,2]_[3,1]/[2,1,1]_1_m2.pkl
+        数据结构：{"data": cgc_square_dict}            #dict(tuple(int, int): float; str: float)
+        txt展示：value of "data"
+        #{(2, 1): 0.4999999999999999, (1, 3): 0.24999999999999994, (2, 2): 0.24999999999999994, 'N': 0.9999999999999998}
 
     # TODO tmp!
+    # TODO [σ]_[μ] 与 [μ]_[σ]
     # TODO 尝试整分数化
     ISF存放于：
-        <CG>/isf_info/Sn/[σ]_[μ]/[ν]_beta__[ν’]_beta'.pkl      # {([σ’], [μ’], ?): isf_value_square}  # 优化存储
-        数据结构：{"data": isf_square_dict}               #list(int)
-        txt展示：value of "data"
-        #[15, 9, 5, 3, 3, 0, -3, -3, -5, -9, -15]
+        <CG>/isf_info/Sn/[σ]_[μ]/[ν’].pkl  # 存形如表4.19那样的矩阵
+        # <CG>/isf_info/S5/[3, 1, 1]_[3, 1, 1]/[3, 1].pkl  # 表4.19-17b
+        数据结构{"data": {"rows": row_list,
+                        "cols": col_list,
+                        "isf": isf_square_dict}}
+        isf_square_dict = {"rows": [([σ'], [μ'], β'), ([σ'], [μ']), ...],  # 有自由度len3，无自由度len2
+                           "cols": [[ν›], ([ν], β), ...],                   # 有自由度tuple，无自由度list
+                           "isf": isf_square_matrix}                       # np.array([len(rows), len(cols)], dtype=float)
+        # {"data": {"rows": [([3,1],[3,1]), ([3,1],[2,1,1]), ([2,1,1],[3,1]), ([2,1,1],[2,1,1])],
+                    "cols": [[4,1], ([3,2],1), ([3,2],2), [3,1,1]],
+                    "isf": np.array([[5/12, 1/2, 1/12, 0],
+                                     [-1/12, 0, 5/12, 1/2],
+                                     [-1/12, 0, 5/12, -1/2],
+                                     [5/12, -1/2, 1/12, 0]])}}
+        # <CG>/isf_info/S6
 
     二循环类算符本征值存放于：(本征值to构型不存了，使用函数计算)
         <CG>/eigenvalues_info/Sn.pkl                #<CG>/eigenvalues_info/S6.pkl
@@ -42,7 +58,7 @@
         <CG>/cg_series_info/Sn/[σ]_[μ].pkl           #<CG>/cg_series_info/Sn/[3]_[2, 1].pkl
         数据结构：{"data": cg_series_array}            #np.ndarray(int)
         txt展示：value of "data"
-        #{[0, 1, 0]}
+        #[0, 1, 0]
 
     特征标表和gi存放于：
         <CG>/characters_and_gi_info/Sn.pkl          #如<CG>/characters_and_gi_info/S4.pkl

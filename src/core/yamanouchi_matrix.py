@@ -606,7 +606,7 @@ def load_yamanouchi_matrix(s_n: int, yd: list, ix: tuple, mode=None, is_flag_tru
         return False, err_msg
     flag, data = YamanouchiMatrixInfo(s_n).query_by_file_name(file_name)
     if not flag:
-        err_msg = "cannot query young table with s_n={}, file_name={} because {}".format(s_n, file_name, data)
+        err_msg = "cannot query yamanouchi_matrix with s_n={}, file_name={} because {}".format(s_n, file_name, data)
         logger.error(err_msg)
         return False, err_msg
 

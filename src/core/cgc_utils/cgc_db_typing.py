@@ -29,17 +29,57 @@ from conf.cgc_config import default_s_n
 #         self.txt_limit = calculated_tables_txt_limit
 #         self._init_cgc_static_db_folder()
 
+class CGCInfo(CGCLocalDb):
+    """
+    这个db用来存CGC
+
+    TODO tmp
+    <CG>/cgc_info/Sn/[σ]_[μ]/[ν]_beta_m.pkl
+    {
+    "file_name": Sn/[σ]_[μ]/[ν]_beta_m,
+    "data": cgc_square_dict,
+    "flags": {"speed_time": speed_time}
+    }
+
+    其中，
+    Sn表示n阶置换群;
+    [σ][μ]表示参与内积的两个置换群构型；[ν]表示内积后的可能构型； (Sn)
+    beta对应[ν]的多重性;
+    m是[ν]的yamanouchi序;
+    cgc_square_dict数值是cgc的平方，符号是平方前cgc的符号;
+    speed_time表示计算用时（秒）
+
+    例如，
+    <CG>/cgc_info/S4/[2,2]_[3,1]/[2,1,1]_1_m2.pkl
+    {(2, 1): 0.4999999999999999, (1, 3): 0.24999999999999994, (2, 2): 0.24999999999999994, 'N': 0.9999999999999998}
+    """
+    def __init__(self, s_n):
+        super(CGCInfo, self).__init__()
+        self.table_type = "isf_info"
+        self.map_id = "file_name"
+        self.design_table_type.update({
+            "data": dict,
+            "flags": dict
+        })
+        self.s_n = s_n
+        self.txt_limit = default_s_n
+        self._init_cgc_static_db_folder()
+
+
 class ISFInfo(CGCLocalDb):
     """
     这个db用来存ISF
 
-    TODO tmp
-    <CG>/isf_info/Sn/[σ]_[μ]/[ν]_beta__[ν’]_beta'.pkl
+    <CG>/isf_info/Sn/[σ]_[μ]/[ν’].pkl
     {
-    "file_name": "Sn/[σ]_[μ]/[ν]_beta__[ν’]_beta'",
-    "data": isf_square_dict,             # dict
+    "file_name": "Sn/[σ]_[μ]/[ν’]",
+    "data": isf_square_dict,
     "flags": {"speed_time": speed_time}
     }
+
+    isf_square_dict = {"rows": [([σ'], [μ'], β'), ([σ'], [μ']), ...],  # 有自由度len3，无自由度len2
+                       "cols": [[ν], ([ν], β), ...],                   # 有自由度tuple，无自由度list
+                       "isf": isf_square_matrix}                       # np.array([len(rows), len(cols)], dtype=float)
 
     其中，
     Sn表示n阶置换群;
@@ -47,8 +87,32 @@ class ISFInfo(CGCLocalDb):
     [σ’][μ’]表示参与内积的两个置换群构型；[ν’]表示内积后的可能构型； (Sn-1)
     beta和beta'分别对应[ν]以及[ν’]的多重性
     isf_square_dict数值是isf的平方，符号是平方前isf系数的符号
+    len(rows) = len(cols)
     speed_time表示计算用时（秒）
+
+    例如，
+    <CG>/isf_info/S5/[3, 1, 1]_[3, 1, 1]/[3, 1].pkl
+    {"rows": [([3,1],[3,1]), ([3,1],[2,1,1]), ([2,1,1],[3,1]), ([2,1,1],[2,1,1])],
+     "cols": [[4,1], ([3,2],1), ([3,2],2), [3,1,1]],
+     "isf": np.array([[5/12, 1/2, 1/12, 0],
+                      [-1/12, 0, 5/12, 1/2],
+                      [-1/12, 0, 5/12, -1/2],
+                      [5/12, -1/2, 1/12, 0]])}
+
+    正则ISF索引的全部参数为：σ σ' μ μ' ν β ν' β'
+    表示：|σ σ'> * |μ μ'> 的结果中，|νβ ν'β'>，的ISF系数平方
     """
+    def __init__(self, s_n):
+        super(ISFInfo, self).__init__()
+        self.table_type = "isf_info"
+        self.map_id = "file_name"
+        self.design_table_type.update({
+            "data": dict,
+            "flags": dict
+        })
+        self.s_n = s_n
+        self.txt_limit = default_s_n
+        self._init_cgc_static_db_folder()
 
 
 class EigenvaluesInfo(CGCLocalDb):

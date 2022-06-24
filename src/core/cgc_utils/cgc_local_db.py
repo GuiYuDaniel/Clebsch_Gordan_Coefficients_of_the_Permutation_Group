@@ -269,13 +269,7 @@ def get_young_diagrams_file_name(s_n: int, is_full_path=False):
     p.s. S7 or <top_path>/cgc_results/young_diagrams_info/S7
     """
     from conf.cgc_config import young_diagrams_file_name_format
-    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
-        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
-            s_n, type(s_n), is_full_path, type(is_full_path))
-        logger.error(err_msg)
-        return False, err_msg
-
-    file_name = young_diagrams_file_name_format.format(str(s_n))
+    file_name = young_diagrams_file_name_format.format(str(s_n))  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
@@ -297,17 +291,7 @@ def get_branching_laws_file_name(s_n: int, yd: list, is_full_path=False):
     p.s. S3/[2, 1] or <top_path>/cgc_results/branching_laws_info/S3/[2, 1]
     """
     from conf.cgc_config import branching_laws_file_name_format
-    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
-        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
-            s_n, type(s_n), is_full_path, type(is_full_path))
-        logger.error(err_msg)
-        return False, err_msg
-    if not isinstance(yd, list):
-        err_msg = "yd={} with type={} must be list".format(yd, type(yd))
-        logger.error(err_msg)
-        return False, err_msg
-
-    file_name = branching_laws_file_name_format.format(s_n, yd)
+    file_name = branching_laws_file_name_format.format(s_n, yd)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
@@ -329,17 +313,7 @@ def get_young_tableaux_file_name(s_n: int, yd: list, is_full_path=False):
     p.s. S3/[2, 1] or <top_path>/cgc_results/young_tableaux_info/S3/[2, 1]
     """
     from conf.cgc_config import young_tableaux_file_name_format
-    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
-        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
-            s_n, type(s_n), is_full_path, type(is_full_path))
-        logger.error(err_msg)
-        return False, err_msg
-    if not isinstance(yd, list):
-        err_msg = "yd={} with type={} must be list".format(yd, type(yd))
-        logger.error(err_msg)
-        return False, err_msg
-
-    file_name = young_tableaux_file_name_format.format(s_n, yd)
+    file_name = young_tableaux_file_name_format.format(s_n, yd)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
@@ -353,17 +327,7 @@ def get_young_tableaux_num_file_name(s_n: int, yd: list, is_full_path=False):
     p.s. S3/[2, 1]_num or <top_path>/cgc_results/young_tableaux_info/S3/[2, 1]_num
     """
     from conf.cgc_config import young_tableaux_num_file_name_format
-    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
-        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
-            s_n, type(s_n), is_full_path, type(is_full_path))
-        logger.error(err_msg)
-        return False, err_msg
-    if not isinstance(yd, list):
-        err_msg = "yd={} with type={} must be list".format(yd, type(yd))
-        logger.error(err_msg)
-        return False, err_msg
-
-    file_name = young_tableaux_num_file_name_format.format(s_n, yd)
+    file_name = young_tableaux_num_file_name_format.format(s_n, yd)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
@@ -387,26 +351,7 @@ def get_yamanouchi_matrix_file_name(s_n: int, yd: list, ix: tuple, mode=None, is
     p.s. S3/[2, 1]/in(1, 3) or <top_path>/cgc_results/yamanouchi_matrix_info/S3/[2, 1]/in(1, 3)
     """
     from conf.cgc_config import yamanouchi_matrix_file_name_format
-    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
-        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
-            s_n, type(s_n), is_full_path, type(is_full_path))
-        logger.error(err_msg)
-        return False, err_msg
-    if not isinstance(yd, list):
-        err_msg = "yd={} with type={} must be list".format(yd, type(yd))
-        logger.error(err_msg)
-        return False, err_msg
-    mode_list = ["ij", "in"]  # 这里涉及到调用者必须清楚物理意义，所以不设置"auto"
-    if mode not in mode_list:
-        err_msg = "mode={} only supported in mode_list={}".format(mode, mode_list)
-        logger.error(err_msg)
-        return False, err_msg
-    if not isinstance(ix, tuple):
-        err_msg = "ix={} with type={} must be tuple".format(ix, type(ix))
-        logger.error(err_msg)
-        return False, err_msg
-
-    file_name = yamanouchi_matrix_file_name_format.format(s_n, yd, mode, ix)
+    file_name = yamanouchi_matrix_file_name_format.format(s_n, yd, mode, ix)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
@@ -428,13 +373,7 @@ def get_characters_and_gi_file_name(s_n: int, is_full_path=False):
     p.s. S3 or <top_path>/cgc_results/characters_and_gi_info/S3
     """
     from conf.cgc_config import characters_and_gi_file_name_format
-    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
-        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
-            s_n, type(s_n), is_full_path, type(is_full_path))
-        logger.error(err_msg)
-        return False, err_msg
-
-    file_name = characters_and_gi_file_name_format.format(s_n)
+    file_name = characters_and_gi_file_name_format.format(s_n)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
@@ -456,17 +395,7 @@ def get_cg_series_file_name(s_n: int, yd_1: list, yd_2: list, is_full_path=False
     p.s. S3 or <top_path>/cgc_results/cg_series_info/S3/[3]_[2, 1]
     """
     from conf.cgc_config import cg_series_file_name_format
-    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
-        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
-            s_n, type(s_n), is_full_path, type(is_full_path))
-        logger.error(err_msg)
-        return False, err_msg
-    if not isinstance(yd_1, list) or not isinstance(yd_2, list):
-        err_msg = "yd_1={} and yd_2={} with type={}, {} all must be list".format(yd_1, yd_2, type(yd_1), type(yd_2))
-        logger.error(err_msg)
-        return False, err_msg
-
-    file_name = cg_series_file_name_format.format(s_n, yd_1, yd_2)
+    file_name = cg_series_file_name_format.format(s_n, yd_1, yd_2)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
@@ -488,13 +417,7 @@ def get_eigenvalues_file_name(s_n: int, is_full_path=False):
     p.s. S6 or <top_path>/cgc_results/eigenvalues_info/S6
     """
     from conf.cgc_config import eigenvalues_file_name_format
-    if not isinstance(s_n, int) or not isinstance(is_full_path, bool):
-        err_msg = "s_n={} with type={} must be int, is_full_path={} with type={} must be bool".format(
-            s_n, type(s_n), is_full_path, type(is_full_path))
-        logger.error(err_msg)
-        return False, err_msg
-
-    file_name = eigenvalues_file_name_format.format(s_n)
+    file_name = eigenvalues_file_name_format.format(s_n)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
@@ -507,3 +430,49 @@ def get_eigenvalues_finish_s_n_name(is_full_path=False):
     Finish_Sn or <top_path>/cgc_results/eigenvalues_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="eigenvalues_info")
+
+
+# isf
+def get_isf_file_name(s_n: int, sigma, mu, nu_st, is_full_path=False):
+    """
+    Sn/[σ]_[μ]/[ν]_beta__[ν’]_beta’ or <top_path>/cgc_results/isf_info/Sn/[σ]_[μ]/[ν]_beta__[ν’]_beta’
+    p.s. S4/[2, 1]_[2, 1]/[2, 1]_1__[1, 1]'_1' or <top_path>/cgc_results/isf_info/S4/[2, 1]_[2, 1]/[2, 1]_1__[1, 1]'_1'
+    """
+    from conf.cgc_config import isf_file_name_format
+    file_name = isf_file_name_format.format(s_n, sigma, mu, nu_st)  # 检查交给调用者
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "isf_info", file_name)
+        return True, full_path
+
+
+def get_isf_finish_s_n_name(is_full_path=False):
+    """
+    Finish_Sn or <top_path>/cgc_results/isf_info/Finish_Sn
+    """
+    return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="isf_info")
+
+
+# cgc
+def get_cgc_file_name(s_n: int, sigma: list, mu: list, nu: list, beta: int, m: int, is_full_path=False):
+    """
+    Sn/[σ]_[μ]/[ν]_beta_m or <top_path>/cgc_results/cgc_info/Sn/[σ]_[μ]/[ν]_beta_m
+    p.s. S4/[2, 2]_[3, 1]/[2, 1, 1]_1_m2 or <top_path>/cgc_results/cgc_info/S4/[2, 2]_[3, 1]/[2, 1, 1]_1_m2
+    """
+    from conf.cgc_config import cgc_file_name_format
+    if beta is None:  # 没有多重性的beta将会被省略
+        beta = ""
+    file_name = cgc_file_name_format.format(s_n, sigma, mu, nu, beta, m)  # 检查交给调用者
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "cgc_info", file_name)
+        return True, full_path
+
+
+def get_cgc_finish_s_n_name(is_full_path=False):
+    """
+    Finish_Sn or <top_path>/cgc_results/cgc_info/Finish_Sn
+    """
+    return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="cgc_info")

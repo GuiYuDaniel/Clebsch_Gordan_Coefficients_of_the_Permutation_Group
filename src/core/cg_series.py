@@ -125,6 +125,13 @@ def create_cg_series(s_n: int=default_s_n):
                 single_cg_series_start_time = time.time()
                 kai_right = characters_matrix[yd_list.index(yd_right), :]
 
+        # TODO 引入enumerate和product
+        # for index_left, yd_left in enumerate(yd_list):  # [σ]
+        #     kai_left = characters_matrix[index_left, :]
+        #     for index_right, yd_right in enumerate(yd_list):  # [μ]
+        #         single_cg_series_start_time = time.time()
+        #         kai_right = characters_matrix[index_right, :]
+
                 k3_array = kai_left * kai_right * characters_matrix
                 order_array = np.sum(gi_array * k3_array, axis=1) / factorial_n  # 按照行求和 # 按照[ν]的Yamanouchi序排列
                 order_array = order_array.astype(np.int)
