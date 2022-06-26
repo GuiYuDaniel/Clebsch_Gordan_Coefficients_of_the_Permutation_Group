@@ -40,7 +40,7 @@ def create_isf_and_cgc(s_n: int=default_s_n):
     1，合法：True, s_n
     2，非法：False, msg
     """
-    # TODO 先写ISF
+    # TODO restart
     if not isinstance(s_n, int):
         err_msg = "s_n={} with type={} must be int".format(s_n, type(s_n))
         logger.error(err_msg)
@@ -52,11 +52,22 @@ def create_isf_and_cgc(s_n: int=default_s_n):
     # 先查询数据库中完成到S几：如果输入s_n未计算，直接从循环中cut掉算好的部分；如果s_n被计算过了，则给出完成标记（注意不是返回结果）
     isf_func = ISFHelper()
     cgc_func = CGCHelper()
-    flag, finish_s_n = get_isf_finish_s_n()
+    flag, isf_finish_s_n = get_isf_finish_s_n()
     if not flag:
-        err_msg = "get_isf_finish_s_n meet error with msg={}".format(finish_s_n)
+        err_msg = "get_isf_finish_s_n meet error with msg={}".format(isf_finish_s_n)
         logger.error(err_msg)
         return False, err_msg
+    flag, cgc_finish_s_n = get_cgc_finish_s_n()
+    if not flag:
+        err_msg = "get_cgc_finish_s_n meet error with msg={}".format(cgc_finish_s_n)
+        logger.error(err_msg)
+        return False, err_msg
+    if isf_finish_s_n != cgc_finish_s_n:
+        err_msg = "util restart code enable, isf_finish_s_n={} must eq cgc_finish_s_n={}".format(isf_finish_s_n,
+                                                                                                 cgc_finish_s_n)
+        logger.error(err_msg)
+        return False, err_msg
+    finish_s_n = isf_finish_s_n
     if s_n <= finish_s_n:
         # 说明以前算过了
         msg = "s_n={} isf had been calculated, return True, s_n".format(s_n)
@@ -94,7 +105,7 @@ def create_isf_and_cgc(s_n: int=default_s_n):
         # σ μ
         for σ, μ in product(data_si.yd_list, repeat=2):  # [σ], [μ]双循环
             # TODO σ, μ = μ, σ的情况，看看是真算用来消减误差，还是不算用来节约算力
-            σ_μ_start_time = time.time()
+            # σ_μ_start_time = time.time()
 
             # σ, μ循环可以得到的数据
             data_σ_μ = ΣMDataHelper(s_i, σ, μ, data_si, data_st)
@@ -102,18 +113,17 @@ def create_isf_and_cgc(s_n: int=default_s_n):
             for ν_st in data_st.yd_list:  # [ν']循环
                 # # ISF
                 single_isf_start_time = time.time()
-                row_index_tmp_list = isf_func.calc_row_indexes(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
-                                                               data_σ_μ.cg_series_st_list_dict, ν_st, data_st.yd_list)
+                # row_index_list = isf_func.calc_row_indexes(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
+                #                                                data_σ_μ.cg_series_st_list_dict, ν_st, data_st.yd_list)
                 # isf_square_dict = {"rows": [([σ'], [μ'], β'), ([σ'], [μ']), ...],  # 有自由度len3，无自由度len2
                 #                    "cols":[[ν], ([ν], β), ...],  # 有自由度tuple，无自由度list
                 #                    "isf": isf_square_matrix}  # np.array([len(rows), len(cols)], dtype=float)
-                flag, isf_square_dict = isf_func.calc_isf_dict(ν_st, row_index_tmp_list, data_si, data_st, data_σ_μ,
+                flag, isf_square_dict = isf_func.calc_isf_dict(ν_st, data_si, data_st, data_σ_μ,
                                                                data_st_st_yt_num_dict)
                 if not flag:
-                    err_msg = "calc isf_square_dict meet error by ν_st={}, row_index_tmp_list={}, " \
-                              "data_si={}, data_st={}, data_σ_μ={}, data_st_st_yt_num_dict={} with " \
-                              "msg={}".format(ν_st, row_index_tmp_list, data_si, data_st, data_σ_μ,
-                                              data_st_st_yt_num_dict, isf_square_dict)
+                    err_msg = "calc isf_square_dict meet error by ν_st={}, data_si={}, data_st={}, data_σ_μ={}, " \
+                              "data_st_st_yt_num_dict={} with msg={}".format(ν_st, data_si, data_st, data_σ_μ, 
+                                                                             data_st_st_yt_num_dict, isf_square_dict)
                     logger.error(err_msg)
                     return False, err_msg
                 single_isf_speed_time = int(time.time() - single_isf_start_time)
@@ -126,7 +136,14 @@ def create_isf_and_cgc(s_n: int=default_s_n):
                     return False, err_msg
 
                 # # CGC
-                single_cgc_start_time = time.time()
+                # 这里只能部分地拼凑CGC，因为完整的一个CGC需要σ * μ下所有的ν'中，同一个ν的ISF
+                flag, msg = cgc_func.calc_cgc_dict_part_and_save(isf_square_dict, ν_st, data_si, data_st, data_σ_μ)
+                if not flag:
+                    err_msg = "calc_cgc_dict_part_and_save fail by ν_st={}, data_si={}, data_st={}, " \
+                              "data_σ_μ={} isf_square_dict={} with msg={}".format(ν_st, data_si, data_st, data_σ_μ,
+                                                                                  isf_square_dict, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
 
         # s_i_isf_speed_time  # 它是不算保存，求和出来的
         flag, msg = save_isf_finish_s_n(s_i, s_i_isf_speed_time, is_check_add_one=True)
@@ -136,7 +153,16 @@ def create_isf_and_cgc(s_n: int=default_s_n):
             return False, err_msg
         # 它是总时间 - s_i_isf_speed_time 算出来的，也就是除了cgc，还包括了保存ISF的'误差'
         s_i_cgc_speed_time = int(time.time() - s_i_start_time - s_i_isf_speed_time)
+        flag, msg = save_cgc_finish_s_n(s_i, s_i_cgc_speed_time, is_check_add_one=True)
+        if not flag:
+            err_msg = "save_isf_finish_s_n meet error with s_i={}, msg={}".format(s_i, msg)
+            logger.error(err_msg)
+            return False, err_msg
 
+    c_time = time.time() - start_time_c
+    logger.info("#### create_isf_and_cgc s_n from {} to {} done, return True, finish_s_n={}, using time={}s".format(
+        finish_s_n + 1, s_n, s_n, c_time))
+    return True, s_n
 
 
 def save_isf(s_n: int, σ: list, μ: list, ν_st: list, isf_square_dict: dict, speed_time: int):
@@ -205,8 +231,91 @@ def save_isf(s_n: int, σ: list, μ: list, ν_st: list, isf_square_dict: dict, s
     return True, None
 
 
-def save_cgc():
-    pass
+def save_cgc_by_part(s_n: int, σ: list, μ: list, ν: list, β: (int, None), m: int, cgc_square_dict: dict,
+                     speed_time: int):
+    """
+    这个db用来存CGC
+
+    与其他保存逻辑不同，cgc是一部分一部分算出来的，所以不仅需要保存，还需要更新
+
+    TODO tmp
+    <CG>/cgc_info/Sn/[σ]_[μ]/[ν]_β_m.pkl
+    {
+    "file_name": Sn/[σ]_[μ]/[ν]_β_m,
+    "data": cgc_square_dict,
+    "flags": {"speed_time": speed_time}
+    }
+
+    其中，
+    Sn表示n阶置换群;
+    [σ][μ]表示参与内积的两个置换群构型；[ν]表示内积后的可能构型； (Sn)
+    beta对应[ν]的多重性;
+    m是[ν]的yamanouchi序;
+    cgc_square_dict数值是cgc的平方，符号是平方前cgc的符号;
+    speed_time表示计算用时（秒）
+
+    例如，
+    <CG>/cgc_info/S4/[2,2]_[3,1]/[2,1,1]_1_m2.pkl
+    {(2, 1): 0.4999999999999999, (1, 3): 0.24999999999999994, (2, 2): 0.24999999999999994, 'N': 0.9999999999999998}
+    """
+    if not isinstance(s_n, int) or s_n <= 0:
+        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+        logger.error(err_msg)
+        return False, err_msg
+    if not all(isinstance(yd, list) for yd in [σ, μ, ν]):
+        err_msg = "all [σ={}, μ={}, ν_st={}] must be list but type [{}, {}, {}]".format(
+            σ, μ, ν, type(σ), type(μ), type(ν))
+        logger.error(err_msg)
+        return False, err_msg
+    if β is not None and not isinstance(β, int):
+        err_msg = "β={} with type={} must be None or int".format(β, type(β))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(m, int) or s_n <= 0:
+        err_msg = "m={} with type={} must be int and > 0".format(m, type(m))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(cgc_square_dict, dict):
+        err_msg = "cgc_square_dict={} with type={} must be dict".format(cgc_square_dict, type(cgc_square_dict))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(speed_time, int) or speed_time < 0:
+        err_msg = "speed_time={} with type={} must be int and >= 0".format(speed_time, type(speed_time))
+        logger.error(err_msg)
+        return False, err_msg
+
+    db_info = CGCInfo(s_n)
+    _, file_name = get_cgc_file_name(s_n, σ, μ, ν, β, m)
+
+    flag, old_data = db_info.query_by_file_name(file_name)
+    if not flag:
+        err_msg = "save_cgc_by_part meet error with file_name={} msg={}".format(file_name, old_data)
+        logger.error(err_msg)
+        return flag, err_msg
+
+    if old_data is False:  # 没有旧的，说明是新建
+        table = {"file_name": file_name,
+                 "data": cgc_square_dict,
+                 "flags": {"speed_time": speed_time}}
+        flag, msg = db_info.insert(table)
+        if not flag:
+            return flag, msg
+        flag, msg = db_info.insert_txt(table)
+        if not flag:
+            return flag, msg
+
+    else:
+        table = {"file_name": file_name,
+                 "data": cgc_square_dict,
+                 "flags": {"speed_time": speed_time + old_data.get("flags").get("speed_time")}}
+        flag, msg = db_info.update_by_file_name(file_name, partial_table=table)
+        if not flag:
+            return flag, msg
+        flag, msg = db_info.update_txt_by_file_name(file_name, partial_table=table, point_key="data")
+        if not flag:
+            return flag, msg
+
+    return True, None
 
 
 def save_isf_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
@@ -266,8 +375,61 @@ def save_isf_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
     return True, None
 
 
-def save_cgc_finish_s_n():
-    pass
+def save_cgc_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
+    """finish_s_n都存txt副本用来展示"""
+    if not isinstance(s_n, int) or s_n <= 0:
+        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(s_n_speed_time, int) or s_n_speed_time < 0:
+        err_msg = "s_n_speed_time={} with type={} must be int and >= 0".format(s_n_speed_time, type(s_n_speed_time))
+        logger.error(err_msg)
+        return False, err_msg
+
+    flag, finish_s_n_before = get_cgc_finish_s_n()
+    if not flag:
+        return flag, finish_s_n_before
+
+    if is_check_add_one:
+        if s_n - finish_s_n_before != 1:
+            err_msg = "is_check_add_one=True require s_n={} - finish_s_n_before={} == 1".format(s_n, finish_s_n_before)
+            logger.error(err_msg)
+            return False, err_msg
+
+    db_info = CGCInfo(0)
+    _, finish_file_name = get_cgc_finish_s_n_name()
+    table = {"file_name": finish_file_name,
+             "data": {},
+             "flags": {"finish_s_n": s_n,
+                       "history_times": {"S{}".format(s_n): s_n_speed_time}}}
+
+    if finish_s_n_before == 0:
+        flag, msg = db_info.insert(table)
+        if not flag:
+            return flag, msg
+        flag, msg = db_info.insert_txt(table, point_key="flags")
+        if not flag:
+            return flag, msg
+    else:
+        flag, data = db_info.query_by_file_name(finish_file_name)
+        if not flag:
+            return flag, data
+        history_times = data.get("flags", {}).get("history_times")
+        if not history_times or not isinstance(history_times, dict):  # 有，就不应该是空字典
+            err_msg = "old history_times={} must real dict, but not, with data={}".format(history_times, data)
+            logger.error(err_msg)
+            return False, err_msg
+        # 更新table里的历史时间
+        history_times.update({"S{}".format(s_n): s_n_speed_time})
+        table["flags"]["history_times"] = history_times
+        flag, msg = db_info.update_by_file_name(finish_file_name, partial_table=table)
+        if not flag:
+            return flag, msg
+        flag, msg = db_info.update_txt_by_file_name(finish_file_name, partial_table=table, point_key="flags")
+        if not flag:
+            return flag, msg
+
+    return True, None
 
 
 def get_isf_finish_s_n():
@@ -279,6 +441,29 @@ def get_isf_finish_s_n():
     flag, data = ISFInfo(0).query_by_file_name(finish_file_name)
     if not flag:
         err_msg = "get_isf_finish_s_n meet error with finish_file_name={}".format(finish_file_name)
+        logger.error(err_msg)
+        return False, err_msg
+    if data is False:
+        # logger.debug("find no finish_s_n, return 0")
+        return True, 0
+    finish_s_n = data.get("flags", {}).get("finish_s_n")
+
+    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= 1:
+        return True, finish_s_n
+    else:
+        err_msg = "finish_s_n={} must int and > 0, with data={}".format(finish_s_n, data)
+        return False, err_msg
+
+
+def get_cgc_finish_s_n():
+    """
+    flag表示是否有报错，
+    finish_s_n表示当前计算完成的Sn，如果没有，则finish_s_n = 0
+    """
+    _, finish_file_name = get_cgc_finish_s_n_name()
+    flag, data = CGCInfo(0).query_by_file_name(finish_file_name)
+    if not flag:
+        err_msg = "get_cgc_finish_s_n meet error with finish_file_name={}".format(finish_file_name)
         logger.error(err_msg)
         return False, err_msg
     if data is False:
@@ -615,8 +800,8 @@ class DataHelper(object):
         self.eigenvalue_list = eigenvalue_list
 
 
-class ISFHelper(object):
-    """这里定义了一些供模块内部使用的函数，并省略入参检查"""
+class CalcHelper(object):
+    """ISFHelper, CGCHelper公有的函数"""
 
     def __init__(self):
         self.s_n = None
@@ -628,7 +813,23 @@ class ISFHelper(object):
         self.s_n = s_n
         self.s_t = s_n - 1
 
-    def calc_isf_dict(self, ν_st, row_index_tmp_list, data_sn, data_st, data_σ_μ, data_st_st_yt_num_dict):
+    @staticmethod
+    def _calc_m_with_m_st(yd_st, m_st, bl_yd_list, yt_st_num_dict):
+        """通过m'计算m，这回，我们可以使用分支律以及yt_num了; 也可以通过m_st=0，计算偏移量"""
+        # TODO 和core.young_tableaux.py: quickly_calc_young_table_in_decreasing_page_order比较一下
+        bl_yd_index = bl_yd_list.index(yd_st)  # 必须成立
+        # 对yd_st的前所有分支的yt_st_num以及本项m_st求和
+        m = sum([yt_st_num_dict[tuple(bl_yd)] for bl_yd in bl_yd_list[:bl_yd_index]], m_st)
+        return m
+
+
+class ISFHelper(CalcHelper):
+    """这里定义了一些供模块内部使用的函数，并省略入参检查"""
+
+    def __init__(self):
+        super(ISFHelper, self).__init__()
+
+    def calc_isf_dict(self, ν_st, data_sn, data_st, data_σ_μ, data_st_st_yt_num_dict):
         """计算未经相位调整的ISF
         
         正则ISF索引的全部参数为：σ σ' μ μ' ν β ν' β'
@@ -641,6 +842,9 @@ class ISFHelper(object):
                 self.s_n, data_sn.s_n, data_σ_μ.s_n, self.s_t, data_st.s_n, data_σ_μ.s_t)
             logger.error(err_msg)
             return False, err_msg
+
+        row_index_tmp_list = self.calc_row_indexes_tmp(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
+                                                       data_σ_μ.cg_series_st_list_dict, ν_st, data_st.yd_list)
 
         isf_matrix = self._calc_isf_matrix(row_index_tmp_list, ν_st,
                                            data_st.bl_yd_list_dict, data_st.yt_num_dict,
@@ -690,13 +894,14 @@ class ISFHelper(object):
             isf_square_tmp_dict["isf_tmp"].append(isf_square)
 
         # 按照顺序整理矩阵
-        isf_square_dict = {"rows": row_index_tmp_list,
+        row_index_list = [(i[0], i[1]) if i[2] is None else i for i in row_index_tmp_list]
+        isf_square_dict = {"rows": row_index_list,
                            "cols": [],
-                           "isf": np.zeros([len(row_index_tmp_list), len(row_index_tmp_list)])}
-        if len(isf_square_tmp_dict["ν_tmp"]) != len(row_index_tmp_list):  # 先检查理论上要求的方阵
-            err_msg = "ν_tmp_list={} with len={} and row_index_tmp_list={} with len={} must same, pls check".format(
+                           "isf": np.zeros([len(row_index_list), len(row_index_list)])}
+        if len(isf_square_tmp_dict["ν_tmp"]) != len(row_index_list):  # 先检查理论上要求的方阵
+            err_msg = "ν_tmp_list={} with len={} and row_index_list={} with len={} must same, pls check".format(
                 isf_square_tmp_dict["ν_tmp"], len(isf_square_tmp_dict["ν_tmp"]),
-                row_index_tmp_list, len(row_index_tmp_list))
+                row_index_list, len(row_index_list))
             logger.error(err_msg)
             return False, err_msg
 
@@ -716,7 +921,6 @@ class ISFHelper(object):
                 isf_square_tmp_dict["isf_tmp"].pop(tmp_index)
 
         return True, isf_square_dict
-
 
     def _calc_isf_phase(self, s_vector, ν, β, ν_st, row_index_tmp_list,
                         data_sn, data_st, data_σ_μ, data_st_st_yt_num_dict):
@@ -738,11 +942,11 @@ class ISFHelper(object):
                     self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν_st_reference, (ν, β,), isf_col_reference_dict)
                 logger.error(err_msg)
                 return False, err_msg
-            row_index_tmp_list_reference = isf_col_reference_dict["rows"]
+            row_index_list_reference = isf_col_reference_dict["rows"]
             isf_square_list_reference = isf_col_reference_dict["single_col"]
             first_no_0_isf_reference = self._get_first_no_0_number_from_vector(isf_square_list_reference)
             first_no_0_isf_reference_row_index = \
-                row_index_tmp_list_reference[isf_square_list_reference.index(first_no_0_isf_reference)]
+                row_index_list_reference[isf_square_list_reference.index(first_no_0_isf_reference)]
             # 分别为：
             # 1,令非ν的第一分支ν_st的m'取1时，ν的m；
             # 2,令ν_st_st的m''取1时，ν_st_reference的m'；(ν_st_st是ν_st的第一分支，也是ν_st_reference的分支，但不一定是第一分支)
@@ -771,8 +975,9 @@ class ISFHelper(object):
 
             return True, np.sign(before_isf_reference) * np.sign(first_no_0_isf_reference)
 
-    def _calc_before_isf_reference(self, ν, m_ν, m_ν_by_m_ν_st_reference, first_no_0_isf_reference_row_index, ν_st_reference,
-                            row_index_tmp_list, s_vector, ν_st, m_ν_st, data_sn, data_st, data_σ_μ):
+    def _calc_before_isf_reference(self, ν, m_ν, m_ν_by_m_ν_st_reference,
+                                   first_no_0_isf_reference_row_index, ν_st_reference,
+                                   row_index_tmp_list, s_vector, ν_st, m_ν_st, data_sn, data_st, data_σ_μ):
         """isf除了有书中介绍的两种根据St_ISF计算的递推方法外，还可以根据已有Sn的isf，推断一部分isf
 
         见式子 4-195c"""
@@ -925,10 +1130,10 @@ class ISFHelper(object):
                 raise Exception(msg)
 
     @staticmethod
-    def calc_row_indexes(bl_yds_of_σ, bl_yds_of_μ, cg_series_st_list_dict, ν_st, yd_list):
+    def calc_row_indexes_tmp(bl_yds_of_σ, bl_yds_of_μ, cg_series_st_list_dict, ν_st, yd_list):
         """计算ISF表格的行的意义，它是的bl_σ, bl_μ, β'的列表
         形如[([3,1],[3,1],None), ([3,1],[2,1,1],1), ([3,1],[2,1,1],2), ...]"""
-        row_index_list = []  # [(bl_σ, bl_μ, β'), ...]
+        row_index_tmp_list = []  # [(bl_σ, bl_μ, β'), ...]
         for bl_σ, bl_μ in product(bl_yds_of_σ, bl_yds_of_μ):
             cg_series_st_list = cg_series_st_list_dict[(tuple(bl_σ), tuple(bl_μ))]  # 必须有
             single_ν_cg_series = cg_series_st_list[yd_list.index(ν_st)]
@@ -936,8 +1141,8 @@ class ISFHelper(object):
                 continue
             part_rst_list = [(bl_σ, bl_μ, β_st) if single_ν_cg_series >= 2 else (bl_σ, bl_μ, None)
                              for β_st in range(1, single_ν_cg_series + 1)]  # [1, 2, ..., single_ν_cg_series]
-            row_index_list += part_rst_list
-        return row_index_list
+            row_index_tmp_list += part_rst_list
+        return row_index_tmp_list
 
     @lru_cache()
     def _load_cgc_with_m1_by_input_json(self, s_n, j_σ, j_μ, j_ν, β):
@@ -948,15 +1153,6 @@ class ISFHelper(object):
     def _load_cgc_with_m1_lru(self, s_n, σ, μ, ν, β):
         j_σ, j_μ, j_ν = map(json.dumps, [σ, μ, ν])
         return self._load_cgc_with_m1_by_input_json(s_n, j_σ, j_μ, j_ν, β)
-
-    @staticmethod
-    def _calc_m_with_m_st(yd_st, m_st, bl_yd_list, yt_st_num_dict):
-        """通过m'计算m，这回，我们可以使用分支律以及yt_num了"""
-        # TODO 和core.young_tableaux.py: quickly_calc_young_table_in_decreasing_page_order比较一下
-        bl_yd_index = bl_yd_list.index(yd_st)  # 必须成立
-        # 对yd_st的前所有分支的yt_st_num以及本项m_st求和
-        m = sum([yt_st_num_dict[tuple(bl_yd)] for bl_yd in bl_yd_list[:bl_yd_index]], m_st)
-        return m
 
     def _cgc_st_2_cgc_dict(self, cgc_st_tuple, bl_st_dict, yt_st_num_dict):
         """取得cg_st_dict，并且，根据分支律，将m_st转化为对应的m"""
@@ -1045,15 +1241,82 @@ class ISFHelper(object):
         return True, isf_matrix
 
 
-class CGCHelper(object):
+class CGCHelper(CalcHelper):
     """这里定义了一些供模块内部使用的函数，并省略入参检查"""
 
     def __init__(self):
-        self.s_n = None
-        self.s_t = None
+        super(CGCHelper, self).__init__()
+        
+    def calc_cgc_dict_part_and_save(self, isf_square_dict, ν_st, data_sn, data_st, data_σ_μ):
+        # 先按照列计算吧，后面根据情况看看是否能优化
+        σ_μ_β_all_st_tuple_list = isf_square_dict["rows"]
+        ν_β_list = isf_square_dict["cols"]
+        isf_square_matrix = isf_square_dict["isf"]  # 现在for它是按照行循环哦
+        isf_square_matrix_t = isf_square_matrix.T
 
-    def enable_now_s_n(self, s_n):
-        if not isinstance(s_n, int) or s_n < 2:
-            raise Exception("s_n={} must be int and >= 2".format(s_n))
-        self.s_n = s_n
-        self.s_t = s_n - 1
+        # TODO 待优化: 大概就是把某层最轻的循环，先包装成字典，避免重复
+        for ν_β, isf_square_vector in zip(ν_β_list, isf_square_matrix_t):
+            ν, β = ν_β if isinstance(ν_β, tuple) else (ν_β, None)
+
+            max_m_ν_st = data_st.yt_num_dict[tuple(ν_st)]
+            offset_of_m_ν = self._calc_m_with_m_st(ν_st, 0, data_sn.bl_yd_list_dict[tuple(ν)], data_st.yt_num_dict)
+            for m_ν_st in range(1, max_m_ν_st + 1):
+                single_cgc_part_start_time = time.time()
+
+                m_ν = offset_of_m_ν + m_ν_st
+                flag, cgc_square_part_dict = load_cgc(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, β, m_ν)
+                if not flag:
+                    err_msg = "get cgc_square_part_dict fail by self.s_n={}, data_σ_μ.σ={}, data_σ_μ.μ={}, " \
+                              "ν={}, β={}, m_ν={}, with msg={}".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ,
+                                                                       ν, β, m_ν, cgc_square_part_dict)
+                    logger.error(err_msg)
+                    return False, err_msg
+                if cgc_square_part_dict is False:  # 说明这是一个全新的
+                    cgc_square_part_dict = {"N": 1}
+
+                for σ_μ_β_all_st, isf_square in zip(σ_μ_β_all_st_tuple_list, isf_square_vector):  # TODO 这个循环里的load_cgc肯定重复了，它和ν_β无关
+                    σ_st, μ_st, β_st = σ_μ_β_all_st if len(σ_μ_β_all_st) == 3 else (*σ_μ_β_all_st, None)
+                    flag, cgc_st_square_dict = load_cgc(self.s_t, σ_st, μ_st, ν_st, β_st, m_ν,
+                                                        is_flag_true_if_not_s_n=False)
+                    if not flag:
+                        err_msg = "get cgc_st_square_dict fail by self.s_t={}, σ_st={}, μ_st={}, ν_st={}, β_st={}, " \
+                                  "m_ν={}, msg={}".format(self.s_t, σ_st, μ_st, ν_st, β_st, m_ν, cgc_st_square_dict)
+                        logger.error(err_msg)
+                        return False, err_msg
+                    cgc_st_square_n = cgc_st_square_dict.pop("N")
+
+                    offset_of_m_σ = self._calc_m_with_m_st(σ_st, 0, data_sn.bl_yd_list_dict[tuple(data_σ_μ.σ)],
+                                                           data_st.yt_num_dict)
+                    offset_of_m_μ = self._calc_m_with_m_st(μ_st, 0, data_sn.bl_yd_list_dict[tuple(data_σ_μ.μ)],
+                                                           data_st.yt_num_dict)
+                    for (m_σ_st, m_μ_st), cgc_st_square in cgc_st_square_dict.items():
+                        m_σ = offset_of_m_σ + m_σ_st
+                        m_μ = offset_of_m_μ + m_μ_st
+
+                        if (m_σ, m_μ) not in cgc_square_part_dict:
+                            cgc_square_part_dict[(m_σ, m_μ)] = isf_square * cgc_st_square / cgc_st_square_n
+                        else:
+                            cgc_new_part = np.sign(isf_square) * np.sign(cgc_st_square) \
+                                           * np.sqrt(abs(isf_square * cgc_st_square / cgc_st_square_n))
+                            cgc_old_part = np.sign(cgc_square_part_dict[(m_σ, m_μ)]) \
+                                           * np.sqrt(abs(cgc_square_part_dict[(m_σ, m_μ)]))
+                            update_cgc_square = np.sign(cgc_new_part + cgc_old_part) \
+                                                * (cgc_new_part + cgc_old_part)**2
+                            cgc_square_part_dict[(m_σ, m_μ)] = update_cgc_square  # 覆盖
+
+                # 部分的算好了，开始计算当前部分的N
+                cgc_square_part_dict.pop("N")
+                update_cgc_square_n = sum(abs(i) for i in cgc_square_part_dict.values())
+                cgc_square_part_dict["N"] = update_cgc_square_n
+
+                single_cgc_part_speed_time = int(time.time() - single_cgc_part_start_time)
+                flag, msg = save_cgc_by_part(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, β, m_ν, cgc_square_part_dict,
+                                             single_cgc_part_speed_time)
+                if not flag:
+                    err_msg = "save_cgc_by_part fail by self.s_n={}, data_σ_μ.σ={}, data_σ_μ.μ={}, " \
+                              "ν={}, β={}, m_ν={}, cgc_square_part_dict={} with " \
+                              "msg={}".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, β, m_ν, cgc_square_part_dict, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
+
+        return True, None

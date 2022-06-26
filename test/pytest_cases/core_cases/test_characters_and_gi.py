@@ -99,7 +99,7 @@ class TestCharacterData(object):
             # if s_i == 9:
             #     logger.warning("$$$$ 7={} len(7)={}".format(new_ch_list[7], len(new_ch_list[7])))
             new_ch_matrix = np.array(new_ch_list, dtype=int)  # 这里可以检查列的维度
-            new_gi_array = np.array(new_gi_list, dtype=int)
+            new_gi_array = np.array(new_gi_list, dtype=int)  # TODO 小心！！！dtype会把小数取整！
             # logger.warning("@@@@ new_ch_matrix={}".format(new_ch_matrix))
             last_array = new_ch_matrix[-1, :]
             middle_s_i = s_i / 2
