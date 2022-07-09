@@ -19,12 +19,15 @@ calculate params
 # Sn 置换群阶数
 default_s_n = 7
 
+# 符号计算/数值计算标志
+default_symbolic_calculation = True
+
 
 """
 system params
 
 无需修改这些参数，系统就可以正常执行
-如果希望修改，请确保用户知晓修改参数的意义
+如果希望修改，请确保用户知晓修改参数的意义，对当前程序、历史结果的影响
 """
 # <CGC>
 top_path = singleton_config.top_path
@@ -53,3 +56,14 @@ eigenvalues_file_name_format = "S{}"
 isf_file_name_format = os.path.join("S{}", "{}_{}", "{}\'")
 # cgc file name format
 cgc_file_name_format = os.path.join("S{}", "{}_{}", "{}_{}_m{}")
+
+# min Sn 各计算单元的最小合法Sn
+min_s_n_of_young_diagram = 1
+min_s_n_of_branching_law = 1  # 理论上是2; 添加1是一种"解析延拓"
+min_s_n_of_young_table = 1
+min_s_n_of_yamanouchi_matrix = 2
+min_s_n_of_characters_and_gi = 1
+min_s_n_of_cg_series = 1
+min_s_n_of_eigenvalue = 1  # 理论上是2; 添加1是一种"解析延拓"
+min_s_n_of_isf = 2
+min_s_n_of_cgc = 1

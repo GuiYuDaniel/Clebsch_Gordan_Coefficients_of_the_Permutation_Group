@@ -16,7 +16,7 @@ and provide a function to calc eigenvalue2yds
 
 import copy
 import time
-from conf.cgc_config import default_s_n
+from conf.cgc_config import default_s_n, min_s_n_of_eigenvalue
 from core.young_diagrams import load_young_diagrams, is_young_diagram
 from core.cgc_utils.cgc_db_typing import EigenvaluesInfo
 from core.cgc_utils.cgc_local_db import get_eigenvalues_file_name, get_eigenvalues_finish_s_n_name
@@ -34,8 +34,8 @@ def create_eigenvalues(s_n: int=default_s_n):
     1，合法：True, s_n
     2，非法：False, msg
     """
-    if not isinstance(s_n, int):
-        err_msg = "s_n={} with type={} must be int".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_eigenvalue:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_eigenvalue)
         logger.error(err_msg)
         return False, err_msg
 
@@ -114,8 +114,8 @@ def save_eigenvalues(s_n: int, eigenvalues_list: list, speed_time: int):
     <CG>/eigenvalues_info/S6.pkl
     [15, 9, 5, 3, 3, 0, -3, -3, -5, -9, -15]
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_eigenvalue:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_eigenvalue)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(eigenvalues_list, list):
@@ -144,8 +144,8 @@ def save_eigenvalues(s_n: int, eigenvalues_list: list, speed_time: int):
 
 def save_eigenvalues_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
     """finish_s_n都存txt副本用来展示"""
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_eigenvalue:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_eigenvalue)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(s_n_speed_time, int) or s_n_speed_time < 0:
@@ -171,7 +171,7 @@ def save_eigenvalues_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=
                        "history_times": {"S{}".format(s_n): s_n_speed_time},
                        "young_diagram_index": "young diagram list of Sn by young-yamanouchi"}}
 
-    if finish_s_n_before == 0:
+    if finish_s_n_before == min_s_n_of_eigenvalue - 1:
         flag, msg = db_info.insert(table)
         if not flag:
             return flag, msg
@@ -213,13 +213,12 @@ def get_eigenvalues_finish_s_n():
         return False, err_msg
     if data is False:
         # logger.debug("find no finish_s_n, return 0")
-        return True, 0
+        return True, min_s_n_of_eigenvalue - 1
     finish_s_n = data.get("flags", {}).get("finish_s_n")
-
-    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= 1:
+    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= min_s_n_of_eigenvalue:
         return True, finish_s_n
     else:
-        err_msg = "finish_s_n={} must int and > 0, with data={}".format(finish_s_n, data)
+        err_msg = "finish_s_n={} must int and >= {}, with data={}".format(finish_s_n, min_s_n_of_eigenvalue, data)
         return False, err_msg
 
 
@@ -228,8 +227,8 @@ def load_eigenvalues(s_n: int, is_flag_true_if_not_s_n=True):
     取得s_n下所有young diagrams的本征值列表
     如果没有，根据is_return_true_if_not_s_n决定返回True or False
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_eigenvalue:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_eigenvalue)
         logger.error(err_msg)
         return False, err_msg
 
@@ -284,7 +283,7 @@ def _calc_single_eigenvalue_of_2_cycle_class_of_yd(yd: list):
     """
     公式：
     λ = 1/2 * sum{l}(ν_l * (ν_l - 2l + 1))
-      = 1/2 * sum{i}(ν_i * (ν_i - 2l - 1))
+      = 1/2 * sum{i}(ν_i * (ν_i - 2i - 1))
     其中，l是杨盘图的行号（从1开始），ν_l是指第l行的格子数
     因为python中，index从0开始，所以l = i + 1
     """

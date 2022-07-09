@@ -133,7 +133,7 @@ def _revise_path_before_io(file_type=None, io_type=None):
                     return False, e_msg
                 folder_path = os.path.dirname(file_path)
                 if not os.path.exists(folder_path):
-                    logger.debug("folder_path={} not exist, create it".format(folder_path))
+                    # logger.debug("folder_path={} not exist, create it".format(folder_path))
                     os.makedirs(folder_path)
                 if os.path.exists(file_path):
                     e_msg = "file_path={} existed, will not create again, pls check".format(file_path)

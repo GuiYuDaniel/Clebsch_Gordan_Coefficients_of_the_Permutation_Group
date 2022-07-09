@@ -22,7 +22,7 @@ this code for creating Branching Laws by Sn and young_diagram
 
 import copy
 import time
-from conf.cgc_config import default_s_n
+from conf.cgc_config import default_s_n, min_s_n_of_branching_law
 from core.cgc_utils.cgc_db_typing import BranchingLawInfo
 from core.cgc_utils.cgc_local_db import get_branching_laws_finish_s_n_name, get_branching_laws_file_name
 from core.young_diagrams import load_young_diagrams
@@ -40,8 +40,8 @@ def create_branching_laws(s_n: int=default_s_n):
     1，合法：True, s_n
     2，非法：False, msg
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_branching_law:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_branching_law)
         logger.error(err_msg)
         return False, err_msg
 
@@ -137,8 +137,8 @@ def save_single_branching_law(s_n: int, yd: list,
     例如：
     S3/[2, 1].pkl: {"BL_num": 2, "rows": [1, 0], "cols": [0, 1], "before_YD": [[2], [1, 1]]}
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_branching_law:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_branching_law)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(bl_num, int) or bl_num <= 0:
@@ -188,8 +188,8 @@ def save_single_branching_law(s_n: int, yd: list,
 
 def save_branching_laws_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
     """finish_s_n都存txt副本用来展示"""
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_branching_law:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_branching_law)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(s_n_speed_time, int) or s_n_speed_time < 0:
@@ -215,7 +215,7 @@ def save_branching_laws_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_o
                        "history_times": {
                            "S{}".format(s_n): s_n_speed_time
                        }}}
-    if finish_s_n_before == 0:
+    if finish_s_n_before == min_s_n_of_branching_law - 1:
         flag, msg = db_info.insert(table)
         if not flag:
             return flag, msg
@@ -257,22 +257,22 @@ def get_branching_laws_finish_s_n():
         return False, err_msg
     if data is False:
         # logger.debug("find no finish_s_n, return 0")
-        return True, 0
+        return True, min_s_n_of_branching_law - 1
     finish_s_n = data.get("flags", {}).get("finish_s_n")
-    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= 1:
+    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= min_s_n_of_branching_law:
         return True, finish_s_n
     else:
-        err_msg = "finish_s_n={} must int and > 0, with data={}".format(finish_s_n, data)
+        err_msg = "finish_s_n={} must int and >= {}, with data={}".format(finish_s_n, min_s_n_of_branching_law, data)
         return False, err_msg
 
 
-def load_branching_law(s_n: int, yd: list, is_flag_true_if_not_s_n=True):
+def load_branching_law(s_n: int, yd: list, is_flag_true_if_not_s_n=True, is_return_tuple=False):
     """
     取得s_n下young_diagram的分支律(len4tuple，BL_num, rows, cols, before_YD)
     如果没有，根据is_flag_true_if_not_s_n决定返回True or False
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_branching_law:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_branching_law)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(yd, list):
@@ -293,10 +293,11 @@ def load_branching_law(s_n: int, yd: list, is_flag_true_if_not_s_n=True):
 
     if data:
         bl = data.get("data")
-        rst = (bl.get("BL_num"), bl.get("rows"), bl.get("cols"), bl.get("before_YD"),)
-        if bl and rst:
-            # 只检查有没有 不对内容做检查了
-            return True, rst  # bingo！
+        if bl:
+            if is_return_tuple:
+                return True, (bl.get("BL_num"), bl.get("rows"), bl.get("cols"), bl.get("before_YD"),)  # bingo！
+            else:
+                return True, bl  # bingo！
 
         else:
             err_msg = "branching_law queried from db, but cannot get branching_law from data" \

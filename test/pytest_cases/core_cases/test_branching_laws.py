@@ -64,7 +64,7 @@ class TestBranchingLaws(object):
 
     def test_001_create_branching_laws_s_n_1_to_2(self):
         # check with no db
-        flag, bl = load_branching_law(1, self.yd_3)
+        flag, bl = load_branching_law(1, self.yd_3, is_return_tuple=True)
         assert flag
         assert bl is False
         flag, finish_s_n = get_branching_laws_finish_s_n()
@@ -77,10 +77,10 @@ class TestBranchingLaws(object):
         assert data == 2
 
         # check answers
-        flag, bl = load_branching_law(1, self.yd_3)
+        flag, bl = load_branching_law(1, self.yd_3, is_return_tuple=True)
         assert flag
         assert bl == self.bl_3
-        flag, bl = load_branching_law(3, self.yd_1)
+        flag, bl = load_branching_law(3, self.yd_1, is_return_tuple=True)
         assert flag
         assert bl is False
         _, file_name = get_branching_laws_file_name(1, [1])
@@ -118,10 +118,10 @@ class TestBranchingLaws(object):
         assert data == 4
 
         # check answers
-        flag, bl = load_branching_law(1, self.yd_3)
+        flag, bl = load_branching_law(1, self.yd_3, is_return_tuple=True)
         assert flag
         assert bl == self.bl_3
-        flag, bl = load_branching_law(3, self.yd_1)
+        flag, bl = load_branching_law(3, self.yd_1, is_return_tuple=True)
         assert flag
         assert bl == self.bl_1
         _, file_name = get_branching_laws_file_name(1, [1])

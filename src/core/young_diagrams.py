@@ -24,7 +24,7 @@ this code for creating Young Diagrams by Sn
 
 import time
 import numpy as np
-from conf.cgc_config import default_s_n
+from conf.cgc_config import default_s_n, min_s_n_of_young_diagram
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo
 from core.cgc_utils.cgc_local_db import get_young_diagrams_file_name, get_young_diagrams_finish_s_n_name
 from utils.log import get_logger
@@ -41,8 +41,8 @@ def create_young_diagrams(s_n: int=default_s_n):
     1，合法：True, s_n
     2，非法：False, msg
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_diagram:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_diagram)
         logger.error(err_msg)
         return False, err_msg
 
@@ -113,8 +113,8 @@ def save_single_young_diagrams(s_n: int, young_diagrams: list, speed_time: int):
     S3.pkl: [[3], [2, 1], [1, 1, 1]]
     S4.pkl: [[4], [3, 1], [2, 2], [2, 1, 1], [1, 1, 1, 1]]
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_diagram:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_diagram)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(young_diagrams, list):
@@ -143,8 +143,8 @@ def save_single_young_diagrams(s_n: int, young_diagrams: list, speed_time: int):
 
 def save_young_diagrams_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
     """finish_s_n都存txt副本用来展示"""
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_diagram:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_diagram)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(s_n_speed_time, int) or s_n_speed_time < 0:
@@ -170,7 +170,7 @@ def save_young_diagrams_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_o
                        "history_times": {
                            "S{}".format(s_n): s_n_speed_time
                        }}}
-    if finish_s_n_before == 0:
+    if finish_s_n_before == min_s_n_of_young_diagram - 1:
         flag, msg = db_info.insert(table)
         if not flag:
             return flag, msg
@@ -214,9 +214,12 @@ def calc_single_young_diagrams(s_n: int, recursion_deep: int=1):
          [2, 2, 2], [2, 2, 1, 1], [2, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1]]
     注意：排序按照金牌模式而不是行数，例如[3, 3]两行排在了[4, 1, 1]后面
     """
-    if not isinstance(s_n, int) or s_n <= 0 or not isinstance(recursion_deep, int) or recursion_deep < 0:
-        err_msg = "s_n={} with type={} must be int and > 0 recursion_deep={} with type={} must be int and >= 0".format(
-            s_n, type(s_n), recursion_deep, type(recursion_deep))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_diagram:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_diagram)
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(recursion_deep, int) or recursion_deep < 0:
+        err_msg = "recursion_deep={} with type={} must be int and >= 0".format(recursion_deep, type(recursion_deep))
         logger.error(err_msg)
         return False, err_msg
 
@@ -302,12 +305,12 @@ def get_young_diagrams_finish_s_n():
         return False, err_msg
     if data is False:
         # logger.debug("find no finish_s_n, return 0")
-        return True, 0
+        return True, min_s_n_of_young_diagram - 1
     finish_s_n = data.get("flags", {}).get("finish_s_n")
-    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= 1:
+    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= min_s_n_of_young_diagram:
         return True, finish_s_n
     else:
-        err_msg = "finish_s_n={} must int and > 0, with data={}".format(finish_s_n, data)
+        err_msg = "finish_s_n={} must int and >= {}, with data={}".format(finish_s_n, min_s_n_of_young_diagram, data)
         return False, err_msg
 
 

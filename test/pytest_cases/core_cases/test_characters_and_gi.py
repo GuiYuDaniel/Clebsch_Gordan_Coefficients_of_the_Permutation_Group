@@ -18,7 +18,7 @@ import time
 import math
 import numpy as np
 from conf.cgc_config import cgc_rst_folder
-from core.branching_laws import create_branching_laws, load_branching_law
+from core.branching_laws import create_branching_laws
 from core.young_diagrams import create_young_diagrams, load_young_diagrams, calc_young_diagram_dagger
 from core.characters_and_gi import CharacterData, GiData
 from core.characters_and_gi import load_characters_and_gi, get_characters_and_gi_finish_s_n

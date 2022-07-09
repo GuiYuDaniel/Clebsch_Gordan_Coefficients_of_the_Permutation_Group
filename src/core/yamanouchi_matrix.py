@@ -32,24 +32,23 @@ this code for creating Yamanouchi Matrix (ij)(in) by Sn, young_diagrams, branchi
 
 import copy
 import numpy as np
-import math
 import time
+import sympy as sp
 from core.branching_laws import load_branching_law
-from conf.cgc_config import default_s_n
+from conf.cgc_config import default_s_n, min_s_n_of_yamanouchi_matrix, default_symbolic_calculation
 from core.cgc_utils.cgc_local_db import get_yamanouchi_matrix_file_name, get_yamanouchi_matrix_finish_s_n_name
 from core.cgc_utils.cgc_db_typing import YamanouchiMatrixInfo
 from core.young_diagrams import load_young_diagrams
 from core.young_tableaux import load_young_table, load_young_table_num
 from core.young_tableaux import get_s_i_index_in_young_table
 from core.young_tableaux import read_young_table_in_decreasing_page_order
-from core.young_tableaux import quickly_calc_young_table_in_decreasing_page_order
 from utils.log import get_logger
 
 
 logger = get_logger(__name__)
 
 
-def create_yamanouchi_matrix(s_n: int=default_s_n):
+def create_yamanouchi_matrix(s_n: int=default_s_n, is_sympy=default_symbolic_calculation):
     """
     提供给workflow的函数，负责调用计算和存储Yamanouchi矩阵实体
     返回格式：
@@ -57,12 +56,12 @@ def create_yamanouchi_matrix(s_n: int=default_s_n):
     1，合法：True, s_n
     2，非法：False, msg
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_yamanouchi_matrix:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_yamanouchi_matrix)
         logger.error(err_msg)
         return False, err_msg
 
-    logger.info("#### create_yamanouchi_matrix get input s_n={}".format(s_n))
+    logger.info("#### create_yamanouchi_matrix get input s_n={}, is_sympy={}".format(s_n, is_sympy))
     start_time_c = time.time()
 
     # 先查询数据库中完成到S几：如果输入s_n未计算，直接从循环中cut掉算好的部分；如果s_n被计算过了，则给出完成标记（注意不是返回结果）
@@ -104,23 +103,40 @@ def create_yamanouchi_matrix(s_n: int=default_s_n):
 
             key_ij_list = [(s_i - i - 1, s_i - i,) for i in range(s_i - 1)]
             key_in_list = [(s_i - i - 1, s_i,) for i in range(s_i - 1)]
-            for key_ij, key_in, rst_iter in zip(key_ij_list, key_in_list, calc_yamanouchi_matrix_iter(s_i, yd_i)):
+            for key_ij, key_in, rst_iter in zip(key_ij_list, key_in_list,
+                                                calc_yamanouchi_matrix_iter(s_i, yd_i, is_sympy=is_sympy)):
                 flag, ym_ij_dict, ym_in_dict = rst_iter
                 if not flag:
-                    err_msg = "calc yamanouchi_matrix_ix meet error with s_i={}, yd_i={}, msg={}".format(
-                        s_i, yd_i, ym_ij_dict)
+                    err_msg = "calc yamanouchi_matrix_ix meet error with s_i={}, yd_i={}, is_sympy={}, msg={}".format(
+                        s_i, yd_i, is_sympy, ym_ij_dict)
                     logger.error(err_msg)
                     return False, err_msg
-                if not ym_ij_dict or not isinstance(ym_ij_dict, dict) \
-                        or not isinstance(ym_ij_dict.get(key_ij), np.ndarray):
-                    err_msg = "calc ym_ij_dict={} meet error with key_ij={}, yd_i={}".format(ym_ij_dict, key_ij, yd_i)
-                    logger.error(err_msg)
-                    return False, err_msg
-                if not ym_in_dict or not isinstance(ym_in_dict, dict) \
-                        or not isinstance(ym_in_dict.get(key_in), np.ndarray):
-                    err_msg = "calc ym_in_dict={} meet error with key_in={}, yd_i={}".format(ym_in_dict, key_in, yd_i)
-                    logger.error(err_msg)
-                    return False, err_msg
+                if is_sympy:
+                    if not ym_ij_dict or not isinstance(ym_ij_dict, dict) \
+                            or not isinstance(ym_ij_dict.get(key_ij), sp.Matrix):
+                        err_msg = "calc ym_ij_dict={} meet error with key_ij={}, yd_i={}".format(ym_ij_dict, key_ij,
+                                                                                                 yd_i)
+                        logger.error(err_msg)
+                        return False, err_msg
+                    if not ym_in_dict or not isinstance(ym_in_dict, dict) \
+                            or not isinstance(ym_in_dict.get(key_in), sp.Matrix):
+                        err_msg = "calc ym_in_dict={} meet error with key_in={}, yd_i={}".format(ym_in_dict, key_in,
+                                                                                                 yd_i)
+                        logger.error(err_msg)
+                        return False, err_msg
+                else:
+                    if not ym_ij_dict or not isinstance(ym_ij_dict, dict) \
+                            or not isinstance(ym_ij_dict.get(key_ij), np.ndarray):
+                        err_msg = "calc ym_ij_dict={} meet error with key_ij={}, yd_i={}".format(ym_ij_dict, key_ij,
+                                                                                                 yd_i)
+                        logger.error(err_msg)
+                        return False, err_msg
+                    if not ym_in_dict or not isinstance(ym_in_dict, dict) \
+                            or not isinstance(ym_in_dict.get(key_in), np.ndarray):
+                        err_msg = "calc ym_in_dict={} meet error with key_in={}, yd_i={}".format(ym_in_dict, key_in,
+                                                                                                 yd_i)
+                        logger.error(err_msg)
+                        return False, err_msg
                 ym_ij = ym_ij_dict.get(key_ij)
                 ym_in = ym_in_dict.get(key_in)
 
@@ -156,14 +172,14 @@ def create_yamanouchi_matrix(s_n: int=default_s_n):
     return True, s_n
 
 
-def save_yamanouchi_matrix(s_n: int, yd: list, ix: tuple, ym: np.ndarray, speed_time: int, mode=None):
+def save_yamanouchi_matrix(s_n: int, yd: list, ix: tuple, ym: (np.ndarray, sp.Matrix), speed_time: int, mode=None):
     """
     Yamanouchi对换矩阵的落盘格式为：
     <CG>/yamanouchi_matrix_info/Sn/[ν_i]/ij(i,j).pkl 或
     <CG>/yamanouchi_matrix_info/Sn/[ν_i]/in(i,n).pkl     ->
     {
     "file_name": "Sn/[ν_i]/ij(i,j)",
-    "data": matrix_ij 或 matrix_in,           # list(list(float))
+    "data": matrix_ij 或 matrix_in,
     "flags": {"speed_time": speed_time}
     }
 
@@ -172,14 +188,17 @@ def save_yamanouchi_matrix(s_n: int, yd: list, ix: tuple, ym: np.ndarray, speed_
     [ν_i]表示杨图;
     ij表示临近对换;
     in表示末尾对换;
+    matrix_ij 或 matrix_in 可以是np的数值计算，也可以是sp的符号计算
     speed_time表示计算用时（秒）
 
     例如：
-    S3/[2, 1]/ij(2, 3).pkl: {(2,3): [[-0.5, 0.8660254037844386], [0.8660254037844386, 0.5]]}
-    S3/[2, 1]/in(1, 3).pkl: {(1,3): [[-0.5, -0.8660254037844386], [-0.8660254037844386, 0.5]]}
+    S3/[2, 1]/ij(2, 3).pkl: {(2,3): np.array([[-0.5, 0.8660254037844386], [0.8660254037844386, 0.5]])}
+    S3/[2, 1]/in(1, 3).pkl: {(1,3): np.array([[-0.5, -0.8660254037844386], [-0.8660254037844386, 0.5]])}
+    S3/[2, 1]/ij(2, 3).pkl: {(2,3): Matrix([[-1/2, sqrt(3)/2], [sqrt(3)/2, 1/2]])}
+    S3/[2, 1]/in(1, 3).pkl: {(1,3): Matrix([[-1/2, -sqrt(3)/2], [-sqrt(3)/2, 1/2]])}
     """
-    if not isinstance(s_n, int) or s_n <= 1:
-        err_msg = "s_n={} with type={} must be int and > 1".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_yamanouchi_matrix:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_yamanouchi_matrix)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(yd, list):
@@ -190,8 +209,8 @@ def save_yamanouchi_matrix(s_n: int, yd: list, ix: tuple, ym: np.ndarray, speed_
         err_msg = "ix={} with type={} must be tuple".format(ix, type(ix))
         logger.error(err_msg)
         return False, err_msg
-    if not isinstance(ym, np.ndarray) or not ym.size:
-        err_msg = "ym={} with type={} must be real np.ndarray with ym.size={}".format(ym, type(ym), ym.size)
+    if not isinstance(ym, (list, np.ndarray, sp.Matrix)) or not len(ym):
+        err_msg = "ym={} with type={} must be real (list, np.ndarray, sp.Matrix)".format(ym, type(ym))
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(speed_time, int) or speed_time < 0:
@@ -206,7 +225,7 @@ def save_yamanouchi_matrix(s_n: int, yd: list, ix: tuple, ym: np.ndarray, speed_
     db_info = YamanouchiMatrixInfo(s_n)
     _, file_name = get_yamanouchi_matrix_file_name(s_n, yd, ix, mode=mode)
     table = {"file_name": file_name,
-             "data": ym,           # list(list(float))
+             "data": ym,           # list/np.array/sp.Matrix
              "flags": {"speed_time": speed_time}}
     flag, msg = db_info.insert(table)
     if not flag:
@@ -220,8 +239,8 @@ def save_yamanouchi_matrix(s_n: int, yd: list, ix: tuple, ym: np.ndarray, speed_
 
 def save_yamanouchi_matrix_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
     """finish_s_n都存txt副本用来展示"""
-    if not isinstance(s_n, int) or s_n <= 1:
-        err_msg = "s_n={} with type={} must be int and > 1".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_yamanouchi_matrix:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_yamanouchi_matrix)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(s_n_speed_time, int) or s_n_speed_time < 0:
@@ -247,7 +266,7 @@ def save_yamanouchi_matrix_finish_s_n(s_n: int, s_n_speed_time: int, is_check_ad
                        "history_times": {
                            "S{}".format(s_n): s_n_speed_time
                        }}}
-    if finish_s_n_before == 1:
+    if finish_s_n_before == min_s_n_of_yamanouchi_matrix - 1:
         flag, msg = db_info.insert(table)
         if not flag:
             return flag, msg
@@ -288,17 +307,18 @@ def get_yamanouchi_matrix_finish_s_n():
         logger.error(err_msg)
         return False, err_msg
     if data is False:
-        # logger.debug("find no finish_s_n, return 0")
-        return True, 1
+        # logger.debug("find no finish_s_n, return 1")
+        return True, min_s_n_of_yamanouchi_matrix - 1
     finish_s_n = data.get("flags", {}).get("finish_s_n")
-    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= 1:
+    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= min_s_n_of_yamanouchi_matrix:
         return True, finish_s_n
     else:
-        err_msg = "finish_s_n={} must int and > 0, with data={}".format(finish_s_n, data)
+        err_msg = "finish_s_n={} must int and >= {}, with data={}".format(finish_s_n, min_s_n_of_yamanouchi_matrix,
+                                                                          data)
         return False, err_msg
 
 
-def _calc_s_b_to_s_n_part(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, yt_all_s_n):
+def _calc_s_b_to_s_n_part(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, yt_all_s_n, is_sympy=True):
     """
     方法：
     利用公式
@@ -315,10 +335,14 @@ def _calc_s_b_to_s_n_part(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, yt_al
     注意：
     1，这里仅仅计算了(n-1,n)这一个对换矩阵，它既是(ij)又是(in)
     2，轴距按定义，一定是从后面的杨盘（|Ym>），的指标i-1到达i，沿着杨盘向上或向右移动一格+1，沿着杨盘向下或向左移动一格-1，反过来符号就错了！
+    参数is_sympy，决定了结果是符号计算还是数值计算
     """
     # 必须接calc_yamanouchi_matrix_iter，才能不检查入参
     # 1，前置必要参数
-    matrix_np = np.zeros([matrix_div, matrix_div])
+    if is_sympy:
+        matrix_n1n = sp.zeros(matrix_div)  # 小心他们用法上的区别，例如sp的for循环是展平loop所有。。。
+    else:
+        matrix_n1n = np.zeros([matrix_div, matrix_div])
 
     # 外层是按照当前young_diagram分支律的分支数bl_num开启循环，其中，range(bl_num)与before_yd一一对应
     # 内层是按照当前分支before_yt_i_batch_len开启循环，循环节是s_b的单个杨盘py序，对Sn的意义是block内部的序号
@@ -342,21 +366,24 @@ def _calc_s_b_to_s_n_part(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, yt_al
 
             # 2，计算同行列情况
             if row_i_s_b == row_i_s_n:  # 同行最先，且|Yn>为零
-                matrix_np[total_i, total_i] = 1
+                matrix_n1n[total_i, total_i] = 1
             elif col_i_s_b == col_i_s_n:  # 同列次先，且|Yn>为零
-                matrix_np[total_i, total_i] = -1
+                matrix_n1n[total_i, total_i] = -1
 
             else:  # 不同行也不同列，(i-1,i)|Ym> = 1/σ |Ym> + sqrt(σ^2 - 1)/abs(σ) |Yn> 两项都不为零
                 # 3，计算异行列情况
                 # 3.1，计算 1/σ |Ym> 部分
                 axial_distance = row_i_s_b - col_i_s_b + col_i_s_n - row_i_s_n
-                matrix_np[total_i, total_i] = 1/axial_distance
+                if is_sympy:
+                    matrix_n1n[total_i, total_i] = sp.Rational(1, axial_distance)  # axial_distance是分母
+                else:
+                    matrix_n1n[total_i, total_i] = 1/axial_distance
 
                 # 3.2，计算 sqrt(σ^2 - 1)/abs(σ) |Yn> 部分  # 当且仅当else分支不为零
                 yt_i_after_exchange = copy.deepcopy(yt_i)
                 yt_i_after_exchange[row_i_s_n][col_i_s_n] = s_b
                 yt_i_after_exchange[row_i_s_b][col_i_s_b] = s_n
-                # TODO 在未证明异行列情况下Sb和Sn交换后必然生成合法杨图/Yamanouchi基之前，我们先判断后计算
+                # 可以证明，异行列情况下Sb和Sn交换后必然生成合法杨图/Yamanouchi基!所以下面的判断可以省略
                 # math_another_yt_i_idp_order就是|Yn>的编号
                 flag, math_another_yt_i_idp_order = read_young_table_in_decreasing_page_order(
                     yt_i_after_exchange, yt_all_s_n, is_rst_int=True)
@@ -367,18 +394,26 @@ def _calc_s_b_to_s_n_part(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, yt_al
                     logger.error(err_msg)
                     return False, err_msg
                 if math_another_yt_i_idp_order is None:
-                    flag, math_another_yt_i_idp_order = quickly_calc_young_table_in_decreasing_page_order(
-                        yt_i_after_exchange, yd=before_yd_i, s_n=s_n, is_rst_int=True)
-                    if not flag:
-                        err_msg = "quickly_calc_young_table_in_decreasing_page_order meet error " \
-                                  "by yt=yt_i_after_exchange={}, yd=before_yd_i={}, s_n=s_n={} " \
-                                  "with msg={}".format(yt_i_after_exchange, before_yd_i, s_n,
-                                                       math_another_yt_i_idp_order)
-                        logger.error(err_msg)
-                        return False, err_msg
+                    err_msg = "read_young_table_in_decreasing_page_order in here cannot return None " \
+                              "by yt=yt_i_after_exchange={}, yt_all_s_n{} " \
+                              "with msg={}".format(yt_i_after_exchange, yt_all_s_n, math_another_yt_i_idp_order)
+                    logger.error(err_msg)
+                    return False, err_msg
+                    # flag, math_another_yt_i_idp_order = quickly_calc_young_table_in_decreasing_page_order(
+                    #     yt_i_after_exchange, yd=before_yd_i, s_n=s_n, is_rst_int=True)
+                    # if not flag:
+                    #     err_msg = "quickly_calc_young_table_in_decreasing_page_order meet error " \
+                    #               "by yt=yt_i_after_exchange={}, yd=before_yd_i={}, s_n=s_n={} " \
+                    #               "with msg={}".format(yt_i_after_exchange, before_yd_i, s_n,
+                    #                                    math_another_yt_i_idp_order)
+                    #     logger.error(err_msg)
+                    #     return False, err_msg
                 another_yt_i_idp_order = math_another_yt_i_idp_order - 1
                 # sqrt(x^2 - 1)/|x| = sqrt(1 - 1/x^2)
-                matrix_np[total_i, another_yt_i_idp_order] = math.sqrt(1 - matrix_np[total_i, total_i] ** 2)
+                if is_sympy:
+                    matrix_n1n[total_i, another_yt_i_idp_order] = sp.sqrt(1 - matrix_n1n[total_i, total_i] ** 2)
+                else:
+                    matrix_n1n[total_i, another_yt_i_idp_order] = np.sqrt(1 - matrix_n1n[total_i, total_i] ** 2)
 
         total_num += before_yt_i_batch_len  # 把结束的block内杨盘总数加进去
 
@@ -390,14 +425,17 @@ def _calc_s_b_to_s_n_part(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, yt_al
         return False, err_msg
 
     # 注意：这里仅仅计算了(n-1,n)这一个对换矩阵，它既是(ij)又是(in)
-    return True, matrix_np
+    return True, matrix_n1n
 
 
-def _calc_remain_matrix_ij_single(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, key_ij):
+def _calc_remain_matrix_ij_single(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, key_ij, is_sympy=True):
     """利用分支律，直和出其他(ij)对换矩阵"""
     # 必须接calc_yamanouchi_matrix_iter，才能不检查入参
     # 前置必要参数
-    matrix_ij = np.zeros([matrix_div, matrix_div])
+    if is_sympy:
+        matrix_ij = sp.zeros(matrix_div)
+    else:
+        matrix_ij = np.zeros([matrix_div, matrix_div])
 
     total_num = 0
     for bl_index, before_yd_i in zip(range(bl_num), before_yd):
@@ -434,16 +472,21 @@ def _calc_remain_matrix_ij_single(matrix_div, s_b, s_n, yd_s_n, bl_num, before_y
     return True, matrix_ij
 
 
-def calc_yamanouchi_matrix_iter(s_n: int, young_diagram: list):
+def calc_yamanouchi_matrix_iter(s_n: int, young_diagram: list, is_sympy=True):
     """
     计算Yamanouchi(ij)(in)对换矩阵
     输入：
     s_n==============>表示当前置换群阶数(int)           # 3
     young_diagram====>表示一个杨图ri(list(int))        # [2, 1]
+    is_sympy=========>True表示符号计算，False表示数值计算
     输出：(iter)
-    y_matrix_ij======>杨图ri的(ij)交换矩阵(matrix)     #{(2,3): [[-0.5, 0.8660254037844386], [0.8660254037844386, 0.5]]}
+    y_matrix_ij======>杨图ri的(ij)交换矩阵(matrix)
+    # {(2,3): [[-0.5, 0.8660254037844386], [0.8660254037844386, 0.5]]}
+    Matrix([[-1/2, sqrt(3)/2], [sqrt(3)/2, 1/2]])
     # 顺序：(Sn-1,Sn) (Sn-2,Sn-1) ... (1,2)
-    y_matrix_in======>杨图ri的(in)交换矩阵(matrix)     #{(1,3): [[-0.5, -0.8660254037844386], [-0.8660254037844386, 0.5]]}
+    y_matrix_in======>杨图ri的(in)交换矩阵(matrix)
+    # {(1,3): [[-0.5, -0.8660254037844386], [-0.8660254037844386, 0.5]]}
+    # Matrix([[-1/2, -sqrt(3)/2], [-sqrt(3)/2, 1/2]])
     # 顺序：(Sn-1,Sn) (Sn-2,Sn) ... (1,Sn)
     返回：
     flag, {(i,j): y_matrix_ij}/msg, {(i,n): y_matrix_in}/ex_msg
@@ -452,8 +495,8 @@ def calc_yamanouchi_matrix_iter(s_n: int, young_diagram: list):
     2，利用分支律，直和出其他所有(ij)对换矩阵
     3，使用(ij)计算对应(in)交换矩阵
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_yamanouchi_matrix:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_yamanouchi_matrix)
         logger.error(err_msg)
         yield False, err_msg, None
         return  # 重点是：下一次迭代时，从上一次迭代遇到的yield后面的代码(下一行)开始执行。
@@ -475,13 +518,21 @@ def calc_yamanouchi_matrix_iter(s_n: int, young_diagram: list):
         return
     if s_n == 2:
         if young_diagram == [2]:
-            ij_dict = {(1, 2,): np.array([[1]])}
-            in_dict = {(1, 2,): np.array([[1]])}
+            if is_sympy:
+                ij_dict = {(1, 2,): sp.Matrix([[1]])}
+                in_dict = {(1, 2,): sp.Matrix([[1]])}
+            else:
+                ij_dict = {(1, 2,): np.array([[1]])}
+                in_dict = {(1, 2,): np.array([[1]])}
             yield True, ij_dict, in_dict
             return
         elif young_diagram == [1, 1]:
-            ij_dict = {(1, 2,): np.array([[-1]])}
-            in_dict = {(1, 2,): np.array([[-1]])}
+            if is_sympy:
+                ij_dict = {(1, 2,): sp.Matrix([[-1]])}
+                in_dict = {(1, 2,): sp.Matrix([[-1]])}
+            else:
+                ij_dict = {(1, 2,): np.array([[-1]])}
+                in_dict = {(1, 2,): np.array([[-1]])}
             yield True, ij_dict, in_dict
             return
         else:
@@ -492,7 +543,7 @@ def calc_yamanouchi_matrix_iter(s_n: int, young_diagram: list):
 
     # 0，前置数据
     # 分支律数据
-    flag, bl_tuple = load_branching_law(s_n, young_diagram, is_flag_true_if_not_s_n=False)
+    flag, bl_tuple = load_branching_law(s_n, young_diagram, is_flag_true_if_not_s_n=False, is_return_tuple=True)
     if not flag:  # 这里简化检查手续了
         err_msg = "get branching_law db for calc yamanouchi_matrix meet error with s_n={}, msg={}".format(s_n, bl_tuple)
         logger.error(err_msg)
@@ -523,11 +574,12 @@ def calc_yamanouchi_matrix_iter(s_n: int, young_diagram: list):
     # 真正开始计算对换矩阵
     # 1，先按照定义，赋值(Sn - 1，Sn)对换矩阵（适当利用分支律可以优化计算）
     key_ij = key_in = (s_b, s_n,)
-    flag, matrix_in = _calc_s_b_to_s_n_part(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, yt_all_s_n)
+    flag, matrix_in = _calc_s_b_to_s_n_part(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, yt_all_s_n,
+                                            is_sympy=is_sympy)
     if not flag:  # 这里简化检查手续了
         err_msg = "_calc_s_b_to_s_n_part meet error with matrix_div={}, s_b={}, s_n={}, yd_s_n={}, bl_num={}, " \
-                  "before_yd={}, yt_all_s_n={}, msg={}".format(matrix_div, s_b, s_n, yd_s_n, bl_num,
-                                                               before_yd, yt_all_s_n, matrix_in)
+                  "before_yd={}, yt_all_s_n={}, is_sympy={}, msg={}".format(matrix_div, s_b, s_n, yd_s_n, bl_num,
+                                                                            before_yd, yt_all_s_n, is_sympy, matrix_in)
         logger.error(err_msg)
         yield False, err_msg, None
         return
@@ -537,18 +589,19 @@ def calc_yamanouchi_matrix_iter(s_n: int, young_diagram: list):
 
     # 注意：不要丢弃这时的matrix_in，它是计算后面其他in的被乘数
 
-    # 建立key头，本身就是倒序哦
+    # 建立key列表，本身就是倒序哦
     remain_key_ij_list = [(s_b - i - 1, s_n - i - 1,) for i in range(s_n - 2)]
     remain_key_in_list = [(s_b - i - 1, s_n,) for i in range(s_n - 2)]
 
     for key_ij, key_in in zip(remain_key_ij_list, remain_key_in_list):
 
         # 2，利用分支律，直和出其他所有(ij)对换矩阵
-        flag, matrix_ij = _calc_remain_matrix_ij_single(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, key_ij)
+        flag, matrix_ij = _calc_remain_matrix_ij_single(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, key_ij,
+                                                        is_sympy=is_sympy)
         if not flag:
             err_msg = "_calc_remain_matrix_ij_single meet error, " \
-                      "by matrix_div={}, s_b={}, s_n={}, yd_s_n={}, bl_num={}, before_yd={}, key_ij={}" \
-                      "with msg={}".format(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, key_ij, matrix_ij)
+                      "by matrix_div={}, s_b={}, s_n={}, yd_s_n={}, bl_num={}, before_yd={}, key_ij={}, is_sympy={}" \
+                      "with msg={}".format(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, key_ij, is_sympy, matrix_ij)
             logger.error(err_msg)
             yield False, err_msg, None
             return
@@ -585,8 +638,8 @@ def load_yamanouchi_matrix(s_n: int, yd: list, ix: tuple, mode=None, is_flag_tru
         err_msg = "mode={} only supported in mode_list={}".format(mode, mode_list)
         logger.error(err_msg)
         return False, err_msg
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_yamanouchi_matrix:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_yamanouchi_matrix)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(yd, list):
@@ -612,7 +665,7 @@ def load_yamanouchi_matrix(s_n: int, yd: list, ix: tuple, mode=None, is_flag_tru
 
     if data:
         yamanouchi_matrix = data.get("data")
-        if isinstance(yamanouchi_matrix, np.ndarray) and yamanouchi_matrix.size > 0:
+        if isinstance(yamanouchi_matrix, (list, np.ndarray, sp.Matrix)) and len(yamanouchi_matrix) > 0:
             # 只检查有没有 不对内容做检查了
             return True, yamanouchi_matrix  # bingo！
 

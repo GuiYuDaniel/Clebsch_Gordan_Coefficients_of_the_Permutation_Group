@@ -7,6 +7,7 @@ cgc db会自动创建两个时间键值：create_time，last_write_time
 
 
 import numpy as np
+import sympy as sp
 from core.cgc_utils.cgc_local_db import CGCLocalDb
 from conf.cgc_config import default_s_n
 
@@ -55,7 +56,7 @@ class CGCInfo(CGCLocalDb):
     """
     def __init__(self, s_n):
         super(CGCInfo, self).__init__()
-        self.table_type = "isf_info"
+        self.table_type = "cgc_info"
         self.map_id = "file_name"
         self.design_table_type.update({
             "data": dict,
@@ -318,7 +319,7 @@ class YamanouchiMatrixInfo(CGCLocalDb):
         self.table_type = "yamanouchi_matrix_info"
         self.map_id = "file_name"
         self.design_table_type.update({
-            "data": (list, np.ndarray,),
+            "data": (list, np.ndarray, sp.Matrix),
             "flags": dict
         })
         self.s_n = s_n

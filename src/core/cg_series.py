@@ -19,7 +19,7 @@ import math
 import numpy as np
 import time
 from functools import lru_cache
-from conf.cgc_config import default_s_n
+from conf.cgc_config import default_s_n, min_s_n_of_cg_series
 from core.characters_and_gi import load_characters_and_gi
 from core.young_diagrams import load_young_diagrams
 from core.cgc_utils.cgc_db_typing import CGSeriesInfo
@@ -43,8 +43,8 @@ def create_cg_series(s_n: int=default_s_n):
     1，合法：True, s_n
     2，非法：False, msg
     """
-    if not isinstance(s_n, int):
-        err_msg = "s_n={} with type={} must be int".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_cg_series:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_cg_series)
         logger.error(err_msg)
         return False, err_msg
 
@@ -178,8 +178,8 @@ def save_cg_series(s_n: int, yd_1: list, yd_2: list, cg_series: np.ndarray, spee
     <CG>/cg_series_info/Sn/[3]_[2, 1].pkl
     np.array([0, 1, 0])
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_cg_series:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_cg_series)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(yd_1, list) or not isinstance(yd_2, list):
@@ -212,8 +212,8 @@ def save_cg_series(s_n: int, yd_1: list, yd_2: list, cg_series: np.ndarray, spee
 
 def save_cg_series_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
     """finish_s_n都存txt副本用来展示"""
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_cg_series:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_cg_series)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(s_n_speed_time, int) or s_n_speed_time < 0:
@@ -239,7 +239,7 @@ def save_cg_series_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=Fa
                        "history_times": {"S{}".format(s_n): s_n_speed_time},
                        "young_diagram_index": "young diagram list of Sn by young-yamanouchi"}}
 
-    if finish_s_n_before == 0:
+    if finish_s_n_before == min_s_n_of_cg_series - 1:
         flag, msg = db_info.insert(table)
         if not flag:
             return flag, msg
@@ -281,13 +281,12 @@ def get_cg_series_finish_s_n():
         return False, err_msg
     if data is False:
         # logger.debug("find no finish_s_n, return 0")
-        return True, 0
+        return True, min_s_n_of_cg_series - 1
     finish_s_n = data.get("flags", {}).get("finish_s_n")
-
-    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= 1:
+    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= min_s_n_of_cg_series:
         return True, finish_s_n
     else:
-        err_msg = "finish_s_n={} must int and > 0, with data={}".format(finish_s_n, data)
+        err_msg = "finish_s_n={} must int and >= {}, with data={}".format(finish_s_n, min_s_n_of_cg_series, data)
         return False, err_msg
 
 
@@ -296,8 +295,8 @@ def load_cg_series(s_n: int, yd_1: list, yd_2: list, is_flag_true_if_not_s_n=Tru
     取得s_n下[σ]*[μ]的CG序列（按照[ν]排列的array）
     如果没有，根据is_return_true_if_not_s_n决定返回True or False
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_cg_series:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_cg_series)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(yd_1, list) or not isinstance(yd_2, list):

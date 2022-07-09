@@ -13,7 +13,7 @@ this code for creating Characters and Gi of Permutation Groups by Sn
 import copy
 import numpy as np
 import time
-from conf.cgc_config import default_s_n
+from conf.cgc_config import default_s_n, min_s_n_of_characters_and_gi
 from core.young_diagrams import load_young_diagrams
 from core.cgc_utils.cgc_db_typing import CharacterAndGiInfo
 from core.cgc_utils.cgc_local_db import get_characters_and_gi_file_name, get_characters_and_gi_finish_s_n_name
@@ -165,8 +165,8 @@ class CharacterData(object):
         self.max_s_n = 9  # 因为就录入到9
 
     def get_s_n_character(self, s_n):
-        if not isinstance(s_n, int) or s_n <= 0:
-            err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+        if not isinstance(s_n, int) or s_n < min_s_n_of_characters_and_gi:
+            err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_characters_and_gi)
             logger.error(err_msg)
             return False
         if s_n > self.max_s_n:
@@ -195,8 +195,8 @@ class GiData(object):
         self.max_s_n = 9  # 因为就录入到9
 
     def get_s_n_gi(self, s_n):
-        if not isinstance(s_n, int) or s_n <= 0:
-            err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+        if not isinstance(s_n, int) or s_n < min_s_n_of_characters_and_gi:
+            err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_characters_and_gi)
             logger.error(err_msg)
             return False
         if s_n > self.max_s_n:
@@ -215,8 +215,8 @@ def create_characters_and_gi(s_n: int=default_s_n):
     1，合法：True, s_n
     2，非法：False, msg
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_characters_and_gi:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_characters_and_gi)
         logger.error(err_msg)
         return False, err_msg
 
@@ -301,8 +301,8 @@ def save_characters_and_gi(s_n: int, characters_and_gi_dict: dict, yd_list: list
                    [ 1 -1  1 -1  1]],
      "gi": [1, 6, 8, 6, 3]}
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_characters_and_gi:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_characters_and_gi)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(characters_and_gi_dict, dict):
@@ -337,8 +337,8 @@ def save_characters_and_gi(s_n: int, characters_and_gi_dict: dict, yd_list: list
 
 def save_characters_and_gi_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
     """finish_s_n都存txt副本用来展示"""
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_characters_and_gi:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_characters_and_gi)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(s_n_speed_time, int) or s_n_speed_time < 0:
@@ -365,7 +365,7 @@ def save_characters_and_gi_finish_s_n(s_n: int, s_n_speed_time: int, is_check_ad
                            "S{}".format(s_n): s_n_speed_time
                        }}}
 
-    if finish_s_n_before == 0:
+    if finish_s_n_before == min_s_n_of_characters_and_gi - 1:
         flag, msg = db_info.insert(table)
         if not flag:
             return flag, msg
@@ -407,12 +407,13 @@ def get_characters_and_gi_finish_s_n():
         return False, err_msg
     if data is False:
         # logger.debug("find no finish_s_n, return 0")
-        return True, 0
+        return True, min_s_n_of_characters_and_gi - 1
     finish_s_n = data.get("flags", {}).get("finish_s_n")
-    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= 1:
+    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= min_s_n_of_characters_and_gi:
         return True, finish_s_n
     else:
-        err_msg = "finish_s_n={} must int and > 0, with data={}".format(finish_s_n, data)
+        err_msg = "finish_s_n={} must int and >= {}, with data={}".format(finish_s_n, min_s_n_of_characters_and_gi,
+                                                                          data)
         return False, err_msg
 
 
@@ -421,9 +422,8 @@ def load_characters_and_gi(s_n: int, is_flag_true_if_not_s_n=True):
     取得s_n下的特征标矩阵和已经对齐的gi
     如果没有，根据is_return_true_if_not_s_n决定返回True or False
     """
-    if not isinstance(s_n, int) or not isinstance(is_flag_true_if_not_s_n, bool):
-        err_msg = "s_n={} with type={} must be int, is_flag_true_if_not_s_n={} with type={} must be bool".format(
-            s_n, type(s_n), is_flag_true_if_not_s_n, type(is_flag_true_if_not_s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_characters_and_gi:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_characters_and_gi)
         logger.error(err_msg)
         return False, err_msg
 
@@ -462,8 +462,8 @@ def calc_single_characters_and_gi(s_n: int, yd_list: list=None):
     """
     按照Yamanouchi序把录入的字典转换成矩阵，同时取得gi
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_characters_and_gi:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_characters_and_gi)
         logger.error(err_msg)
         return False, err_msg
     if yd_list is None:

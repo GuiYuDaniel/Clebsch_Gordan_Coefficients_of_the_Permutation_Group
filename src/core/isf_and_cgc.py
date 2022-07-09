@@ -9,14 +9,13 @@ this code for creating ISF and CGC
 # 整体思路是，先求Sn的ISF，再利用Sn的ISF以及Sn-1的CG，拼出Sn的CG
 
 
-import copy
 import json
 import time
 import numpy as np
 from functools import lru_cache, partial
-from itertools import product, islice
-from conf.cgc_config import default_s_n, isf_0_error_value
-from core.young_diagrams import load_young_diagrams, is_young_diagram
+from itertools import product, combinations
+from conf.cgc_config import default_s_n, isf_0_error_value, min_s_n_of_isf, min_s_n_of_cgc, min_s_n_of_branching_law
+from core.young_diagrams import load_young_diagrams
 from core.young_tableaux import load_young_table_num
 from core.branching_laws import load_branching_law
 from core.yamanouchi_matrix import load_yamanouchi_matrix
@@ -26,10 +25,16 @@ from core.cgc_utils.cgc_db_typing import ISFInfo, CGCInfo
 from core.cgc_utils.cgc_local_db import get_isf_file_name, get_isf_finish_s_n_name
 from core.cgc_utils.cgc_local_db import get_cgc_file_name, get_cgc_finish_s_n_name
 from utils.log import get_logger
-# φ
 
 
 logger = get_logger(__name__)
+
+
+def _debug_condition(data_σ_μ, ν_st):
+    """ TODO delete it """
+    if data_σ_μ.σ == [3, 2] and data_σ_μ.μ == [3, 1, 1] and ν_st == [3, 1]:
+        return True
+    return False
 
 
 def create_isf_and_cgc(s_n: int=default_s_n):
@@ -41,8 +46,9 @@ def create_isf_and_cgc(s_n: int=default_s_n):
     2，非法：False, msg
     """
     # TODO restart
-    if not isinstance(s_n, int):
-        err_msg = "s_n={} with type={} must be int".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min(min_s_n_of_isf, min_s_n_of_cgc):
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n),
+                                                                     min(min_s_n_of_isf, min_s_n_of_cgc))
         logger.error(err_msg)
         return False, err_msg
 
@@ -62,12 +68,15 @@ def create_isf_and_cgc(s_n: int=default_s_n):
         err_msg = "get_cgc_finish_s_n meet error with msg={}".format(cgc_finish_s_n)
         logger.error(err_msg)
         return False, err_msg
-    if isf_finish_s_n != cgc_finish_s_n:
+    if isf_finish_s_n == min_s_n_of_isf - 1 and cgc_finish_s_n == min_s_n_of_cgc - 1:  # 特殊情况
+        finish_s_n = cgc_finish_s_n
+    elif isf_finish_s_n != cgc_finish_s_n:
         err_msg = "util restart code enable, isf_finish_s_n={} must eq cgc_finish_s_n={}".format(isf_finish_s_n,
                                                                                                  cgc_finish_s_n)
         logger.error(err_msg)
         return False, err_msg
-    finish_s_n = isf_finish_s_n
+    else:
+        finish_s_n = isf_finish_s_n
     if s_n <= finish_s_n:
         # 说明以前算过了
         msg = "s_n={} isf had been calculated, return True, s_n".format(s_n)
@@ -94,11 +103,42 @@ def create_isf_and_cgc(s_n: int=default_s_n):
     for s_i in range(finish_s_n + 1, s_n + 1):  # 循环体为[finish_s_n+1, finish_s_n+2, ..., s_n]
         s_i_start_time = time.time()
         s_i_isf_speed_time = 0
+        logger.debug("Si={}".format(s_i))
+
+        if s_i == 1:
+            # 特殊情况，Sn=1时，没有ISF，只有CGC
+            σ, μ, ν, β, m = [1], [1], [1], None, 1
+            cgc_square_dict = {(1, 1,): 1, "N": 1}
+            cgc_speed_time = int(time.time() - s_i_start_time)
+            flag, msg = save_cgc(s_i, σ, μ, ν, β, m, cgc_square_dict, cgc_speed_time)
+            if not flag:
+                err_msg = "save_cgc fail by s_i={}, σ={}, μ={}, ν={}, β={}, m={}, cgc_square_dict={} with " \
+                          "msg={}".format(s_i, σ, μ, ν, β, m, cgc_square_dict, msg)
+                logger.error(err_msg)
+                return False, err_msg
+            s_i_cgc_speed_time = int(time.time() - s_i_start_time)
+            flag, msg = save_cgc_finish_s_n(s_i, s_i_cgc_speed_time, is_check_add_one=True)
+            if not flag:
+                err_msg = "save_isf_finish_s_n meet error with s_i={}, msg={}".format(s_i, msg)
+                logger.error(err_msg)
+                return False, err_msg
+            continue
+
         isf_func.enable_now_s_n(s_i)
         cgc_func.enable_now_s_n(s_i)
 
-        # Sn循环可以得到的数据(如果可以从上一次循环继承，则继承)
-        data_st_st_yt_num_dict = data_st.yt_num_dict if data_st is not None else {}
+        # Sn循环可以得到的数据(如果可以从上一次循环继承，则继承；否则要计算)
+        if data_st is not None:
+            data_st_st_yt_num_dict = data_st.yt_num_dict
+        elif s_i - 1 - 1 >= min_s_n_of_branching_law:
+            data_st_st_yt_num_dict = {}
+            _, yd_st_st_list = load_young_diagrams(s_i - 1 - 1)
+            for yd_st_st in yd_st_st_list:
+                _, total_num = load_young_table_num(s_i - 1 - 1, yd_st_st)
+                data_st_st_yt_num_dict[tuple(yd_st_st)] = total_num
+        else:
+            data_st_st_yt_num_dict = None
+
         data_st = data_si if data_si is not None else DataHelper(s_i - 1)
         data_si = DataHelper(s_i)
 
@@ -106,6 +146,7 @@ def create_isf_and_cgc(s_n: int=default_s_n):
         for σ, μ in product(data_si.yd_list, repeat=2):  # [σ], [μ]双循环
             # TODO σ, μ = μ, σ的情况，看看是真算用来消减误差，还是不算用来节约算力
             # σ_μ_start_time = time.time()
+            logger.debug("σ={}, μ={}".format(σ, μ))
 
             # σ, μ循环可以得到的数据
             data_σ_μ = ΣMDataHelper(s_i, σ, μ, data_si, data_st)
@@ -113,19 +154,26 @@ def create_isf_and_cgc(s_n: int=default_s_n):
             for ν_st in data_st.yd_list:  # [ν']循环
                 # # ISF
                 single_isf_start_time = time.time()
-                # row_index_list = isf_func.calc_row_indexes(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
-                #                                                data_σ_μ.cg_series_st_list_dict, ν_st, data_st.yd_list)
+                # 带着None的rows
+                row_index_tmp_list = isf_func.calc_row_indexes_tmp(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
+                                                                   data_σ_μ.cg_series_st_list_dict,
+                                                                   ν_st, data_st.yd_list)
+                if not row_index_tmp_list:
+                    continue  # σ, μ下没有这个ν_st
+                logger.debug("ν_st={}".format(ν_st))
                 # isf_square_dict = {"rows": [([σ'], [μ'], β'), ([σ'], [μ']), ...],  # 有自由度len3，无自由度len2
                 #                    "cols":[[ν], ([ν], β), ...],  # 有自由度tuple，无自由度list
                 #                    "isf": isf_square_matrix}  # np.array([len(rows), len(cols)], dtype=float)
-                flag, isf_square_dict = isf_func.calc_isf_dict(ν_st, data_si, data_st, data_σ_μ,
+                flag, isf_square_dict = isf_func.calc_isf_dict(row_index_tmp_list, ν_st, data_si, data_st, data_σ_μ,
                                                                data_st_st_yt_num_dict)
                 if not flag:
-                    err_msg = "calc isf_square_dict meet error by ν_st={}, data_si={}, data_st={}, data_σ_μ={}, " \
-                              "data_st_st_yt_num_dict={} with msg={}".format(ν_st, data_si, data_st, data_σ_μ, 
-                                                                             data_st_st_yt_num_dict, isf_square_dict)
+                    err_msg = "calc isf_square_dict meet error by row_index_tmp_list={}, ν_st={}, data_si={}, " \
+                              "data_st={}, data_σ_μ={}, data_st_st_yt_num_dict={} " \
+                              "with msg={}".format(row_index_tmp_list, ν_st, data_si, data_st, data_σ_μ,
+                                                   data_st_st_yt_num_dict, isf_square_dict)
                     logger.error(err_msg)
                     return False, err_msg
+                # logger.debug("ν_st={}, with isf_square_dict={}".format(ν_st, isf_square_dict))
                 single_isf_speed_time = int(time.time() - single_isf_start_time)
                 s_i_isf_speed_time += single_isf_speed_time
                 flag, msg = save_isf(s_i, σ, μ, ν_st, isf_square_dict, single_isf_speed_time)
@@ -137,7 +185,8 @@ def create_isf_and_cgc(s_n: int=default_s_n):
 
                 # # CGC
                 # 这里只能部分地拼凑CGC，因为完整的一个CGC需要σ * μ下所有的ν'中，同一个ν的ISF
-                flag, msg = cgc_func.calc_cgc_dict_part_and_save(isf_square_dict, ν_st, data_si, data_st, data_σ_μ)
+                flag, msg = cgc_func.calc_cgc_dict_part_and_save_by_isf(isf_square_dict, ν_st,
+                                                                        data_si, data_st, data_σ_μ)
                 if not flag:
                     err_msg = "calc_cgc_dict_part_and_save fail by ν_st={}, data_si={}, data_st={}, " \
                               "data_σ_μ={} isf_square_dict={} with msg={}".format(ν_st, data_si, data_st, data_σ_μ,
@@ -198,8 +247,8 @@ def save_isf(s_n: int, σ: list, μ: list, ν_st: list, isf_square_dict: dict, s
                       [-1/12, 0, 5/12, -1/2],
                       [5/12, -1/2, 1/12, 0]])}
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_isf:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_isf)
         logger.error(err_msg)
         return False, err_msg
     if not all(isinstance(yd, list) for yd in [σ, μ, ν_st]):
@@ -231,8 +280,7 @@ def save_isf(s_n: int, σ: list, μ: list, ν_st: list, isf_square_dict: dict, s
     return True, None
 
 
-def save_cgc_by_part(s_n: int, σ: list, μ: list, ν: list, β: (int, None), m: int, cgc_square_dict: dict,
-                     speed_time: int):
+def save_cgc(s_n: int, σ: list, μ: list, ν: list, β: (int, None), m: int, cgc_square_dict: dict, speed_time: int):
     """
     这个db用来存CGC
 
@@ -289,7 +337,7 @@ def save_cgc_by_part(s_n: int, σ: list, μ: list, ν: list, β: (int, None), m:
 
     flag, old_data = db_info.query_by_file_name(file_name)
     if not flag:
-        err_msg = "save_cgc_by_part meet error with file_name={} msg={}".format(file_name, old_data)
+        err_msg = "save_cgc meet error with file_name={} msg={}".format(file_name, old_data)
         logger.error(err_msg)
         return flag, err_msg
 
@@ -320,8 +368,8 @@ def save_cgc_by_part(s_n: int, σ: list, μ: list, ν: list, β: (int, None), m:
 
 def save_isf_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
     """finish_s_n都存txt副本用来展示"""
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_isf:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_isf)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(s_n_speed_time, int) or s_n_speed_time < 0:
@@ -346,7 +394,7 @@ def save_isf_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
              "flags": {"finish_s_n": s_n,
                        "history_times": {"S{}".format(s_n): s_n_speed_time}}}
 
-    if finish_s_n_before == 0:
+    if finish_s_n_before == min_s_n_of_isf - 1:
         flag, msg = db_info.insert(table)
         if not flag:
             return flag, msg
@@ -403,7 +451,7 @@ def save_cgc_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
              "flags": {"finish_s_n": s_n,
                        "history_times": {"S{}".format(s_n): s_n_speed_time}}}
 
-    if finish_s_n_before == 0:
+    if finish_s_n_before == min_s_n_of_cgc - 1:
         flag, msg = db_info.insert(table)
         if not flag:
             return flag, msg
@@ -444,14 +492,13 @@ def get_isf_finish_s_n():
         logger.error(err_msg)
         return False, err_msg
     if data is False:
-        # logger.debug("find no finish_s_n, return 0")
-        return True, 0
+        # logger.debug("find no finish_s_n, return 1")
+        return True, min_s_n_of_isf - 1
     finish_s_n = data.get("flags", {}).get("finish_s_n")
-
-    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= 1:
+    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= min_s_n_of_isf:
         return True, finish_s_n
     else:
-        err_msg = "finish_s_n={} must int and > 0, with data={}".format(finish_s_n, data)
+        err_msg = "finish_s_n={} must int and >= {}, with data={}".format(finish_s_n, min_s_n_of_isf, data)
         return False, err_msg
 
 
@@ -468,13 +515,12 @@ def get_cgc_finish_s_n():
         return False, err_msg
     if data is False:
         # logger.debug("find no finish_s_n, return 0")
-        return True, 0
+        return True, min_s_n_of_cgc - 1
     finish_s_n = data.get("flags", {}).get("finish_s_n")
-
-    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= 1:
+    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= min_s_n_of_cgc:
         return True, finish_s_n
     else:
-        err_msg = "finish_s_n={} must int and > 0, with data={}".format(finish_s_n, data)
+        err_msg = "finish_s_n={} must int and >= {}, with data={}".format(finish_s_n, min_s_n_of_cgc, data)
         return False, err_msg
 
 
@@ -487,8 +533,8 @@ def load_isf(s_n: int, σ: list, μ: list, ν_st: list, is_flag_true_if_not_s_n=
     2.2，output_mode='single_col'。返回包含单列isf及行index
     2.3，output_mode='single_isf'。返回单独一个isf
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_isf:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_isf)
         logger.error(err_msg)
         return False, err_msg
     if not all(isinstance(yd, list) for yd in [σ, μ, ν_st]):
@@ -496,6 +542,10 @@ def load_isf(s_n: int, σ: list, μ: list, ν_st: list, is_flag_true_if_not_s_n=
             σ, μ, ν_st, type(σ), type(μ), type(ν_st))
         logger.error(err_msg)
         return False, err_msg
+    # if hasattr(ex_params, "__iter__"):
+    #     ex_params_list = list(ex_params)
+    #     ex_params_list.remove(None)
+    #     ex_params = tuple(ex_params_list)
     if output_mode == "":
         pass
     elif output_mode == "single_row":
@@ -541,38 +591,44 @@ def load_isf(s_n: int, σ: list, μ: list, ν_st: list, is_flag_true_if_not_s_n=
         isf_square_dict = data.get("data")
         if isinstance(isf_square_dict, dict) and isf_square_dict:
             if output_mode == "single_row":
-                if ex_params in isf_square_dict.get("rows", []):
-                    row_index = isf_square_dict.get("rows").index(ex_params)
+                # 输出单行，额外输入行指标([σ'], [μ'], β') or ([σ'], [μ'])
+                ex_row = ex_params[: -1] if None in ex_params else ex_params
+                if ex_row in isf_square_dict.get("rows", []):
+                    row_index = isf_square_dict.get("rows").index(ex_row)
                     rst_dict = {"cols": isf_square_dict["cols"],
                                 "single_row": isf_square_dict["isf"][row_index, :]}
                     return True, rst_dict  # bingo(1/4)！
                 else:
-                    err_msg = "ex_params={} should in rows={} with isf_square_dict={} but not, pls check".format(
-                        ex_params, isf_square_dict.get("rows"), isf_square_dict)
+                    err_msg = "ex_row={} should in rows={} with isf_square_dict={} but not, pls check".format(
+                        ex_row, isf_square_dict.get("rows"), isf_square_dict)
                     logger.error(err_msg)
                     return False, err_msg
             elif output_mode == "single_col":
-                if ex_params in isf_square_dict.get("cols", []):
-                    cols_index = isf_square_dict.get("cols").index(ex_params)
+                # 输出单列，额外输入列指标[ν] or ([ν], β)
+                ex_col = ex_params[0] if None in ex_params else ex_params
+                if ex_col in isf_square_dict.get("cols", []):
+                    cols_index = isf_square_dict.get("cols").index(ex_col)
                     rst_dict = {"rows": isf_square_dict["rows"],
                                 "single_col": isf_square_dict["isf"][:, cols_index]}
                     return True, rst_dict  # bingo(2/4)！
                 else:
-                    err_msg = "ex_params={} should in cols={} with isf_square_dict={} but not, pls check".format(
-                        ex_params, isf_square_dict.get("cols"), isf_square_dict)
+                    err_msg = "ex_col={} should in cols={} with isf_square_dict={} but not, pls check".format(
+                        ex_col, isf_square_dict.get("cols"), isf_square_dict)
                     logger.error(err_msg)
                     return False, err_msg
             elif output_mode == "single_isf":
-                if ex_params[0] in isf_square_dict.get("rows", []) and ex_params[1] in isf_square_dict.get("cols", []):
-                    row_index = isf_square_dict.get("rows").index(ex_params)
-                    cols_index = isf_square_dict.get("cols").index(ex_params)
+                ex_row = ex_params[0][: -1] if None in ex_params[0] else ex_params[0]
+                ex_col = ex_params[1][0] if None in ex_params[1] else ex_params[1]
+                if ex_row in isf_square_dict.get("rows", []) and ex_params[1] in isf_square_dict.get("cols", []):
+                    row_index = isf_square_dict.get("rows").index(ex_row)
+                    cols_index = isf_square_dict.get("cols").index(ex_col)
                     rst = isf_square_dict["isf"][row_index, cols_index]
                     return True, rst  # bingo(3/4)！
                 else:
-                    err_msg = "ex_params[0]={} should in rows={} and ex_params[1]={} should in cols={} " \
+                    err_msg = "ex_row={} should in rows={} and ex_col={} should in cols={} " \
                               "with isf_square_dict={} but not, pls check".format(
-                        ex_params[0], isf_square_dict.get("rows"),
-                        ex_params[1], isf_square_dict.get("cols"), isf_square_dict)
+                        ex_row, isf_square_dict.get("rows"),
+                        ex_col, isf_square_dict.get("cols"), isf_square_dict)
                     logger.error(err_msg)
                     return False, err_msg
             else:  # output_mode = ""
@@ -597,8 +653,8 @@ def load_cgc(s_n: int, σ: list, μ: list, ν: list, β: (int, None), m: int, is
     取得s_n下指定[σ][μ][ν] β m 的cg系数字典
     如果没有，根据is_return_true_if_not_s_n决定返回True or False
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_cgc:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_cgc)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(σ, list) or not isinstance(μ, list) or not isinstance(ν, list):
@@ -655,8 +711,8 @@ class ΣMDataHelper(object):
     """这里封装供模块内部，σ、μ循环应该取得的数据"""
 
     def __init__(self, s_n, σ, μ, data_sn_cls, data_st_cls):
-        if not isinstance(s_n, int) or s_n < 2:
-            raise Exception("s_n={} must be int and >= 2".format(s_n))
+        if not isinstance(s_n, int) or s_n < min(min_s_n_of_isf, min_s_n_of_cgc):
+            raise Exception("s_n={} must be int and >= {}".format(s_n, min(min_s_n_of_isf, min_s_n_of_cgc)))
         self.s_n = s_n
         self.s_t = s_n - 1
         self.σ = σ
@@ -721,7 +777,6 @@ class ΣMDataHelper(object):
                     raise Exception(err_msg)
                 in_matrix_μ_dict[in_key] = in_matrix_μ
             self.in_matrix_μ_dict = in_matrix_μ_dict
-        pass
 
     def _load_cg_series_list_dict_by_combination_of_bl_yds(self):
         """根据σ和μ在分支律下的有限种[σ’] [μ’]组合，一次性取出所有cg_series，按照dict形式返回"""
@@ -749,8 +804,8 @@ class DataHelper(object):
     """这里封装供模块内部，Si循环应该取得的数据"""
 
     def __init__(self, s_k):
-        if not isinstance(s_k, int) or s_k < 2:
-            raise Exception("s_k={} must be int and >= 2".format(s_k))
+        if not isinstance(s_k, int) or s_k < min(min_s_n_of_isf, min_s_n_of_cgc):
+            raise Exception("s_k={} must be int and >= 1".format(s_k))
         self.s_n = s_k  # 既可以实例化Sn，也可以实例化St
 
         self.yd_list = None
@@ -808,15 +863,15 @@ class CalcHelper(object):
         self.s_t = None
 
     def enable_now_s_n(self, s_n):
-        if not isinstance(s_n, int) or s_n < 2:
-            raise Exception("s_n={} must be int and >= 2".format(s_n))
+        if not isinstance(s_n, int) or s_n < min(min_s_n_of_isf, min_s_n_of_cgc):
+            raise Exception("s_n={} must be int and >= {}".format(s_n, min(min_s_n_of_isf, min_s_n_of_cgc)))
         self.s_n = s_n
         self.s_t = s_n - 1
 
     @staticmethod
     def _calc_m_with_m_st(yd_st, m_st, bl_yd_list, yt_st_num_dict):
         """通过m'计算m，这回，我们可以使用分支律以及yt_num了; 也可以通过m_st=0，计算偏移量"""
-        # TODO 和core.young_tableaux.py: quickly_calc_young_table_in_decreasing_page_order比较一下
+        # 是core.young_tableaux.py: quickly_calc_young_table_in_decreasing_page_order的特定情况简化
         bl_yd_index = bl_yd_list.index(yd_st)  # 必须成立
         # 对yd_st的前所有分支的yt_st_num以及本项m_st求和
         m = sum([yt_st_num_dict[tuple(bl_yd)] for bl_yd in bl_yd_list[:bl_yd_index]], m_st)
@@ -829,11 +884,21 @@ class ISFHelper(CalcHelper):
     def __init__(self):
         super(ISFHelper, self).__init__()
 
-    def calc_isf_dict(self, ν_st, data_sn, data_st, data_σ_μ, data_st_st_yt_num_dict):
-        """计算未经相位调整的ISF
-        
+    def calc_isf_dict(self, row_index_tmp_list, ν_st, data_sn, data_st, data_σ_μ, data_st_st_yt_num_dict):
+        """计算ISF
+
+        公式：
+        （主公式）《群表示论的新途径》陈金全（上海科学技术出版社1984） 4-192
+        （相位公式）《群表示论的新途径》陈金全（上海科学技术出版社1984） 4-195
+
         正则ISF索引的全部参数为：σ σ' μ μ' ν β ν' β'
-        表示：|σ σ'> * |μ μ'> 的结果中，|νβ ν'β'>，的ISF系数平方"""
+        表示：|σ σ'> * |μ μ'> 的结果中，|νβ ν'β'>，的ISF系数平方
+
+        返回flag, isf_square_dict:
+        isf_square_dict = {"rows": [([σ'], [μ'], β'), ([σ'], [μ']), ...],  # 有自由度len3，无自由度len2
+                           "cols":[[ν], ([ν], β), ...],  # 有自由度tuple，无自由度list
+                           "isf": isf_square_matrix}  # np.array([len(rows), len(cols)], dtype=float)
+        """
         # 只象征性检查Sn、St
         if not all(self.s_n == s_n for s_n in [data_sn.s_n, data_σ_μ.s_n]) \
                 or not all(self.s_t == s_t for s_t in [data_st.s_n, data_σ_μ.s_t]):
@@ -843,25 +908,50 @@ class ISFHelper(CalcHelper):
             logger.error(err_msg)
             return False, err_msg
 
-        row_index_tmp_list = self.calc_row_indexes_tmp(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
-                                                       data_σ_μ.cg_series_st_list_dict, ν_st, data_st.yd_list)
+        if ν_st == [1]:  # 初始情况
+            isf_2_square_dict = {"rows": [([1], [1])],
+                                 "cols": [[2]] if data_σ_μ.σ == data_σ_μ.μ else [[1, 1]],
+                                 "isf": np.array([[1]])}
+            return True, isf_2_square_dict
 
-        isf_matrix = self._calc_isf_matrix(row_index_tmp_list, ν_st,
-                                           data_st.bl_yd_list_dict, data_st.yt_num_dict,
-                                           data_σ_μ.in_matrix_σ_dict, data_σ_μ.in_matrix_μ_dict)
-        eigenvalues, eigenvectors = np.linalg.eigh(isf_matrix)  # eigh适用于复共轭情况
+        flag, isf_matrix = self._calc_isf_matrix(row_index_tmp_list, ν_st, data_st.yt_num_dict, data_σ_μ)
+        if not flag:
+            err_msg = "get isf_matrix by row_index_tmp_list={}, ν_st={}, data_st.yt_num_dict={}, data_σ_μ={} fail " \
+                      "with msg={}".format(row_index_tmp_list, ν_st, data_st.yt_num_dict, data_σ_μ, isf_matrix)
+            logger.error(err_msg)
+            return False, err_msg
+        try:
+            eigenvalues, eigenvectors = np.linalg.eigh(isf_matrix)  # eigh适用于复共轭情况
+        except Exception as e:
+            logger.error(Exception(e))
+            err_msg = "calc eigh meet fail with isf_matrix={} s_n={}".format(isf_matrix, self.s_n)
+            logger.error(err_msg)
+            return False, err_msg
+
+        if _debug_condition(data_σ_μ, ν_st):
+            logger.warning("@@@@ isf_matrix={} \n with σ={} μ={} ν_st={}".format(isf_matrix, data_σ_μ.σ, data_σ_μ.μ, ν_st))
+            logger.warning("@@@@ eigenvalues={}, eigenvectors={}".format(eigenvalues, eigenvectors))
+
         eigenvalues_int = [int(np.around(i, 0)) for i in eigenvalues]  # 理论上这里的本征值必为整数  # TODO 要检查
         # 把本征值和本征矢量改为降序，T是为了适应for循环逻辑。for循环是按照行来取，而np.linalg.eigh按列取
         # 既，np.linalg.eigh算出来的eigenvectors需要eigenvectors[:, index(eigenvalues)]取值，与for循环逻辑不同，所以需要.T调整
-        eigenvalues_int = eigenvalues_int[::-1]
-        eigenvectors_t = eigenvectors[::-1].T  # 将默认先列的numpy结果转化为先行
+        eigenvalues_int = eigenvalues_int[::-1]  # 改为降序排列
+        # eigenvectors_t = eigenvectors[::-1].T  # 将默认先列的numpy结果转化为先行
+        eigenvectors_t = eigenvectors.T[::-1]
 
         # 先进行施密特正交归一化，并计算出ν_list, β_list
+        # if data_σ_μ.σ == [2, 1] and data_σ_μ.μ == [2, 1]:
+        #     logger.warning("@@@@ eigenvalues_int={}, eigenvectors_t={}".format(eigenvalues_int, eigenvectors_t))
         soe_vectors, β_list = self._calc_schmidt_orthogonalization_eigenvectors_and_β_list(eigenvalues_int,
                                                                                            eigenvectors_t)
 
         λ_ν_st = data_st.eigenvalue_list[data_st.yd_list.index(ν_st)]
         # 开始计算ISF
+
+        if _debug_condition(data_σ_μ, ν_st):
+            logger.warning("@@@@ eigenvalues_int={}, soe_vectors={}, β_list={}, λ_ν_st={}".format(
+                eigenvalues_int, soe_vectors, β_list, λ_ν_st))
+
         isf_square_tmp_dict = {"ν_tmp": [],
                                "β_tmp": [],
                                "isf_tmp": []}
@@ -874,6 +964,7 @@ class ISFHelper(CalcHelper):
 
             # 调整eigenvector相位  # TODO 看看可否通过调整e_value循环顺序进行优化(np.linalg.eigh默认给出的本征值是升序排列)
             # TODO 这里有可能需要传入isf_square_tmp_dict，看debug吧
+            # TODO 升序后，看看isf_phase是否就不用计算，直接取值了
             flag, isf_phase = self._calc_isf_phase(s_vector, ν, β, ν_st, row_index_tmp_list,
                                                    data_sn, data_st, data_σ_μ, data_st_st_yt_num_dict)
             if not flag:
@@ -884,27 +975,39 @@ class ISFHelper(CalcHelper):
                 logger.error(err_msg)
                 return False, err_msg
 
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ isf_phase={}".format(isf_phase))
+
             # 对确定相位来说，最重要的不是数值，而是符号  # TODO 如果0化，小心sign(0) = 0
             phase_vector = s_vector * np.sign(isf_phase)
 
+            # if data_σ_μ.σ == [2, 1] and data_σ_μ.μ == [2, 1]:
+            #     logger.warning("@@@@ phase_vector={}".format(phase_vector))
+
             # 计算单列的ISF
             isf_square = np.sign(phase_vector) * (phase_vector * phase_vector)
+
+            # if data_σ_μ.σ == [2, 1] and data_σ_μ.μ == [2, 1]:
+            #     logger.warning("@@@@ isf_square={}".format(isf_square))
+
             isf_square_tmp_dict["ν_tmp"].append(ν)
             isf_square_tmp_dict["β_tmp"].append(β)  # β按照代码逻辑，同ν必然升序，且临近
             isf_square_tmp_dict["isf_tmp"].append(isf_square)
 
+        if _debug_condition(data_σ_μ, ν_st):
+            logger.warning("@@@@ isf_square_tmp_dict={}".format(isf_square_tmp_dict))
+
         # 按照顺序整理矩阵
         row_index_list = [(i[0], i[1]) if i[2] is None else i for i in row_index_tmp_list]
-        isf_square_dict = {"rows": row_index_list,
-                           "cols": [],
-                           "isf": np.zeros([len(row_index_list), len(row_index_list)])}
         if len(isf_square_tmp_dict["ν_tmp"]) != len(row_index_list):  # 先检查理论上要求的方阵
             err_msg = "ν_tmp_list={} with len={} and row_index_list={} with len={} must same, pls check".format(
                 isf_square_tmp_dict["ν_tmp"], len(isf_square_tmp_dict["ν_tmp"]),
                 row_index_list, len(row_index_list))
             logger.error(err_msg)
             return False, err_msg
-
+        isf_square_dict = {"rows": row_index_list,
+                           "cols": [],
+                           "isf": np.zeros([len(row_index_list), len(row_index_list)])}
         for ν in data_sn.yd_list:
             while ν in isf_square_tmp_dict["ν_tmp"]:
                 # 找数据
@@ -913,24 +1016,49 @@ class ISFHelper(CalcHelper):
                 single_col_index = ν if β is None else (ν, β,)
                 isf_square = isf_square_tmp_dict["isf_tmp"][tmp_index]
                 # 赋值
+                isf_square_dict["isf"][:, len(isf_square_dict["cols"])] = isf_square  # 用上一轮cols的len巧妙确定当前的index
                 isf_square_dict["cols"].append(single_col_index)
-                isf_square_dict["isf"][:, tmp_index] = isf_square
                 # 删tmp数据
                 isf_square_tmp_dict["ν_tmp"].pop(tmp_index)
                 isf_square_tmp_dict["β_tmp"].pop(tmp_index)
                 isf_square_tmp_dict["isf_tmp"].pop(tmp_index)
 
+        if _debug_condition(data_σ_μ, ν_st):
+            logger.warning("@@@@ isf_square_dict={}".format(isf_square_dict))
+
         return True, isf_square_dict
 
     def _calc_isf_phase(self, s_vector, ν, β, ν_st, row_index_tmp_list,
                         data_sn, data_st, data_σ_μ, data_st_st_yt_num_dict):
-        """
+        """ 将经过施密特正交归一化手续后的本征矢量调整为Yamanouchi相位
+
         1，将分支律的第一分支首个非零系数调整为正（绝对相位）
         2，非第一分支的，参考第一分支做相对调整（相对相位）
         """
+        # logger.debug("#### ν={}, ν_st={}".format(ν, ν_st))
         if data_sn.bl_yd_list_dict[tuple(ν)][0] == ν_st:  # ν_st击中ν的第一分支
-            return True, self._get_absolute_phase(s_vector)
+            # 当ν_st为ν第一分支的时候，令首个非零系数符号为+，称为绝对相位
+
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ ν={}, bl_yd_list_dict={}".format(ν, data_sn.bl_yd_list_dict[tuple(ν)]))
+
+            no_0_element = self._get_first_no_0_number_from_vector(s_vector)
+            if no_0_element is None:
+                err_msg = "find schmidt_orthogonalization_vector={} all approximately equal to 0, pls check".format(
+                    s_vector)
+                logger.error(err_msg)
+                return False, err_msg
+
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ no_0_element={}".format(no_0_element))
+
+            return True, np.sign(no_0_element)
+
         else:  # 未击中情况，则相对相位需要参考它的分支律第一分支（ν_st_reference）的绝对相位
+
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ ν={}".format(ν))
+
             ν_st_reference = data_sn.bl_yd_list_dict[tuple(ν)][0]
             # 因为首先按照ν_st开启循环，所以必须有结果
             flag, isf_col_reference_dict = load_isf(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν_st_reference,
@@ -942,8 +1070,9 @@ class ISFHelper(CalcHelper):
                     self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν_st_reference, (ν, β,), isf_col_reference_dict)
                 logger.error(err_msg)
                 return False, err_msg
+            # logger.debug("#### isf_col_reference_dict={}".format(isf_col_reference_dict))
             row_index_list_reference = isf_col_reference_dict["rows"]
-            isf_square_list_reference = isf_col_reference_dict["single_col"]
+            isf_square_list_reference = isf_col_reference_dict["single_col"].tolist()
             first_no_0_isf_reference = self._get_first_no_0_number_from_vector(isf_square_list_reference)
             first_no_0_isf_reference_row_index = \
                 row_index_list_reference[isf_square_list_reference.index(first_no_0_isf_reference)]
@@ -972,6 +1101,8 @@ class ISFHelper(CalcHelper):
                                           data_sn, data_st, data_σ_μ, before_isf_reference)
                 logger.error(err_msg)
                 return False, err_msg
+            # logger.debug("#### before_isf_reference={}, first_no_0_isf_reference={}".format(before_isf_reference,
+            #                                                                                 first_no_0_isf_reference))
 
             return True, np.sign(before_isf_reference) * np.sign(first_no_0_isf_reference)
 
@@ -996,7 +1127,7 @@ class ISFHelper(CalcHelper):
         cgc_square_reference_n = cgc_square_st_reference_dict.pop("N")
 
         sum_3_loop = 0
-        for σ_st, μ_st, β_st, s_vector_element in zip(row_index_tmp_list, s_vector):
+        for (σ_st, μ_st, β_st), s_vector_element in zip(row_index_tmp_list, s_vector):
             flag, cgc_square_st_dict = load_cgc(self.s_t, σ_st, μ_st, ν_st, β_st, m_ν_st, is_flag_true_if_not_s_n=False)
             if not flag:
                 err_msg = "get cgc_square_st_dict with self.s_t={}, σ_st={}, μ_st={}, ν_st={}, β_st={}, m_ν_st={} " \
@@ -1043,33 +1174,24 @@ class ISFHelper(CalcHelper):
         """提取vector中首个误差范围内非0的数字"""
         for number in vector:
             if abs(number) < error_value:
-                pass
+                continue
             return number
         return None
-
-    def _get_absolute_phase(self, schmidt_orthogonalization_vector, error_value=isf_0_error_value):
-        """判断绝对相位: 本函数的作用是提取首个不为零的vector的符号"""
-        no_0_element = self._get_first_no_0_number_from_vector(schmidt_orthogonalization_vector)
-        if no_0_element is None:
-            msg = "find schmidt_orthogonalization_vector={} all approximately equal to 0, with isf_0_error_value={}," \
-                  "pls check".format(schmidt_orthogonalization_vector, error_value)
-            logger.warning(msg)
-            raise Exception(msg)
-        return np.sign(no_0_element)
 
     @staticmethod
     def _calc_schmidt_orthogonalization_eigenvectors_and_β_list(eigenvalues_int, eigenvectors_t):
         """将eigenvectors_t中eigenvalue重复的使用施密特正交归一化手续，并计算出相应的β"""
-        # TODO 这里和old算法不一样，旧的算法名字叫schmidt第一分量却取的所有分量之和做的归一
+        # TODO 这里和old算法不一样，旧的算法名字叫schmidt第一分量却取的所有分量之和做的归一 !!!
+        # 注意，单根以及多重根的第一个矢量，因为eigh解出来的就是归一化的，为了省略计算，这里没有再次校验和计算归一化
         β_list = []
-        e_list = []  # eigenvectors_schmidt_orthogonalization  # 列表就够了，不需要矩阵
+        soe_list = []  # schmidt_orthogonalization_eigenvectors  # 列表就够了，不需要矩阵
         tmp_counter_dict = {}  # {e_value: {β_index: e_index}}  # 实时计数器，记录已经施密特正交化的那部分β
-        for (e_index, e_value), e_vector in zip(enumerate(eigenvalues_int), eigenvectors_t):
+        for (e_index, e_value), a_vector in zip(enumerate(eigenvalues_int), eigenvectors_t):
             # e_value是ν的一一映射，所以count(e_value)也可以表示自由度β
             if eigenvalues_int.count(e_value) == 1:  # 无自由度
                 β = None
                 β_list.append(β)
-                e_list.append(e_vector)
+                soe_list.append(a_vector)
             else:  # 有自由度
                 β = len(tmp_counter_dict.get(e_value, {})) + 1
                 β_list.append(β)
@@ -1077,29 +1199,36 @@ class ISFHelper(CalcHelper):
                 设欧氏空间中向量a1，a2，a3线性无关，令
                 b1 = a1
                 b2 = a2 - <a2,b1>/||b1|| * b1
-                b3 = a3 - <a3,b1>/||b1|| * b1 - <a3,b2>/||b2|| * b2'''
+                b3 = a3 - <a3,b1>/||b1|| * b1 - <a3,b2>/||b2|| * b2
+                
+                施密特正交归一化：
+                设欧氏空间中归一化向量a1，a2，a3线性无关，令
+                s1 = a1
+                s2 = tmp/sqrt(||tmp||), tmp = a2 - a2 * s1 * s1 
+                s3 = tmp/sqrt(||tmp||), tmp = a3 - a3 * s1 * s1 - a3 * s2 * s2
+                '''
                 if β == 1:
                     tmp_counter_dict[e_value] = {1: e_index}
-                    e_list.append(e_vector)
+                    soe_list.append(a_vector)  # s1, 也是a1
                 else:
-                    # TODO 如果有必要，下面这段可以优化
                     minuend_vector = 0
-                    for β_index in range(1, β):  # 这里的β_index指的是按照schmidt公式被去掉的前β-1个矢量的标号
-                        cos_ab = sum(e_vector * e_list[tmp_counter_dict[e_value][β_index]])
+                    for before_β in range(1, β):  # 这里的before_β指的是按照schmidt公式被去掉的前β-1个矢量的标号
+                        cos_ab = sum(a_vector * soe_list[tmp_counter_dict[e_value][before_β]])
                         # norm_a norm_b 都应该约等于1
-                        # norm_ab = np.linalg.norm(e_vector) * np.linalg.norm(e_list[tmp_counter_dict[e_value][β_index]])
-                        # minuend_vector += (cos_ab / norm_ab ) * tmp_counter_dict[e_value][β_index]
-                        minuend_vector += cos_ab * tmp_counter_dict[e_value][β_index]
-                    schmidt_vector = e_vector - minuend_vector
-                    # TODO 这个归一化手续对误差的影响巨大哦！
+                        # norm_ab = np.linalg.norm(a_vector)
+                        #           * np.linalg.norm(soe_list[tmp_counter_dict[e_value][before_β]])
+                        # minuend_vector += (cos_ab / norm_ab ) * tmp_counter_dict[e_value][before_β]
+                        minuend_vector += cos_ab * soe_list[tmp_counter_dict[e_value][before_β]]
+                    schmidt_vector = a_vector - minuend_vector
+                    # 这个归一化手续对误差的影响很大哦！
                     schmidt_orthogonalization_vector = schmidt_vector / np.linalg.norm(schmidt_vector)
                     tmp_counter_dict[e_value][β] = e_index
-                    e_list.append(schmidt_orthogonalization_vector)
-        return e_list, β_list
+                    soe_list.append(schmidt_orthogonalization_vector)
+        return soe_list, β_list
 
-    @staticmethod
-    def _calc_schmidt_orthogonalization_with_counter(β, eigenvectors_t):
-        """使用施密特正交归一化手续将拥有自由度的矢量归一化"""
+    # @staticmethod
+    # def _calc_schmidt_orthogonalization_with_counter(β, eigenvectors_t):
+    #     """使用施密特正交归一化手续将拥有自由度的矢量归一化"""
 
     @staticmethod
     def _calc_ν_by_λ_and_bl(λ_ν, eigenvalue_list, yd_list, bl_yd_list_dict, ν_st):
@@ -1111,6 +1240,7 @@ class ISFHelper(CalcHelper):
             raise Exception(err_msg)
         elif count_λ_ν == 1:
             return yd_list[eigenvalue_list.index(λ_ν)]
+
         else:  # 多于1个，需要用"航道"确定
             rst_list = []
             for ev, yd_candidate in zip(eigenvalue_list, yd_list):
@@ -1130,19 +1260,19 @@ class ISFHelper(CalcHelper):
                 raise Exception(msg)
 
     @staticmethod
-    def calc_row_indexes_tmp(bl_yds_of_σ, bl_yds_of_μ, cg_series_st_list_dict, ν_st, yd_list):
+    def calc_row_indexes_tmp(bl_yds_of_σ, bl_yds_of_μ, cg_series_st_list_dict, ν_st, yd_st_list):
         """计算ISF表格的行的意义，它是的bl_σ, bl_μ, β'的列表
         形如[([3,1],[3,1],None), ([3,1],[2,1,1],1), ([3,1],[2,1,1],2), ...]"""
         row_index_tmp_list = []  # [(bl_σ, bl_μ, β'), ...]
         for bl_σ, bl_μ in product(bl_yds_of_σ, bl_yds_of_μ):
             cg_series_st_list = cg_series_st_list_dict[(tuple(bl_σ), tuple(bl_μ))]  # 必须有
-            single_ν_cg_series = cg_series_st_list[yd_list.index(ν_st)]
+            single_ν_cg_series = cg_series_st_list[yd_st_list.index(ν_st)]
             if single_ν_cg_series == 0:
                 continue
             part_rst_list = [(bl_σ, bl_μ, β_st) if single_ν_cg_series >= 2 else (bl_σ, bl_μ, None)
                              for β_st in range(1, single_ν_cg_series + 1)]  # [1, 2, ..., single_ν_cg_series]
             row_index_tmp_list += part_rst_list
-        return row_index_tmp_list
+        return row_index_tmp_list  # 当σ * μ中不包含ν_st时，结果为[]
 
     @lru_cache()
     def _load_cgc_with_m1_by_input_json(self, s_n, j_σ, j_μ, j_ν, β):
@@ -1154,34 +1284,33 @@ class ISFHelper(CalcHelper):
         j_σ, j_μ, j_ν = map(json.dumps, [σ, μ, ν])
         return self._load_cgc_with_m1_by_input_json(s_n, j_σ, j_μ, j_ν, β)
 
-    def _cgc_st_2_cgc_dict(self, cgc_st_tuple, bl_st_dict, yt_st_num_dict):
-        """取得cg_st_dict，并且，根据分支律，将m_st转化为对应的m"""
+    def _cgc_st_2_cgc_m_dict(self, cgc_st_tuple, yt_st_num_dict, data_σ_μ):
+        """取得cg_st_dict，并且，根据分支律，将m_st转化为对应的m
+        注意：返回的字典，仅仅是把m_st按照分支律准化成了它的m对应，value仍然是st的cgc"""
         σ_st, μ_st, ν_st, β_st, _ = cgc_st_tuple
         rst_dict = {}
-        flag, cgc_square_dict = self._load_cgc_with_m1_lru(self.s_t, σ_st, μ_st, ν_st, β_st)
+        flag, cgc_st_square_dict = self._load_cgc_with_m1_lru(self.s_t, σ_st, μ_st, ν_st, β_st)
         if not flag:
             err_msg = "load_cgc fail by s_t={}, σ_st={}, μ_st={}, ν_st={}, β_st={} with msg={}".format(
-                self.s_t, σ_st, μ_st, ν_st, β_st, cgc_square_dict)
+                self.s_t, σ_st, μ_st, ν_st, β_st, cgc_st_square_dict)
             logger.error(err_msg)
             return False, err_msg
-        rst_n = cgc_square_dict.pop("N")
-        bl_σ_st_list = bl_st_dict[tuple(σ_st)]
-        bl_μ_st_list = bl_st_dict[tuple(μ_st)]
-        for (m1_st, m2_st), value in cgc_square_dict.items():
-            m1 = self._calc_m_with_m_st(σ_st, m1_st, bl_σ_st_list, yt_st_num_dict)
-            m2 = self._calc_m_with_m_st(μ_st, m1_st, bl_μ_st_list, yt_st_num_dict)
-            rst_dict[(m1, m2,)] = cgc_square_dict[(m1_st, m2_st,)]
-        rst_dict["N"] = rst_n
+        cgc_st_square_n = cgc_st_square_dict.pop("N")
+        for (m_σ_st, m_μ_st), cgc_st_square in cgc_st_square_dict.items():
+            m_σ = self._calc_m_with_m_st(σ_st, m_σ_st, data_σ_μ.bl_yds_of_σ, yt_st_num_dict)
+            m_μ = self._calc_m_with_m_st(μ_st, m_μ_st, data_σ_μ.bl_yds_of_μ, yt_st_num_dict)
+            rst_dict[(m_σ, m_μ,)] = cgc_st_square
+        cgc_st_square_dict["N"] = cgc_st_square_n
+        rst_dict["N"] = cgc_st_square_n
 
         return True, rst_dict
     
-    def _calc_isf_matrix_element(self, cgc_st_tuple_left, cgc_st_tuple_right,
-                                 bl_st_dict, yt_st_num_dict, in_matrix_σ_dict, in_matrix_μ_dict):
+    def _calc_isf_matrix_element(self, cgc_st_tuple_left, cgc_st_tuple_right, yt_st_num_dict, data_σ_μ):
         """计算ISF本征矩阵的矩阵元，其中主对角元可适当优化"""
         matrix_element = 0
         # 将St的cgc根据分支律上升到Sn，并整形成py序
         # 左
-        factor_cgc_left_dict = self._cgc_st_2_cgc_dict(cgc_st_tuple_left, bl_st_dict, yt_st_num_dict)
+        _, factor_cgc_left_dict = self._cgc_st_2_cgc_m_dict(cgc_st_tuple_left, yt_st_num_dict, data_σ_μ)
         left_n = factor_cgc_left_dict.pop("N")
         left_tmp_dict = {}
         for left_key, factor_cgc_left in factor_cgc_left_dict.items():
@@ -1193,7 +1322,7 @@ class ISFHelper(CalcHelper):
             right_tmp_dict = left_tmp_dict
             left_right_sqrt_n = left_n
         else:
-            factor_cgc_right_dict = self._cgc_st_2_cgc_dict(cgc_st_tuple_right, bl_st_dict, yt_st_num_dict)
+            _, factor_cgc_right_dict = self._cgc_st_2_cgc_m_dict(cgc_st_tuple_right, yt_st_num_dict, data_σ_μ)
             right_n = factor_cgc_right_dict.pop("N")
             right_tmp_dict = {}
             for right_key, factor_cgc_right in factor_cgc_right_dict.items():
@@ -1207,36 +1336,50 @@ class ISFHelper(CalcHelper):
             for (m_σ_right, m_μ_right), right_tmp in right_tmp_dict.items():
                 in_element_sum = 0
                 for i in range(1, self.s_n):  # 这个i是交换矩阵（in）中的i
-                    σ_in_element = in_matrix_σ_dict[(i, self.s_n)][m_σ_left - 1][m_σ_right - 1]  # m-1得到py序
-                    μ_in_element = in_matrix_μ_dict[(i, self.s_n)][m_μ_left - 1][m_μ_right - 1]
+                    σ_in_element = data_σ_μ.in_matrix_σ_dict[(i, self.s_n)][m_σ_left - 1][m_σ_right - 1]  # m-1得到py序
+                    μ_in_element = data_σ_μ.in_matrix_μ_dict[(i, self.s_n)][m_μ_left - 1][m_μ_right - 1]
                     in_element_sum += σ_in_element * μ_in_element
                 matrix_element += in_element_sum * left_tmp * right_tmp
         matrix_element = matrix_element / left_right_sqrt_n
 
-        return matrix_element
+        return True, matrix_element
 
-    def _calc_isf_matrix(self, row_index_tmp_list, ν_st, bl_st_dict, yt_st_num_dict,
-                         in_matrix_σ_dict, in_matrix_μ_dict):
+    def _calc_isf_matrix(self, row_index_tmp_list, ν_st, yt_st_num_dict, data_σ_μ):
         """计算ISF的本征矩阵"""
         # TODO 根据时间反馈决定要不要上多线程/进程
         matrix_div = len(row_index_tmp_list)
         isf_matrix = np.zeros([matrix_div, matrix_div])
+
         # 构建主对角元
         for rc, (σ_st, μ_st, β_st) in enumerate(row_index_tmp_list):
             cgc_st_tuple = (σ_st, μ_st, ν_st, β_st, 1)
-            isf_matrix[rc][rc] = self._calc_isf_matrix_element(cgc_st_tuple, cgc_st_tuple,
-                                                               bl_st_dict, yt_st_num_dict,
-                                                               in_matrix_σ_dict, in_matrix_μ_dict)
+            flag, isf_matrix_element = self._calc_isf_matrix_element(cgc_st_tuple, cgc_st_tuple, yt_st_num_dict,
+                                                                     data_σ_μ)
+            if not flag:
+                err_msg = "get isf_matrix_element by cgc_st_tuple={}, cgc_st_tuple={}, yt_st_num_dict={}, " \
+                          "data_σ_μ={}, with msg={}".format(cgc_st_tuple, cgc_st_tuple, yt_st_num_dict,
+                                                            data_σ_μ, isf_matrix_element)
+                logger.error(err_msg)
+                return False, err_msg
+            isf_matrix[rc][rc] = isf_matrix_element
+
         # 构建其他矩阵元素
         if matrix_div >= 2:
-            for row, (σ_st_left, μ_st_left, β_st_left) in enumerate(row_index_tmp_list):
+            for (row, (σ_st_left, μ_st_left, β_st_left)), (col, (σ_st_right, μ_st_right, β_st_right)) \
+                    in combinations(enumerate(row_index_tmp_list), 2):
                 cgc_st_tuple_left = (σ_st_left, μ_st_left, ν_st, β_st_left, 1)
-                for col, (σ_st_right, μ_st_right, β_st_right) in enumerate(islice(row_index_tmp_list, row, None)):
-                    cgc_st_tuple_right = (σ_st_right, μ_st_right, ν_st, β_st_right, 1)
-                    isf_matrix[row][col] = self._calc_isf_matrix_element(cgc_st_tuple_left, cgc_st_tuple_right,
-                                                                         bl_st_dict, yt_st_num_dict,
-                                                                         in_matrix_σ_dict, in_matrix_μ_dict)
-                    isf_matrix[col][row] = isf_matrix[row][col]  # 因为ISF的本征矩阵共轭
+                cgc_st_tuple_right = (σ_st_right, μ_st_right, ν_st, β_st_right, 1)
+                flag, isf_matrix_element = self._calc_isf_matrix_element(cgc_st_tuple_left, cgc_st_tuple_right,
+                                                                         yt_st_num_dict, data_σ_μ)
+                if not flag:
+                    err_msg = "get isf_matrix_element by cgc_st_tuple_left={}, cgc_st_tuple_right={}, " \
+                              "yt_st_num_dict={}, data_σ_μ={} " \
+                              "with msg={}".format(cgc_st_tuple_left, cgc_st_tuple_right, yt_st_num_dict,
+                                                   data_σ_μ, isf_matrix_element)
+                    logger.error(err_msg)
+                    return False, err_msg
+                isf_matrix[row][col] = isf_matrix_element
+                isf_matrix[col][row] = isf_matrix_element  # 因为ISF的本征矩阵共轭
 
         return True, isf_matrix
 
@@ -1247,7 +1390,9 @@ class CGCHelper(CalcHelper):
     def __init__(self):
         super(CGCHelper, self).__init__()
         
-    def calc_cgc_dict_part_and_save(self, isf_square_dict, ν_st, data_sn, data_st, data_σ_μ):
+    def calc_cgc_dict_part_and_save_by_isf(self, isf_square_dict, ν_st, data_sn, data_st, data_σ_μ):
+        # TODO 一张ISF表是可以算出对应m的完整CGC的，所以可以在里面检查N，也有可能分离save与calc
+
         # 先按照列计算吧，后面根据情况看看是否能优化
         σ_μ_β_all_st_tuple_list = isf_square_dict["rows"]
         ν_β_list = isf_square_dict["cols"]
@@ -1276,11 +1421,12 @@ class CGCHelper(CalcHelper):
 
                 for σ_μ_β_all_st, isf_square in zip(σ_μ_β_all_st_tuple_list, isf_square_vector):  # TODO 这个循环里的load_cgc肯定重复了，它和ν_β无关
                     σ_st, μ_st, β_st = σ_μ_β_all_st if len(σ_μ_β_all_st) == 3 else (*σ_μ_β_all_st, None)
-                    flag, cgc_st_square_dict = load_cgc(self.s_t, σ_st, μ_st, ν_st, β_st, m_ν,
+                    flag, cgc_st_square_dict = load_cgc(self.s_t, σ_st, μ_st, ν_st, β_st, m_ν_st,
                                                         is_flag_true_if_not_s_n=False)
                     if not flag:
                         err_msg = "get cgc_st_square_dict fail by self.s_t={}, σ_st={}, μ_st={}, ν_st={}, β_st={}, " \
-                                  "m_ν={}, msg={}".format(self.s_t, σ_st, μ_st, ν_st, β_st, m_ν, cgc_st_square_dict)
+                                  "m_ν_st={}, msg={}".format(self.s_t, σ_st, μ_st, ν_st, β_st, m_ν_st,
+                                                             cgc_st_square_dict)
                         logger.error(err_msg)
                         return False, err_msg
                     cgc_st_square_n = cgc_st_square_dict.pop("N")
@@ -1310,13 +1456,14 @@ class CGCHelper(CalcHelper):
                 cgc_square_part_dict["N"] = update_cgc_square_n
 
                 single_cgc_part_speed_time = int(time.time() - single_cgc_part_start_time)
-                flag, msg = save_cgc_by_part(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, β, m_ν, cgc_square_part_dict,
-                                             single_cgc_part_speed_time)
+                flag, msg = save_cgc(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, β, m_ν, cgc_square_part_dict,
+                                     single_cgc_part_speed_time)
                 if not flag:
-                    err_msg = "save_cgc_by_part fail by self.s_n={}, data_σ_μ.σ={}, data_σ_μ.μ={}, " \
+                    err_msg = "save_cgc fail by self.s_n={}, data_σ_μ.σ={}, data_σ_μ.μ={}, " \
                               "ν={}, β={}, m_ν={}, cgc_square_part_dict={} with " \
                               "msg={}".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, β, m_ν, cgc_square_part_dict, msg)
                     logger.error(err_msg)
                     return False, err_msg
+                # logger.debug("ν_st={}, cgc_square_part_dict={}".format(ν_st, cgc_square_part_dict))
 
         return True, None

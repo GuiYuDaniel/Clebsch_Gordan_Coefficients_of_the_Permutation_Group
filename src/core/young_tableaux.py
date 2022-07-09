@@ -36,7 +36,7 @@ this code for creating Young Tableaux by Sn, young_diagrams and branching_laws
 import copy
 import time
 from core.branching_laws import load_branching_law
-from conf.cgc_config import default_s_n
+from conf.cgc_config import default_s_n, min_s_n_of_young_table
 from core.cgc_utils.cgc_local_db import get_young_tableaux_file_name, get_young_tableaux_finish_s_n_name, \
     get_young_tableaux_num_file_name
 from core.cgc_utils.cgc_db_typing import YoungTableInfo
@@ -57,8 +57,8 @@ def create_young_tableaux(s_n: int=default_s_n):
     1，合法：True, s_n
     2，非法：False, msg
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_table:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_table)
         logger.error(err_msg)
         return False, err_msg
 
@@ -158,8 +158,8 @@ def save_single_young_table(s_n: int, yd: list, young_table: dict, speed_time: i
     例如：
     S3/[2, 1].pkl: {"1": [[1, 2], [3]], "2": [[1, 3], [2]]}
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_table:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_table)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(yd, list):
@@ -230,8 +230,8 @@ def save_single_young_table_num(s_n: int, yd: list, young_table: dict):
 
 def save_young_tableaux_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_one=False):
     """finish_s_n都存txt副本用来展示"""
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_table:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_table)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(s_n_speed_time, int) or s_n_speed_time < 0:
@@ -257,7 +257,7 @@ def save_young_tableaux_finish_s_n(s_n: int, s_n_speed_time: int, is_check_add_o
                        "history_times": {
                            "S{}".format(s_n): s_n_speed_time
                        }}}
-    if finish_s_n_before == 0:
+    if finish_s_n_before == min_s_n_of_young_table - 1:
         flag, msg = db_info.insert(table)
         if not flag:
             return flag, msg
@@ -299,12 +299,12 @@ def get_young_tableaux_finish_s_n():
         return False, err_msg
     if data is False:
         # logger.debug("find no finish_s_n, return 0")
-        return True, 0
+        return True, min_s_n_of_young_table - 1
     finish_s_n = data.get("flags", {}).get("finish_s_n")
-    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= 1:
+    if finish_s_n and isinstance(finish_s_n, int) and finish_s_n >= min_s_n_of_young_table:
         return True, finish_s_n
     else:
-        err_msg = "finish_s_n={} must int and > 0, with data={}".format(finish_s_n, data)
+        err_msg = "finish_s_n={} must int and >= {}, with data={}".format(finish_s_n, min_s_n_of_young_table, data)
         return False, err_msg
 
 
@@ -319,8 +319,8 @@ def calc_single_young_table(s_n: int, young_diagram: list):
     返回：
     flag, data/msg
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_table:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_table)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(young_diagram, list):
@@ -338,7 +338,7 @@ def calc_single_young_table(s_n: int, young_diagram: list):
         return True, {"1": [[1]]}
 
     # 取前置数据
-    flag, bl_tuple = load_branching_law(s_n, young_diagram, is_flag_true_if_not_s_n=False)
+    flag, bl_tuple = load_branching_law(s_n, young_diagram, is_flag_true_if_not_s_n=False, is_return_tuple=True)
     if not flag:
         err_msg = "get branching_law db for calc young_table meet error with s_n={}, msg={}".format(s_n, bl_tuple)
         logger.error(err_msg)
@@ -419,8 +419,8 @@ def load_young_table(s_n: int, yd: list, is_flag_true_if_not_s_n=True):
     取得s_n下young_diagram的杨盘(字典：键是杨盘编号(str)；值是编号对应的杨盘(list(list(int))))
     如果没有，根据is_return_true_if_not_s_n决定返回True or False
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_table:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_table)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(yd, list):
@@ -464,8 +464,8 @@ def load_young_table_num(s_n: int, yd: list, is_flag_true_if_not_s_n=True):
     取得s_n下young_diagram的杨盘总数
     如果没有，根据is_flag_true_if_not_s_n决定返回True or False
     """
-    if not isinstance(s_n, int) or s_n <= 0:
-        err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_table:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_table)
         logger.error(err_msg)
         return False, err_msg
     if not isinstance(yd, list):
@@ -679,7 +679,8 @@ def quickly_calc_young_table_in_decreasing_page_order(young_table, yd=None, s_n=
         if s_max == 1:
             idp_order += 1
         else:
-            flag, bl_tuple_s_max = load_branching_law(s_max, remain_yd_s_max, is_flag_true_if_not_s_n=False)
+            flag, bl_tuple_s_max = load_branching_law(s_max, remain_yd_s_max, is_flag_true_if_not_s_n=False,
+                                                      is_return_tuple=True)
             if not flag:
                 err_msg = "get branching_law for calc quickly_calc_young_table_in_decreasing_page_order meet error " \
                           "with s_max={}, remain_yd_s_max={}, msg={}".format(s_max, remain_yd_s_max, bl_tuple_s_max)
