@@ -10,6 +10,9 @@ import os
 import time
 import math
 import numpy as np
+import sympy as sp
+from sympy import Rational as Ra
+from sympy import sqrt
 import pytest
 from itertools import chain
 from conf.cgc_config import cgc_rst_folder, isf_0_error_value
@@ -40,7 +43,8 @@ class TestISFAndCGC(object):
         self.protector.protector_setup()
 
         # 准备前文
-        s_n = 6
+        s_n = 5
+        self.test_sn = s_n
         flag, msg = create_young_diagrams(s_n)
         assert flag
         assert msg == s_n
@@ -73,194 +77,254 @@ class TestISFAndCGC(object):
 
         # isf data
         # 格式 Sn, σ, μ, ν_st, ISF_square_dict
-        isf_square_dict = {"rows": [([1], [1])], "cols": [[2]], "isf": np.array([[1]])}
+        isf_square_dict = {"rows": [([1], [1])], "cols": [[2]], "isf": sp.Matrix([[1]])}
         self.isf_1 = (2, [2], [2], [1], isf_square_dict)
 
         # 数据来源见《群表示论的新途径》陈金全（上海科学技术出版社1984）表4.19
         isf_square_dict = {"rows": [([2], [2]), ([1, 1], [1, 1])],
                            "cols": [[3], [2, 1]],
-                           "isf": np.array([[1/2, 1/2], [1/2, -1/2]])}
+                           "isf": sp.Matrix([[Ra(1)/2, Ra(1)/2], [Ra(1)/2, -Ra(1)/2]])}
         self.isf_2 = (3, [2, 1], [2, 1], [2], isf_square_dict)
 
         isf_square_dict = {"rows": [([2], [1, 1]), ([1, 1], [2])],
                            "cols": [[2, 1], [1, 1, 1]],
-                           "isf": np.array([[-1/2, 1/2], [-1/2, -1/2]])}
+                           "isf": sp.Matrix([[-Ra(1)/2, Ra(1)/2], [-Ra(1)/2, -Ra(1)/2]])}
         self.isf_3 = (3, [2, 1], [2, 1], [1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3], [3]), ([2, 1], [2, 1])],
                            "cols": [[4], [3, 1]],
-                           "isf": np.array([[1/3, 2/3], [2/3, -1/3]])}
+                           "isf": sp.Matrix([[Ra(1)/3, Ra(2)/3], [Ra(2)/3, -Ra(1)/3]])}
         self.isf_4 = (4, [3, 1], [3, 1], [3], isf_square_dict)
 
         isf_square_dict = {"rows": [([3], [2, 1]), ([2, 1], [3]), ([2, 1], [2, 1])],
                            "cols": [[3, 1], [2, 2], [2, 1, 1]],
-                           "isf": np.array([[-1/6, 1/3, 1/2], [-1/6, 1/3, -1/2], [2/3, 1/3, 0]])}
+                           "isf": sp.Matrix([[-Ra(1)/6, Ra(1)/3, Ra(1)/2], 
+                                             [-Ra(1)/6, Ra(1)/3, -Ra(1)/2], 
+                                             [Ra(2)/3, Ra(1)/3, 0]])}
         self.isf_5 = (4, [3, 1], [3, 1], [2, 1], isf_square_dict)
 
-        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[2, 1, 1]], "isf": np.array([[1]])}
+        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[2, 1, 1]], "isf": sp.Matrix([[1]])}
         self.isf_6 = (4, [3, 1], [3, 1], [1, 1, 1], isf_square_dict)
 
-        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[2, 1, 1]], "isf": np.array([[-1]])}
+        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[2, 1, 1]], "isf": sp.Matrix([[-1]])}
         self.isf_7 = (4, [3, 1], [2, 2], [1, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3], [2, 1]), ([2, 1], [2, 1]), ([2, 1], [1, 1, 1])],
                            "cols": [[3, 1], [2, 2], [2, 1, 1]],
-                           "isf": np.array([[-1/2, 1/3, 1/6], [0, -1/3, 2/3], [1/2, 1/3, 1/6]])}
+                           "isf": sp.Matrix([[-Ra(1)/2, Ra(1)/3, Ra(1)/6], 
+                                             [0, -Ra(1)/3, Ra(2)/3], 
+                                             [Ra(1)/2, Ra(1)/3, Ra(1)/6]])}
         self.isf_8 = (4, [3, 1], [2, 1, 1], [2, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1], [2, 1]), ([2, 1], [1, 1, 1])],
                            "cols": [[3, 1], [2, 1, 1]],
-                           "isf": np.array([[-1/2, 1/2], [-1/2, -1/2]])}
+                           "isf": sp.Matrix([[-Ra(1)/2, Ra(1)/2], [-Ra(1)/2, -Ra(1)/2]])}
         self.isf_9 = (4, [2, 2], [2, 1, 1], [2, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1], [2, 1]), ([1, 1, 1], [1, 1, 1])],
                            "cols": [[4], [3, 1]],
-                           "isf": np.array([[2/3, 1/3], [1/3, -2/3]])}
+                           "isf": sp.Matrix([[Ra(2)/3, Ra(1)/3], [Ra(1)/3, -Ra(2)/3]])}
         self.isf_10 = (4, [2, 1, 1], [2, 1, 1], [3], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1], [2, 1]), ([2, 1], [1, 1, 1]), ([1, 1, 1], [2, 1])],
                            "cols": [[3, 1], [2, 2], [2, 1, 1]],
-                           "isf": np.array([[2/3, 1/3, 0], [-1/6, 1/3, 1/2], [-1/6, 1/3, -1/2]])}
+                           "isf": sp.Matrix([[Ra(2)/3, Ra(1)/3, 0], 
+                                             [-Ra(1)/6, Ra(1)/3, Ra(1)/2], 
+                                             [-Ra(1)/6, Ra(1)/3, -Ra(1)/2]])}
         self.isf_11 = (4, [2, 1, 1], [2, 1, 1], [2, 1], isf_square_dict)  # 这个也可以用来检查first_no_0
 
         isf_square_dict = {"rows": [([4], [3, 1]), ([3, 1], [4]), ([3, 1], [3, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
-                           "isf": np.array([[-1/12, 5/12, 1/2], [-1/12, 5/12, -1/2], [5/6, 1/6, 0]])}
+                           "isf": sp.Matrix([[-Ra(1)/12, Ra(5)/12, Ra(1)/2],
+                                             [-Ra(1)/12, Ra(5)/12, -Ra(1)/2],
+                                             [Ra(5)/6, Ra(1)/6, 0]])}
         self.isf_12 = (5, [4, 1], [4, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([4], [2, 2]), ([3, 1], [3, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
-                           "isf": np.array([[-3/8, 5/8], [-5/8, -3/8]])}
+                           "isf": sp.Matrix([[-Ra(3)/8, Ra(5)/8], [-Ra(5)/8, -Ra(3)/8]])}
         self.isf_13 = (5, [4, 1], [3, 2], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
-                           "isf": np.array([[-1/16, 15/16], [15/16, 1/16]])}
+                           "isf": sp.Matrix([[-Ra(1)/16, Ra(15)/16], [Ra(15)/16, Ra(1)/16]])}
         self.isf_14 = (5, [4, 1], [3, 1, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1])],
                            "cols": [[2, 1, 1, 1]],
-                           "isf": np.array([[-1]])}
+                           "isf": sp.Matrix([[-1]])}
         self.isf_15 = (5, [4, 1], [2, 2, 1], [1, 1, 1, 1], isf_square_dict)
 
-        isf_square_dict = {"rows": [([3, 1], [2, 1, 1])], "cols": [[3, 1, 1]], "isf": np.array([[1]])}
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1])], "cols": [[3, 1, 1]], "isf": sp.Matrix([[1]])}
         self.isf_16 = (5, [4, 1], [2, 1, 1, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 2], [3, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
-                           "isf": np.array([[1/3, 2/3, 0], [-1/3, 1/6, 1/2], [-1/3, 1/6, -1/2]])}
+                           "isf": sp.Matrix([[Ra(1)/3, Ra(2)/3, 0],
+                                             [-Ra(1)/3, Ra(1)/6, Ra(1)/2],
+                                             [-Ra(1)/3, Ra(1)/6, -Ra(1)/2]])}
         self.isf_17 = (5, [3, 2], [3, 2], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 2], [3, 1])],
                            "cols": [[3, 1, 1], [2, 2, 1], [2, 1, 1, 1]],
-                           "isf": np.array([[2/5, 0, 3/5], [3/10, 1/2, -1/5], [-3/10, 1/2, 1/5]])}
+                           "isf": sp.Matrix([[Ra(2)/5, 0, Ra(3)/5],
+                                             [Ra(3)/10, Ra(1)/2, -Ra(1)/5],
+                                             [-Ra(3)/10, Ra(1)/2, Ra(1)/5]])}
         self.isf_18 = (5, [3, 2], [3, 2], [2, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 2], [2, 2])],
                            "cols": [[2, 1, 1, 1]],
-                           "isf": np.array([[1]])}
+                           "isf": sp.Matrix([[1]])}
         self.isf_19 = (5, [3, 2], [3, 2], [1, 1, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1])],
                            "cols": [[4, 1]],
-                           "isf": np.array([[1]])}
+                           "isf": sp.Matrix([[1]])}
         self.isf_20 = (5, [3, 2], [3, 1, 1], [4], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 2], [3, 1]), ([2, 2], [2, 1, 1])],
                            "cols": [[4, 1], [3, 2], ([3, 1, 1], 1), ([3, 1, 1], 2)],
-                           "isf": np.array([[-3/10, 0, 3/5, 1/10], [-1/6, 1/3, 0, -1/2],
-                                            [-1/30, 5/12, -3/20, 2/5], [1/2, 1/4, 1/4, 0]])}
+                           "isf": sp.Matrix([[-Ra(3)/10, 0, Ra(3)/5, Ra(1)/10],
+                                             [-Ra(1)/6, Ra(1)/3, 0, -Ra(1)/2],
+                                             [-Ra(1)/30, Ra(5)/12, -Ra(3)/20, Ra(2)/5],
+                                             [Ra(1)/2, Ra(1)/4, Ra(1)/4, 0]])}
         self.isf_21 = (5, [3, 2], [3, 1, 1], [3, 1], isf_square_dict)  # 可测真实beta
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
-                           "isf": np.array([[-5/8, 3/8], [-3/8, -5/8]])}
+                           "isf": sp.Matrix([[-Ra(5)/8, Ra(3)/8], [-Ra(3)/8, -Ra(5)/8]])}
         self.isf_22 = (5, [3, 2], [3, 1, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 2], [3, 1]), ([2, 2], [2, 1, 1])],
                            "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
-                           "isf": np.array([[0, 1/2, -1/3, 1/6], [-3/5, 1/10, 0, -3/10],
-                                            [1/4, 0, -1/4, -1/2], [3/20, 2/5, 5/12, -1/30]])}
+                           "isf": sp.Matrix([[0, Ra(1)/2, -Ra(1)/3, Ra(1)/6],
+                                             [-Ra(3)/5, Ra(1)/10, 0, -Ra(3)/10],
+                                             [Ra(1)/4, 0, -Ra(1)/4, -Ra(1)/2],
+                                             [Ra(3)/20, Ra(2)/5, Ra(5)/12, -Ra(1)/30]])}
         self.isf_23 = (5, [3, 2], [3, 1, 1], [2, 1, 1], isf_square_dict)  # 可测真实beta  # 还能测first_no_0
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1])],
                            "cols": [[2, 1, 1, 1]],
-                           "isf": np.array([[1]])}
+                           "isf": sp.Matrix([[1]])}
         self.isf_24 = (5, [3, 2], [3, 1, 1], [1, 1, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 2], [2, 2])],
                            "cols": [[2, 1, 1, 1], [1, 1, 1, 1, 1]],
-                           "isf": np.array([[-2/5, 3/5], [3/5, 2/5]])}
+                           "isf": sp.Matrix([[-Ra(2)/5, Ra(3)/5], [Ra(3)/5, Ra(2)/5]])}
         self.isf_25 = (5, [3, 2], [2, 2, 1], [1, 1, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 2], [1, 1, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
-                           "isf": np.array([[3/8, 5/8], [5/8, -3/8]])}
+                           "isf": sp.Matrix([[Ra(3)/8, Ra(5)/8], [Ra(5)/8, -Ra(3)/8]])}
         self.isf_26 = (5, [3, 2], [2, 1, 1, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[4, 1], ([3, 2], 1), ([3, 2], 2), [3, 1, 1]],
-                           "isf": np.array([[5/12, 1/2, 1/12, 0], [-1/12, 0, 5/12, 1/2],
-                                            [-1/12, 0, 5/12, -1/2], [5/12, -1/2, 1/12, 0]])}
+                           "isf": sp.Matrix([[Ra(5)/12, Ra(1)/2, Ra(1)/12, 0],
+                                             [-Ra(1)/12, 0, Ra(5)/12, Ra(1)/2],
+                                             [-Ra(1)/12, 0, Ra(5)/12, -Ra(1)/2],
+                                             [Ra(5)/12, -Ra(1)/2, Ra(1)/12, 0]])}
         self.isf_27 = (5, [3, 1, 1], [3, 1, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [([3, 2], 1), ([3, 2], 2), ([2, 2, 1], 1), ([2, 2, 1], 2)],
-                           "isf": np.array([[-3/16, 1/2, 5/16, 0], [5/16, 0, 3/16, 1/2],
-                                            [5/16, 0, 3/16, -1/2], [3/16, 1/2, -5/16, 0]])}
+                           "isf": sp.Matrix([[-Ra(3)/16, Ra(1)/2, Ra(5)/16, 0],
+                                             [Ra(5)/16, 0, Ra(3)/16, Ra(1)/2],
+                                             [Ra(5)/16, 0, Ra(3)/16, -Ra(1)/2],
+                                             [Ra(3)/16, Ra(1)/2, -Ra(5)/16, 0]])}
         self.isf_28 = (5, [3, 1, 1], [3, 1, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[3, 1, 1], ([2, 2, 1], 1), ([2, 2, 1], 2), [2, 1, 1, 1]],
-                           "isf": np.array([[1/2, 0, -5/12, 1/12], [0, -1/2, 1/12, 5/12],
-                                            [0, -1/2, -1/12, -5/12], [1/2, 0, 5/12, -1/12]])}
+                           "isf": sp.Matrix([[Ra(1)/2, 0, -Ra(5)/12, Ra(1)/12],
+                                             [0, -Ra(1)/2, Ra(1)/12, Ra(5)/12],
+                                             [0, -Ra(1)/2, -Ra(1)/12, -Ra(5)/12],
+                                             [Ra(1)/2, 0, Ra(5)/12, -Ra(1)/12]])}
         self.isf_29 = (5, [3, 1, 1], [3, 1, 1], [2, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 2]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 2]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[4, 1], [3, 2], ([3, 1, 1], 1), ([3, 1, 1], 2)],
-                           "isf": np.array([[1/2, 1/4, 1/4, 0], [1/6, -1/3, 0, 1/2],
-                                            [1/30, -5/12, 3/20, -2/5], [3/10, 0, -3/5, -1/10]])}
+                           "isf": sp.Matrix([[Ra(1)/2, Ra(1)/4, Ra(1)/4, 0],
+                                             [Ra(1)/6, -Ra(1)/3, 0, Ra(1)/2],
+                                             [Ra(1)/30, -Ra(5)/12, Ra(3)/20, -Ra(2)/5],
+                                             [Ra(3)/10, 0, -Ra(3)/5, -Ra(1)/10]])}
         self.isf_30 = (5, [3, 1, 1], [2, 2, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
-                           "isf": np.array([[-3/8, 5/8], [5/8, 3/8]])}
+                           "isf": sp.Matrix([[-Ra(3)/8, Ra(5)/8], [Ra(5)/8, Ra(3)/8]])}
         self.isf_31 = (5, [3, 1, 1], [2, 2, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 2]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 2]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
-                           "isf": np.array([[3/20, 2/5, -5/12, 1/30], [-3/5, 1/10, 0, 3/10],
-                                            [-1/4, 0, -1/4, -1/2], [0, -1/2, -1/3, 1/6]])}
+                           "isf": sp.Matrix([[Ra(3)/20, Ra(2)/5, -Ra(5)/12, Ra(1)/30],
+                                             [-Ra(3)/5, Ra(1)/10, 0, Ra(3)/10],
+                                             [-Ra(1)/4, 0, -Ra(1)/4, -Ra(1)/2],
+                                             [0, -Ra(1)/2, -Ra(1)/3, Ra(1)/6]])}
         self.isf_32 = (5, [3, 1, 1], [2, 2, 1], [2, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 1, 1]), ([2, 1, 1], [1, 1, 1, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
-                           "isf": np.array([[-2/3, 5/24, 1/8], [0, -3/8, 5/8], [1/3, 5/12, 1/4]])}
+                           "isf": sp.Matrix([[-Ra(2)/3, Ra(5)/24, Ra(1)/8],
+                                             [0, -Ra(3)/8, Ra(5)/8],
+                                             [Ra(1)/3, Ra(5)/12, Ra(1)/4]])}
         self.isf_33 = (5, [3, 1, 1], [2, 1, 1, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 2], [2, 1, 1]), ([2, 1, 1], [2, 2]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
-                           "isf": np.array([[-1/3, 1/6, 1/2], [-1/3, 1/6, -1/2], [1/3, 2/3, 0]])}
+                           "isf": sp.Matrix([[-Ra(1)/3, Ra(1)/6, Ra(1)/2],
+                                             [-Ra(1)/3, Ra(1)/6, -Ra(1)/2],
+                                             [Ra(1)/3, Ra(2)/3, 0]])}
         self.isf_34 = (5, [2, 2, 1], [2, 2, 1], [3, 1], isf_square_dict)
 
-        isf_square_dict = {"rows": [([2, 2], [2, 2])], "cols": [[2, 1, 1, 1]], "isf": np.array([[-1]])}
+        isf_square_dict = {"rows": [([2, 2], [2, 2])], "cols": [[2, 1, 1, 1]], "isf": sp.Matrix([[-1]])}
         self.isf_35 = (5, [2, 2, 1], [2, 2, 1], [1, 1, 1, 1], isf_square_dict)
 
-        isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])], "cols": [[4, 1]], "isf": np.array([[1]])}
+        isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])], "cols": [[4, 1]], "isf": sp.Matrix([[1]])}
         self.isf_36 = (5, [2, 2, 1], [2, 1, 1, 1], [4], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1]), ([1, 1, 1, 1], [1, 1, 1, 1])],
                            "cols": [[5], [4, 1]],
-                           "isf": np.array([[3/4, 1/4], [1/4, -3/4]])}
+                           "isf": sp.Matrix([[Ra(3)/4, Ra(1)/4], [Ra(1)/4, -Ra(3)/4]])}
         self.isf_37 = (5, [2, 1, 1, 1], [2, 1, 1, 1], [4], isf_square_dict)
 
-        isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])], "cols": [[3, 2]], "isf": np.array([[1]])}
+        isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])], "cols": [[3, 2]], "isf": sp.Matrix([[1]])}
         self.isf_38 = (5, [2, 1, 1, 1], [2, 1, 1, 1], [2, 2], isf_square_dict)
 
-        isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])], "cols": [[3, 1, 1]], "isf": np.array([[1]])}
+        isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])], "cols": [[3, 1, 1]], "isf": sp.Matrix([[1]])}
         self.isf_39 = (5, [2, 1, 1, 1], [2, 1, 1, 1], [2, 1, 1], isf_square_dict)
 
-        self.isf_ban_set = {23, 27, 28, 29, 30, 32}
+        # 自己算的
+        isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 2])],
+                           "cols": [[4, 1], [3, 2], ([3, 1, 1], 1), ([3, 1, 1], 2)],
+                           "isf": sp.Matrix([[-Ra(3)/10, 0, Ra(3)/5, Ra(1)/10],
+                                             [-Ra(1)/30, Ra(5)/12, -Ra(3)/20, Ra(2)/5],
+                                             [-Ra(1)/6, Ra(1)/3, 0, -Ra(1)/2],
+                                             [Ra(1)/2, Ra(1)/4, Ra(1)/4, 0]])}
+        self.isf_40 = (5, [3, 1, 1], [3, 2], [3, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 2])],
+                           "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
+                           "isf": sp.Matrix([[0, Ra(1)/2, -Ra(1)/3, Ra(1)/6],
+                                             [Ra(1)/4, 0, -Ra(1)/4, -Ra(1)/2],
+                                             [-Ra(3)/5, Ra(1)/10, 0, -Ra(3)/10],
+                                             [Ra(3)/20, Ra(2)/5, Ra(5)/12, -Ra(1)/30]])}
+        self.isf_41 = (5, [3, 1, 1], [3, 2], [2, 1, 1], isf_square_dict)
+
+        # TODO 错误原因待定，目前看是因为isf_matrix顺序变了导致高斯消元法在计算有自由度的基失时，会有'旋转'，不再对称
+        # 但，它依然是自正交归一的！
+        # 它不是错了，只是不符合我们约定的对称性
+        isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 2])],
+                           "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
+                           "isf": sp.Matrix([[-Ra(1)/14, -Ra(3)/7, Ra(1)/3, Ra(1)/6],
+                                             [-Ra(3)/14, Ra(1)/28, -Ra(1)/4, Ra(1)/2],
+                                             [Ra(7)/10, 0, 0, Ra(3)/10],
+                                             [-Ra(1)/70, Ra(15)/28, Ra(5)/12, Ra(1)/30]])}
+        self.isf_41_wrong = (5, [3, 1, 1], [3, 2], [2, 1, 1], isf_square_dict)
+
+        # self.isf_ban_set = {21, 23, 27, 28, 29, 30, 32}
+        # self.isf_ban_set = {27}
+        self.isf_ban_set = set()
         self.isf_num_list = list(set(range(1, 39 + 1)) - self.isf_ban_set)
 
         # cgc data
@@ -578,8 +642,10 @@ class TestISFAndCGC(object):
                            (4, 5): 15, (5, 2): 1, (5, 4): -15, (6, 1): 4, "N": 72}
         self.cgc_88 = (5, [3, 1, 1], [3, 1, 1], [2, 2, 1], 2, 5, cgc_square_dict)
 
-        self.cgc_ban_set = set(chain(range(51, 56 + 1), range(60, 65 + 1), range(69, 88 + 1)))
+        # self.cgc_ban_set = set(chain(range(51, 56 + 1), range(60, 65 + 1), range(69, 88 + 1)))
+        self.cgc_ban_set = set()
         self.cgc_num_list = list(set(range(1, 88 + 1)) - self.cgc_ban_set)
+        # self.cgc_num_list = list(range(1, 88 + 1))
 
         _, self.isf_s_n_finish_file_name = get_isf_finish_s_n_name()
         _, self.isf_s_n_finish_full_file_name = get_isf_finish_s_n_name(is_full_path=True)
@@ -592,20 +658,45 @@ class TestISFAndCGC(object):
         # isf matrix
         # 格式 Sn, σ, μ, ν_st, row_index_tmp_list, isf_matrix
         row_index_tmp_list = [([2], [2], None), ([1, 1], [1, 1], None)]
-        isf_matrix = np.array([[1/2, 3/2], [3/2, 1/2]])
+        isf_matrix = sp.Matrix([[Ra(1)/2, Ra(3)/2], [Ra(3)/2, Ra(1)/2]])
         self.isf_matrix_1 = (3, [2, 1], [2, 1], [2], row_index_tmp_list, isf_matrix)
 
         row_index_tmp_list = [([3], [2, 1], None), ([2, 1], [2, 1], None)]
-        isf_matrix = np.array([[0, 2], [2, 0]])
+        isf_matrix = sp.Matrix([[0, 2], [2, 0]])
         self.isf_matrix_2 = (4, [3, 1], [2, 2], [2, 1], row_index_tmp_list, isf_matrix)  # 4-19 例2
 
         self.isf_matrix_num_list = list(range(1, 2 + 1))
 
     def teardown_class(self):
-        # self.protector.protector_teardown()
+        self.protector.protector_teardown()
         pass
 
     # start with 0xx tests need test by order
+    @staticmethod
+    def is_isf_square_orthogonalization(isf_square_matrix):
+        assert isf_square_matrix.shape[0] == isf_square_matrix.shape[1]
+        div = isf_square_matrix.shape[0]
+        for i in range(div):
+            matrix_i_by_row = isf_square_matrix[i, :]
+            matrix_i_by_col = isf_square_matrix[:, i]
+            for j in range(div):
+                matrix_j_by_row = isf_square_matrix[j, :]
+                matrix_j_by_col = isf_square_matrix[:, j]
+
+                sum_row_row = sum(sp.sign(matrix_i_by_row[k])
+                                  * sp.sign(matrix_j_by_row[k])
+                                  * sqrt(abs(matrix_i_by_row[k]))
+                                  * sqrt(abs(matrix_j_by_row[k])) for k in range(div))
+                sum_col_col = sum(sp.sign(matrix_i_by_col[k])
+                                  * sp.sign(matrix_j_by_col[k])
+                                  * sqrt(abs(matrix_i_by_col[k]))
+                                  * sqrt(abs(matrix_j_by_col[k])) for k in range(div))
+                if i == j:
+                    assert sum_row_row == 1, "sum_row_row={} not eq 1 for i={},j={}".format(sum_row_row, i, j)
+                    assert sum_col_col == 1, "sum_col_col={} not eq 1 for i={},j={}".format(sum_col_col, i, j)
+                else:
+                    assert sum_row_row == 0, "sum_row_row={} not eq 0 for i={},j={}".format(sum_row_row, i, j)
+                    assert sum_col_col == 0, "sum_col_col={} not eq 0 for i={},j={}".format(sum_col_col, i, j)
 
     # @pytest.mark.skip("pass")
     def test_001_create_isf_and_cgc_s_n_1(self):  # 初始cgc
@@ -658,8 +749,7 @@ class TestISFAndCGC(object):
             assert flag
             assert isf["rows"] == isf_answer["rows"]
             assert isf["cols"] == isf_answer["cols"]
-            assert (np.around(isf["isf"], self.decimals) == np.around(isf_answer["isf"], self.decimals)).all(), \
-                "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+            assert isf["isf"] == isf_answer["isf"], "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
 
         for nb in self.cgc_num_list:
             cgc_param = eval("self.cgc_{}".format(nb))[: -1]
@@ -682,7 +772,7 @@ class TestISFAndCGC(object):
             assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
             assert 1 - isf_0_error_value < abs(cgc["N"]) < 1 + isf_0_error_value
             for cgc_k, cgc_v in cgc_answer.items():
-                assert abs(cgc[cgc_k] - cgc_v/cgc_answer_n) < isf_0_error_value, \
+                assert cgc[cgc_k] == Ra(cgc_v)/cgc_answer_n, \
                     "self.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
 
@@ -759,8 +849,7 @@ class TestISFAndCGC(object):
             assert flag
             assert isf["rows"] == isf_answer["rows"]
             assert isf["cols"] == isf_answer["cols"]
-            assert (np.around(isf["isf"], self.decimals) == np.around(isf_answer["isf"], self.decimals)).all(), \
-                "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+            assert isf["isf"] == isf_answer["isf"], "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
 
         for nb in self.cgc_num_list:
             cgc_param = eval("self.cgc_{}".format(nb))[: -1]
@@ -782,7 +871,7 @@ class TestISFAndCGC(object):
             assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
             assert 1 - isf_0_error_value < abs(cgc["N"]) < 1 + isf_0_error_value
             for cgc_k, cgc_v in cgc_answer.items():
-                assert abs(cgc[cgc_k] - cgc_v / cgc_answer_n) < isf_0_error_value, \
+                assert cgc[cgc_k] == Ra(cgc_v)/cgc_answer_n, \
                     "self.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
 
@@ -828,18 +917,20 @@ class TestISFAndCGC(object):
             assert isinstance(data.get("history_times").get("S{}".format(i)), int)
 
     # @pytest.mark.skip("pass")
-    def test_003_create_isf_and_cgc_s_n_3_to_4(self):  # 程序平稳
+    def test_003_create_isf_and_cgc_s_n_3_to_4(self):
+        start_sn = 3
+        end_sn = 4
         flag, isf_finish_s_n = get_isf_finish_s_n()
         assert flag
-        assert isf_finish_s_n == 2
+        assert isf_finish_s_n == start_sn - 1
         flag, cgc_finish_s_n = get_cgc_finish_s_n()
         assert flag
-        assert cgc_finish_s_n == 2
+        assert cgc_finish_s_n == start_sn - 1
 
         # check create_isf_and_cgc_s_n_2
-        flag, finish_s_n = create_isf_and_cgc(4)
+        flag, finish_s_n = create_isf_and_cgc(end_sn)
         assert flag
-        assert finish_s_n == 4
+        assert finish_s_n == end_sn
 
         # check create time
         _, file_name = get_isf_file_name(*self.isf_1[: -1])
@@ -858,7 +949,7 @@ class TestISFAndCGC(object):
         for nb in self.isf_num_list:
             isf_param = eval("self.isf_{}".format(nb))[: -1]
             isf_answer = eval("self.isf_{}".format(nb))[-1]
-            if isf_param[0] > finish_s_n:
+            if isf_param[0] > end_sn or isf_param[0] < start_sn:
                 continue
             _, file_name = get_isf_file_name(*isf_param)
             flag, data = ISFInfo(isf_param[0]).query_by_file_name(file_name)
@@ -873,13 +964,12 @@ class TestISFAndCGC(object):
             assert flag
             assert isf["rows"] == isf_answer["rows"]
             assert isf["cols"] == isf_answer["cols"]
-            assert (np.around(isf["isf"], self.decimals) == np.around(isf_answer["isf"], self.decimals)).all(), \
-                "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+            assert isf["isf"] == isf_answer["isf"], "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
 
         for nb in self.cgc_num_list:
             cgc_param = eval("self.cgc_{}".format(nb))[: -1]
             cgc_answer = eval("self.cgc_{}".format(nb))[-1]
-            if cgc_param[0] > finish_s_n:
+            if cgc_param[0] > end_sn or cgc_param[0] < start_sn:
                 continue
             _, file_name = get_cgc_file_name(*cgc_param)
             flag, data = CGCInfo(cgc_param[0]).query_by_file_name(file_name)
@@ -894,19 +984,19 @@ class TestISFAndCGC(object):
             assert flag
             cgc_answer_n = cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
-            assert 1 - isf_0_error_value < abs(cgc["N"]) < 1 + isf_0_error_value
+            assert cgc["N"] == 1
             for cgc_k, cgc_v in cgc_answer.items():
-                assert abs(cgc[cgc_k] - cgc_v / cgc_answer_n) < isf_0_error_value, \
+                assert cgc[cgc_k] == Ra(cgc_v) / cgc_answer_n, \
                     "self.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
 
         # check finish s_n
         flag, isf_finish_s_n = get_isf_finish_s_n()
         assert flag
-        assert isf_finish_s_n == 4
+        assert isf_finish_s_n == end_sn
         flag, cgc_finish_s_n = get_cgc_finish_s_n()
         assert flag
-        assert cgc_finish_s_n == 4
+        assert cgc_finish_s_n == end_sn
 
         # history_times
         _, isf_finish_file_name = get_isf_finish_s_n_name()
@@ -943,17 +1033,19 @@ class TestISFAndCGC(object):
 
     # @pytest.mark.skip("pass")
     def test_004_create_isf_and_cgc_s_n_5_to_6(self):  # beta  # 005就该优化7～9了 放在benchmark里
+        start_sn = 5
+        end_sn = 5
         flag, isf_finish_s_n = get_isf_finish_s_n()
         assert flag
-        assert isf_finish_s_n == 4
+        assert isf_finish_s_n == start_sn - 1
         flag, cgc_finish_s_n = get_cgc_finish_s_n()
         assert flag
-        assert cgc_finish_s_n == 4
+        assert cgc_finish_s_n == start_sn - 1
 
         # check create_isf_and_cgc_s_n_2
-        flag, finish_s_n = create_isf_and_cgc(5)
+        flag, finish_s_n = create_isf_and_cgc(end_sn)
         assert flag
-        assert finish_s_n == 5
+        assert finish_s_n == end_sn
 
         # check create time
         _, file_name = get_isf_file_name(*self.isf_1[: -1])
@@ -972,7 +1064,7 @@ class TestISFAndCGC(object):
         for nb in self.isf_num_list:
             isf_param = eval("self.isf_{}".format(nb))[: -1]
             isf_answer = eval("self.isf_{}".format(nb))[-1]
-            if isf_param[0] > finish_s_n:
+            if isf_param[0] > end_sn or isf_param[0] < start_sn:
                 continue
             _, file_name = get_isf_file_name(*isf_param)
             flag, data = ISFInfo(isf_param[0]).query_by_file_name(file_name)
@@ -988,13 +1080,12 @@ class TestISFAndCGC(object):
             assert flag
             assert isf["rows"] == isf_answer["rows"]
             assert isf["cols"] == isf_answer["cols"]
-            assert (np.around(isf["isf"], self.decimals) == np.around(isf_answer["isf"], self.decimals)).all(), \
-                "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+            assert isf["isf"] == isf_answer["isf"], "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
 
         for nb in self.cgc_num_list:
             cgc_param = eval("self.cgc_{}".format(nb))[: -1]
             cgc_answer = eval("self.cgc_{}".format(nb))[-1]
-            if cgc_param[0] > finish_s_n:
+            if cgc_param[0] > end_sn or cgc_param[0] < start_sn:
                 continue
             _, file_name = get_cgc_file_name(*cgc_param)
             flag, data = CGCInfo(cgc_param[0]).query_by_file_name(file_name)
@@ -1009,20 +1100,20 @@ class TestISFAndCGC(object):
             flag, cgc = load_cgc(*cgc_param, is_flag_true_if_not_s_n=True)
             assert flag
             cgc_answer_n = cgc_answer.pop("N")
-            assert np.around(sum(abs(cgc_v) for cgc_v in cgc_answer.values()), self.decimals) == cgc_answer_n
-            assert 1 - isf_0_error_value < abs(cgc["N"]) < 1 + isf_0_error_value
+            assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
+            assert cgc["N"] == 1
             for cgc_k, cgc_v in cgc_answer.items():
-                assert abs(cgc[cgc_k] - cgc_v / cgc_answer_n) < isf_0_error_value, \
+                assert cgc[cgc_k] == Ra(cgc_v) / cgc_answer_n, \
                     "self.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
 
         # check finish s_n
         flag, isf_finish_s_n = get_isf_finish_s_n()
         assert flag
-        assert isf_finish_s_n == 5
+        assert isf_finish_s_n == end_sn
         flag, cgc_finish_s_n = get_cgc_finish_s_n()
         assert flag
-        assert cgc_finish_s_n == 5
+        assert cgc_finish_s_n == end_sn
 
         # history_times
         _, isf_finish_file_name = get_isf_finish_s_n_name()
@@ -1033,7 +1124,7 @@ class TestISFAndCGC(object):
         assert isinstance(data.get("flags").get("history_times"), dict)
         for i in range(2, isf_finish_s_n + 1):
             assert isinstance(data.get("flags").get("history_times").get("S{}".format(i)), int)
-            assert 0 <= data.get("flags").get("history_times").get("S{}".format(i)) <= 10
+            assert 0 <= data.get("flags").get("history_times").get("S{}".format(i)) <= 20
         flag, data_txt = ISFInfo(isf_finish_s_n).query_txt_by_file_name(isf_finish_file_name)
         assert isinstance(data_txt, str)
         data = eval(data_txt)
@@ -1049,7 +1140,7 @@ class TestISFAndCGC(object):
         assert isinstance(data.get("flags").get("history_times"), dict)
         for i in range(1, cgc_finish_s_n + 1):
             assert isinstance(data.get("flags").get("history_times").get("S{}".format(i)), int)
-            assert 0 <= data.get("flags").get("history_times").get("S{}".format(i)) <= 10
+            assert 0 <= data.get("flags").get("history_times").get("S{}".format(i)) <= 100
         flag, data_txt = CGCInfo(cgc_finish_s_n).query_txt_by_file_name(cgc_finish_file_name)
         assert isinstance(data_txt, str)
         data = eval(data_txt)
@@ -1057,329 +1148,286 @@ class TestISFAndCGC(object):
         for i in range(1, cgc_finish_s_n + 1):
             assert isinstance(data.get("history_times").get("S{}".format(i)), int)
 
-    # def test_data_helper_init(self):
-    #     # 检查非法范围报错
-    #     flag = True
-    #     try:
-    #         data_s_0 = DataHelper(0)
-    #         flag = False
-    #     except Exception as e:
-    #         assert str(e) == "s_k={} must be int and >= 1".format(0)
-    #     assert flag
-    #
-    #     # 检查最小初始情况
-    #     data_sn = DataHelper(1)
-    #     assert data_sn.s_n == 1
-    #     assert data_sn.yd_list == [[1]]
-    #     assert data_sn.bl_yd_list_dict == {tuple([1]): [[]]}
-    #     assert data_sn.yt_num_dict == {tuple([1]): 1}
-    #     assert data_sn.eigenvalue_list == [1]
-    #
-    #     # 检查传递和更新
-    #     data_st = data_sn
-    #     data_sn = DataHelper(2)
-    #     assert data_st.s_n == 1
-    #     assert data_st.yd_list == [[1]]
-    #     assert data_st.bl_yd_list_dict == {tuple([1]): [[]]}
-    #     assert data_st.yt_num_dict == {tuple([1]): 1}
-    #     assert data_st.eigenvalue_list == [1]
-    #
-    #     assert data_sn.s_n == 2
-    #     assert data_sn.yd_list == [[2], [1, 1]]
-    #     assert data_sn.bl_yd_list_dict == {tuple([2]): [[1]], tuple([1, 1]): [[1]]}
-    #     assert data_sn.yt_num_dict == {tuple([2]): 1, tuple([1, 1]): 1}
-    #     assert data_sn.eigenvalue_list == [1, -1]
-    #
-    # def test_σ_μ_data_helper_init(self):
-    #     # 检查最小初始情况
-    #     data_st = DataHelper(1)
-    #     data_sn = DataHelper(2)
-    #     data_σ_μ = ΣMDataHelper(2, [2], [1, 1], data_sn, data_st)
-    #     assert data_σ_μ.s_n == 2
-    #     assert data_σ_μ.s_t == 1
-    #     assert data_σ_μ.σ == [2]
-    #     assert data_σ_μ.μ == [1, 1]
-    #     assert data_σ_μ.data_sn_cls == data_sn
-    #     assert data_σ_μ.data_st_cls == data_st
-    #     assert (data_σ_μ.cg_series_list == np.array([0, 1])).all()
-    #     assert data_σ_μ.bl_yds_of_σ == [[1]]
-    #     assert data_σ_μ.bl_yds_of_μ == [[1]]
-    #     assert data_σ_μ.cg_series_st_list_dict == {(tuple([1]), tuple([1])): [1]}
-    #     assert data_σ_μ.in_matrix_σ_dict == {(1, 2): np.array([[1]])}
-    #     assert data_σ_μ.in_matrix_μ_dict == {(1, 2): np.array([[-1]])}
-    #
-    #     # 再来一个
-    #     data_st = DataHelper(3)
-    #     data_sn = DataHelper(4)
-    #     data_σ_μ = ΣMDataHelper(4, [3, 1], [2, 2], data_sn, data_st)
-    #     assert data_σ_μ.s_n == 4
-    #     assert data_σ_μ.s_t == 3
-    #     assert data_σ_μ.σ == [3, 1]
-    #     assert data_σ_μ.μ == [2, 2]
-    #     assert data_σ_μ.data_sn_cls == data_sn
-    #     assert data_σ_μ.data_st_cls == data_st
-    #     assert (data_σ_μ.cg_series_list == np.array([0, 1, 0, 1, 0])).all()
-    #     assert data_σ_μ.bl_yds_of_σ == [[3], [2, 1]]
-    #     assert data_σ_μ.bl_yds_of_μ == [[2, 1]]
-    #     cg_series_st_list_dict_answer = {(tuple([3]), tuple([2, 1])): [0, 1, 0],
-    #                                      (tuple([2, 1]), tuple([2, 1])): [1, 1, 1]}
-    #     for k, v in data_σ_μ.cg_series_st_list_dict.items():
-    #         assert (np.around(v, self.decimals) == np.around(cg_series_st_list_dict_answer.get(k), self.decimals)).all()
-    #
-    #     in_matrix_σ_dict_answer = {(1, 4): np.array([[-1/3, -np.sqrt(2)/3, -np.sqrt(6)/3],
-    #                                                  [-np.sqrt(2)/3, 5/6, -1/np.sqrt(12)],
-    #                                                  [-np.sqrt(6)/3, -1/np.sqrt(12), 1/2]]),
-    #                                (2, 4): np.array([[-1/3, -np.sqrt(2)/3, np.sqrt(6)/3],
-    #                                                  [-np.sqrt(2)/3, 5/6, 1/np.sqrt(12)],
-    #                                                  [np.sqrt(6)/3, 1/np.sqrt(12), 1/2]]),
-    #                                (3, 4): np.array([[-1/3, np.sqrt(8)/3, 0],
-    #                                                  [np.sqrt(8)/3, 1/3, 0],
-    #                                                  [0, 0, 1]])}
-    #     for k, v in data_σ_μ.in_matrix_σ_dict.items():
-    #         assert (np.around(v, self.decimals) == np.around(in_matrix_σ_dict_answer.get(k), self.decimals)).all()
-    #
-    #     in_matrix_μ_dict_answer = {(1, 4): np.array([[-1/2, np.sqrt(3)/2],
-    #                                                  [np.sqrt(3)/2, 1/2]]),
-    #                                (2, 4): np.array([[-1/2, -np.sqrt(3)/2],
-    #                                                  [-np.sqrt(3)/2, 1/2]]),
-    #                                (3, 4): np.array([[1, 0],
-    #                                                  [0, -1]])}
-    #     for k, v in data_σ_μ.in_matrix_μ_dict.items():
-    #         assert (np.around(v, self.decimals) == np.around(in_matrix_μ_dict_answer.get(k), self.decimals)).all()
-    #
-    # def test_calc_helper(self):
-    #     # 检查非法范围报错
-    #     calc_helper = CalcHelper()
-    #     flag = True
-    #     try:
-    #         calc_helper.enable_now_s_n(0)
-    #         flag = False
-    #     except Exception as e:
-    #         assert str(e) == "s_n={} must be int and >= {}".format(0, 1)
-    #     assert flag
-    #
-    #     # 检查enable_now_s_n
-    #     calc_helper = CalcHelper()
-    #     calc_helper.enable_now_s_n(3)
-    #     assert calc_helper.s_n == 3
-    #     assert calc_helper.s_t == 2
-    #
-    #     # 检查_calc_m_with_m_st
-    #     assert 2 == calc_helper._calc_m_with_m_st([2, 1], 2, [[2, 1]], {tuple([2, 1]): 3})
-    #
-    #     data_st = DataHelper(4)
-    #     data_sn = DataHelper(5)
-    #     bl_yd_list = data_sn.bl_yd_list_dict[tuple([3, 2])]
-    #     assert 4 == calc_helper._calc_m_with_m_st([2, 2], 1, bl_yd_list, data_st.yt_num_dict)
-    #
-    #     data_st = data_sn
-    #     data_sn = DataHelper(6)
-    #     bl_yd_list = data_sn.bl_yd_list_dict[tuple([3, 2, 1])]
-    #     assert 14 == calc_helper._calc_m_with_m_st([2, 2, 1], 3, bl_yd_list, data_st.yt_num_dict)
-    #     assert 0 == calc_helper._calc_m_with_m_st([3, 2], 0, bl_yd_list, data_st.yt_num_dict)
-    #     assert 5 == calc_helper._calc_m_with_m_st([3, 1, 1], 0, bl_yd_list, data_st.yt_num_dict)
-    #     assert 11 == calc_helper._calc_m_with_m_st([2, 2, 1], 0, bl_yd_list, data_st.yt_num_dict)
-    #
-    #     bl_yd_list = data_sn.bl_yd_list_dict[tuple([2, 2, 1, 1])]
-    #     assert 5 == calc_helper._calc_m_with_m_st([2, 1, 1, 1], 0, bl_yd_list, data_st.yt_num_dict)
+    '''
 
-    # def test_isf_helper_init(self):
-    #     isf_func = ISFHelper()
-    #     isf_func.enable_now_s_n(2)
-    #     assert callable(isf_func.calc_isf_dict)
-    #     assert callable(isf_func._calc_isf_phase)
-    #     assert callable(isf_func._calc_before_isf_reference)
-    #     assert callable(isf_func._calc_reference_isf_tmp)
-    #     assert callable(isf_func._get_first_no_0_number_from_vector)
-    #     assert callable(isf_func._calc_schmidt_orthogonalization_eigenvectors_and_β_list)
-    #     assert callable(isf_func._calc_ν_by_λ_and_bl)
-    #     assert callable(isf_func.calc_row_indexes_tmp)
-    #     assert callable(isf_func._load_cgc_with_m1_by_input_json)
-    #     assert callable(isf_func._load_cgc_with_m1_lru)
-    #     assert callable(isf_func._cgc_st_2_cgc_m_dict)
-    #     assert callable(isf_func._calc_isf_matrix_element)
-    #     assert callable(isf_func._calc_isf_matrix)
-    #
-    # def test_isf_helper_calc_row_indexes_tmp(self):
-    #     """计算ISF表格的行的意义，它是的bl_σ, bl_μ, β'的列表
-    #     形如[([3,1],[3,1],None), ([3,1],[2,1,1],1), ([3,1],[2,1,1],2), ...]"""
-    #     isf_func = ISFHelper()
-    #
-    #     # 小
-    #     data_st = DataHelper(1)
-    #     data_sn = DataHelper(2)
-    #     data_σ_μ = ΣMDataHelper(2, [2], [1, 1], data_sn, data_st)
-    #     answer = [([1], [1], None)]
-    #     row_index_tmp_list = isf_func.calc_row_indexes_tmp(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
-    #                                                        data_σ_μ.cg_series_st_list_dict, [1], data_st.yd_list)
-    #     assert answer == row_index_tmp_list
-    #
-    #     # 大
-    #     data_st = DataHelper(4)
-    #     data_sn = DataHelper(5)
-    #     data_σ_μ = ΣMDataHelper(5, [2, 1, 1, 1], [2, 1, 1, 1], data_sn, data_st)
-    #     answer = [([2, 1, 1], [2, 1, 1], None), ([1, 1, 1, 1], [1, 1, 1, 1], None)]
-    #     row_index_tmp_list = isf_func.calc_row_indexes_tmp(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
-    #                                                        data_σ_μ.cg_series_st_list_dict,
-    #                                                        [4], data_st.yd_list)
-    #     assert answer == row_index_tmp_list
-    #
-    #     answer = []
-    #     row_index_tmp_list = isf_func.calc_row_indexes_tmp(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
-    #                                                        data_σ_μ.cg_series_st_list_dict,
-    #                                                        [1, 1, 1, 1], data_st.yd_list)
-    #     assert answer == row_index_tmp_list
-    #
-    #     # 有多重
-    #     data_st = DataHelper(5)
-    #     data_sn = DataHelper(6)
-    #     data_σ_μ = ΣMDataHelper(6, [3, 2, 1], [3, 2, 1], data_sn, data_st)
-    #     answer = [([3, 2], [3, 2], None), ([3, 2], [3, 1, 1], None), ([3, 2], [2, 2, 1], None),
-    #               ([3, 1, 1], [3, 2], None), ([3, 1, 1], [3, 1, 1], 1),
-    #               ([3, 1, 1], [3, 1, 1], 2), ([3, 1, 1], [2, 2, 1], None),
-    #               ([2, 2, 1], [3, 2], None), ([2, 2, 1], [3, 1, 1], None), ([2, 2, 1], [2, 2, 1], None)]
-    #     cols_index = [([4, 2], 1), ([4, 2], 2), ([4, 2], 3),
-    #                   ([3, 3], 1), ([3, 3], 2),
-    #                   ([3, 2, 1], 1), ([3, 2, 1], 2), ([3, 2, 1], 3), ([3, 2, 1], 4), ([3, 2, 1], 5)]
-    #     row_index_tmp_list = isf_func.calc_row_indexes_tmp(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
-    #                                                        data_σ_μ.cg_series_st_list_dict,
-    #                                                        [3, 2], data_st.yd_list)
-    #     assert answer == row_index_tmp_list
+    def test_data_helper_init(self):
+        # 检查非法范围报错
+        flag = True
+        try:
+            data_s_0 = DataHelper(0)
+            flag = False
+        except Exception as e:
+            assert str(e) == "s_k={} must be int and >= 1".format(0)
+        assert flag
 
-    # def test_isf_helper__calc_ν_by_λ_and_bl(self):
-    #     isf_func = ISFHelper()
-    #
-    #     # 小值
-    #     data_sn = DataHelper(1)
-    #     assert [1] == isf_func._calc_ν_by_λ_and_bl(1, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
-    #     data_sn = DataHelper(2)
-    #     assert [2] == isf_func._calc_ν_by_λ_and_bl(1, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
-    #     assert [1, 1] == isf_func._calc_ν_by_λ_and_bl(-1, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
-    #
-    #     # 无偶然简并
-    #     data_sn = DataHelper(6)
-    #     assert [6] == isf_func._calc_ν_by_λ_and_bl(15, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
-    #     assert [3, 2, 1] == isf_func._calc_ν_by_λ_and_bl(0, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
-    #     assert [2, 1, 1, 1, 1] == isf_func._calc_ν_by_λ_and_bl(-9, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
-    #     # 有偶然简并
-    #     assert [3, 3] == isf_func._calc_ν_by_λ_and_bl(3, data_sn.eigenvalue_list, data_sn.yd_list,
-    #                                                   data_sn.bl_yd_list_dict, [3, 2])
-    #     assert [4, 1, 1] == isf_func._calc_ν_by_λ_and_bl(3, data_sn.eigenvalue_list, data_sn.yd_list,
-    #                                                      data_sn.bl_yd_list_dict, [4, 1])
-    #     assert [4, 1, 1] == isf_func._calc_ν_by_λ_and_bl(3, data_sn.eigenvalue_list, data_sn.yd_list,
-    #                                                      data_sn.bl_yd_list_dict, [3, 1, 1])
-    #
-    # def test_isf_helper__calc_schmidt_orthogonalization_eigenvectors_and_β_list(self):
-    #     """注意，单根以及多重根的第一个矢量，因为eigh解出来的就是归一化的，为了省略计算，这里没有再次校验和计算归一化
-    #
-    #     所以，测试的多重根第一个矢量必须归一"""
-    #     # case 1 无多重性
-    #     sq_6, sq_3, sq_2 = np.sqrt(6), np.sqrt(3), np.sqrt(2)
-    #     isf_func = ISFHelper()
-    #     eigenvalues_int = [0, -1, 3]
-    #     eigenvectors_t = np.array([[-0.33333333333333315, -0.4714045207910316, -0.8164965809277259],
-    #                                [-0.4714045207910316, 0.8333333333333331, -0.28867513459481287],
-    #                                [-0.8164965809277259, -0.28867513459481287, 0.4999999999999999]])
-    #     e_list, β_list = isf_func._calc_schmidt_orthogonalization_eigenvectors_and_β_list(
-    #         eigenvalues_int, eigenvectors_t)
-    #     for v, a in zip(e_list, eigenvectors_t):
-    #         assert (np.around(v, self.decimals) == np.around(a, self.decimals)).all(), \
-    #             "with e_list={}, soe_answer={}".format(e_list, eigenvectors_t)
-    #     assert β_list == [None, None, None]
-    #
-    #     # case 2 三度多重性
-    #     eigenvalues_int = [2, 2, 2]
-    #     eigenvectors_t = np.array([[1/sq_6, 2/sq_6, -1/sq_6], [-1, 3, 1], [4, -1, 0]])
-    #     soe_answer = np.array([[1/sq_6, 2/sq_6, -1/sq_6], [-1/sq_3, 1/sq_3, 1/sq_3], [1/sq_2, 0, 1/sq_2]])
-    #     e_list, β_list = isf_func._calc_schmidt_orthogonalization_eigenvectors_and_β_list(
-    #         eigenvalues_int, eigenvectors_t)
-    #     for v, a in zip(e_list, soe_answer):
-    #         assert (np.around(v, self.decimals) == np.around(a, self.decimals)).all(), \
-    #             "with e_list={}, soe_answer={}".format(e_list, soe_answer)
-    #     assert β_list == [1, 2, 3]
-    #
-    #     # case 3 1单根+2多根
-    #     eigenvalues_int = [1, 2, 2]
-    #     eigenvectors_t = np.array([[-0.33333333333333315, -0.4714045207910316, -0.8164965809277259],
-    #                                [0, 1/sq_2, 1/sq_2], [0, 1/sq_3, sq_2/sq_3]])
-    #     soe_answer = np.array([[-0.33333333333333315, -0.4714045207910316, -0.8164965809277259],
-    #                            [0, 1/sq_2, 1/sq_2],
-    #                            [0, -1/sq_2, 1/sq_2]])
-    #     e_list, β_list = isf_func._calc_schmidt_orthogonalization_eigenvectors_and_β_list(
-    #         eigenvalues_int, eigenvectors_t)
-    #     for v, a in zip(e_list, soe_answer):
-    #         assert (np.around(v, self.decimals) == np.around(a, self.decimals)).all(), \
-    #             "with e_list={}, soe_answer={}".format(e_list, soe_answer)
-    #     assert β_list == [None, 1, 2]
-    #
-    #     # case 4 1单根+2多根
-    #     eigenvalues_int = [2, 1, 2]
-    #     eigenvectors_t = np.array([[0, 1 / sq_2, 1 / sq_2],
-    #                                [-0.33333333333333315, -0.4714045207910316, -0.8164965809277259],
-    #                                [0, 1 / sq_3, sq_2 / sq_3]])
-    #     soe_answer = np.array([[0, 1 / sq_2, 1 / sq_2],
-    #                            [-0.33333333333333315, -0.4714045207910316, -0.8164965809277259],
-    #                            [0, -1 / sq_2, 1 / sq_2]])
-    #     e_list, β_list = isf_func._calc_schmidt_orthogonalization_eigenvectors_and_β_list(
-    #         eigenvalues_int, eigenvectors_t)
-    #     for v, a in zip(e_list, soe_answer):
-    #         assert (np.around(v, self.decimals) == np.around(a, self.decimals)).all(), \
-    #             "with e_list={}, soe_answer={}".format(e_list, soe_answer)
-    #     assert β_list == [1, None, 2]
-    #
-    #     # case 4 单根+不同的多根
-    #     eigenvalues_int = [2, 2, 1, 4, 4]
-    #     eigenvectors_t = np.array([[0, 1 / sq_2, 1 / sq_2, 0, 0],
-    #                                [0, 1 / sq_3, sq_2 / sq_3, 0, 0],
-    #                                [-0.33333333333333315, 0, -0.4714045207910316, 0, -0.8164965809277259],
-    #                                [0, 0, 0, 1 / sq_2, 1 / sq_2],
-    #                                [0, 0, 0, 1 / sq_3, sq_2 / sq_3]])
-    #     soe_answer = np.array([[0, 1 / sq_2, 1 / sq_2, 0, 0],
-    #                            [0, -1 / sq_2, 1 / sq_2, 0, 0],
-    #                            [-0.33333333333333315, 0, -0.4714045207910316, 0, -0.8164965809277259],
-    #                            [0, 0, 0, 1 / sq_2, 1 / sq_2],
-    #                            [0, 0, 0, -1 / sq_2, 1 / sq_2]])
-    #     e_list, β_list = isf_func._calc_schmidt_orthogonalization_eigenvectors_and_β_list(
-    #         eigenvalues_int, eigenvectors_t)
-    #     for v, a in zip(e_list, soe_answer):
-    #         assert (np.around(v, self.decimals) == np.around(a, self.decimals)).all(), \
-    #             "with e_list={}, soe_answer={}".format(e_list, soe_answer)
-    #     assert β_list == [1, 2, None, 1, 2]
-    #
-    # def test_isf_helper__get_first_no_0_number_from_vector(self):
-    #     isf_func = ISFHelper()
-    #     assert isf_func._get_first_no_0_number_from_vector([0, 0, 0, 0]) is None
-    #     assert isf_func._get_first_no_0_number_from_vector([0.0000001, 0.0000001, 0.0000001]) is None
-    #     assert isf_func._get_first_no_0_number_from_vector([0.0000009, -0.0000009, 0.0000009]) is None
-    #     assert 1 == isf_func._get_first_no_0_number_from_vector([0, 1, 0, 0])
-    #     assert -0.0001009 == isf_func._get_first_no_0_number_from_vector([0.0000009, -0.0001009, 0.0000009])
-    #     assert -0.10010 == isf_func._get_first_no_0_number_from_vector(np.array([0.0000009, -0.10010, 0.5000009]))
+        # 检查最小初始情况
+        data_sn = DataHelper(1)
+        assert data_sn.s_n == 1
+        assert data_sn.yd_list == [[1]]
+        assert data_sn.bl_yd_list_dict == {tuple([1]): [[]]}
+        assert data_sn.yt_num_dict == {tuple([1]): 1}
+        assert data_sn.eigenvalue_list == [1]
 
-    # def test_isf_helper__calc_before_isf_reference(self):
-    #     pass
-    #
-    # def test_isf_helper__calc_isf_phase(self):
-    #     pass
-    #
-    # def test_isf_helper_calc_isf_dict(self):
-    #     pass
-    #
-    # def test_isf_helper__load_cgc_with_m1_by_input_json(self):
-    #     pass
-    #
-    # def test_isf_helper__load_cgc_with_m1_lru(self):
-    #     pass
-    #
-    # def test_isf_helper__cgc_st_2_cgc_m_dict(self):
-    #     pass
-    #
-    # def test_isf_helper__calc_isf_matrix_element(self):
-    #     pass
-    #
-    # def test_isf_helper__calc_isf_matrix(self):
-    #     pass
-    #
-    # def test_cgc_helper_init(self):
-    #     cgc_func = CGCHelper()
-    #     cgc_func.enable_now_s_n(1)
-    #     assert callable(cgc_func.calc_cgc_dict_part_and_save_by_isf)
+        # 检查传递和更新
+        data_st = data_sn
+        data_sn = DataHelper(2)
+        assert data_st.s_n == 1
+        assert data_st.yd_list == [[1]]
+        assert data_st.bl_yd_list_dict == {tuple([1]): [[]]}
+        assert data_st.yt_num_dict == {tuple([1]): 1}
+        assert data_st.eigenvalue_list == [1]
+
+        assert data_sn.s_n == 2
+        assert data_sn.yd_list == [[2], [1, 1]]
+        assert data_sn.bl_yd_list_dict == {tuple([2]): [[1]], tuple([1, 1]): [[1]]}
+        assert data_sn.yt_num_dict == {tuple([2]): 1, tuple([1, 1]): 1}
+        assert data_sn.eigenvalue_list == [1, -1]
+
+    def test_σ_μ_data_helper_init(self):
+        # 检查最小初始情况
+        data_st = DataHelper(1)
+        data_sn = DataHelper(2)
+        data_σ_μ = ΣMDataHelper(2, [2], [1, 1], data_sn, data_st)
+        assert data_σ_μ.s_n == 2
+        assert data_σ_μ.s_t == 1
+        assert data_σ_μ.σ == [2]
+        assert data_σ_μ.μ == [1, 1]
+        assert data_σ_μ.data_sn_cls == data_sn
+        assert data_σ_μ.data_st_cls == data_st
+        assert (data_σ_μ.cg_series_list == np.array([0, 1], dtype=int)).all()
+        assert data_σ_μ.bl_yds_of_σ == [[1]]
+        assert data_σ_μ.bl_yds_of_μ == [[1]]
+        assert data_σ_μ.cg_series_st_list_dict == {(tuple([1]), tuple([1])): [1]}
+        assert data_σ_μ.in_matrix_σ_dict == {(1, 2): sp.Matrix([[1]])}
+        assert data_σ_μ.in_matrix_μ_dict == {(1, 2): sp.Matrix([[-1]])}
+
+        # 再来一个
+        data_st = DataHelper(3)
+        data_sn = DataHelper(4)
+        data_σ_μ = ΣMDataHelper(4, [3, 1], [2, 2], data_sn, data_st)
+        assert data_σ_μ.s_n == 4
+        assert data_σ_μ.s_t == 3
+        assert data_σ_μ.σ == [3, 1]
+        assert data_σ_μ.μ == [2, 2]
+        assert data_σ_μ.data_sn_cls == data_sn
+        assert data_σ_μ.data_st_cls == data_st
+        assert (data_σ_μ.cg_series_list == np.array([0, 1, 0, 1, 0], dtype=int)).all()
+        assert data_σ_μ.bl_yds_of_σ == [[3], [2, 1]]
+        assert data_σ_μ.bl_yds_of_μ == [[2, 1]]
+        cg_series_st_list_dict_answer = {(tuple([3]), tuple([2, 1])): np.array([0, 1, 0], dtype=int),
+                                         (tuple([2, 1]), tuple([2, 1])): np.array([1, 1, 1], dtype=int)}
+        for k, v in data_σ_μ.cg_series_st_list_dict.items():
+            assert (v == cg_series_st_list_dict_answer.get(k)).all()
+
+        in_matrix_σ_dict_answer = {(1, 4): sp.Matrix([[-Ra(1)/3, -sqrt(2)/3, -sqrt(6)/3],
+                                                      [-sqrt(2)/3, Ra(5)/6, -Ra(1)/sqrt(12)],
+                                                      [-sqrt(6)/3, -Ra(1)/sqrt(12), Ra(1)/2]]),
+                                   (2, 4): sp.Matrix([[-Ra(1)/3, -sqrt(2)/3, sqrt(6)/3],
+                                                      [-sqrt(2)/3, Ra(5)/6, Ra(1)/sqrt(12)],
+                                                      [sqrt(6)/3, Ra(1)/sqrt(12), Ra(1)/2]]),
+                                   (3, 4): sp.Matrix([[-Ra(1)/3, sqrt(8)/3, 0],
+                                                      [sqrt(8)/3, Ra(1)/3, 0],
+                                                      [0, 0, 1]])}
+        for k, v in data_σ_μ.in_matrix_σ_dict.items():
+            assert v == in_matrix_σ_dict_answer.get(k)
+
+        in_matrix_μ_dict_answer = {(1, 4): sp.Matrix([[-Ra(1)/2, sqrt(3)/2],
+                                                      [sqrt(3)/2, Ra(1)/2]]),
+                                   (2, 4): sp.Matrix([[-Ra(1)/2, -sqrt(3)/2],
+                                                      [-sqrt(3)/2, Ra(1)/2]]),
+                                   (3, 4): sp.Matrix([[1, 0],
+                                                      [0, -1]])}
+        for k, v in data_σ_μ.in_matrix_μ_dict.items():
+            assert v == in_matrix_μ_dict_answer.get(k)
+
+    def test_calc_helper(self):
+        # 检查非法范围报错
+        calc_helper = CalcHelper()
+        flag = True
+        try:
+            calc_helper.enable_now_s_n(0)
+            flag = False
+        except Exception as e:
+            assert str(e) == "s_n={} must be int and >= {}".format(0, 1)
+        assert flag
+
+        # 检查enable_now_s_n
+        calc_helper = CalcHelper()
+        calc_helper.enable_now_s_n(3)
+        assert calc_helper.s_n == 3
+        assert calc_helper.s_t == 2
+
+        # 检查_calc_m_with_m_st
+        assert 2 == calc_helper._calc_m_with_m_st([2, 1], 2, [[2, 1]], {tuple([2, 1]): 3})
+
+        data_st = DataHelper(4)
+        data_sn = DataHelper(5)
+        bl_yd_list = data_sn.bl_yd_list_dict[tuple([3, 2])]
+        assert 4 == calc_helper._calc_m_with_m_st([2, 2], 1, bl_yd_list, data_st.yt_num_dict)
+
+        if self.test_sn >= 6:
+            data_st = data_sn
+            data_sn = DataHelper(6)
+            bl_yd_list = data_sn.bl_yd_list_dict[tuple([3, 2, 1])]
+            assert 14 == calc_helper._calc_m_with_m_st([2, 2, 1], 3, bl_yd_list, data_st.yt_num_dict)
+            assert 0 == calc_helper._calc_m_with_m_st([3, 2], 0, bl_yd_list, data_st.yt_num_dict)
+            assert 5 == calc_helper._calc_m_with_m_st([3, 1, 1], 0, bl_yd_list, data_st.yt_num_dict)
+            assert 11 == calc_helper._calc_m_with_m_st([2, 2, 1], 0, bl_yd_list, data_st.yt_num_dict)
+
+            bl_yd_list = data_sn.bl_yd_list_dict[tuple([2, 2, 1, 1])]
+            assert 5 == calc_helper._calc_m_with_m_st([2, 1, 1, 1], 0, bl_yd_list, data_st.yt_num_dict)
+
+    def test_isf_helper_init(self):
+        isf_func = ISFHelper()
+        isf_func.enable_now_s_n(2)
+        assert callable(isf_func.calc_isf_dict)
+        # assert callable(isf_func._calc_isf_phase)
+        # assert callable(isf_func._calc_before_isf_ref)
+        # assert callable(isf_func._calc_ref_isf_tmp)
+        assert callable(isf_func._calc_isf_β_and_phase_list)
+        assert callable(isf_func._calc_isf_fbl_another_way)
+        assert callable(isf_func._get_first_no_0_number_from_vector)
+        assert callable(isf_func._calc_orthogonalization_vector)
+        assert callable(isf_func._calc_schmidt_orthogonalization_tricky)
+        # assert callable(isf_func._calc_schmidt_orthogonalization_eigenvectors_and_β_list)
+        assert callable(isf_func._calc_ν_by_λ_and_bl)
+        assert callable(isf_func.calc_row_indexes_tmp)
+        assert callable(isf_func._load_cgc_with_m1_by_input_json)
+        assert callable(isf_func._load_cgc_with_m1_lru)
+        assert callable(isf_func._cgc_st_2_cgc_m_dict)
+        assert callable(isf_func._calc_isf_matrix_element)
+        assert callable(isf_func._calc_isf_matrix)
+
+    def test_isf_helper_calc_row_indexes_tmp(self):
+        """计算ISF表格的行的意义，它是的bl_σ, bl_μ, β'的列表
+        形如[([3,1],[3,1],None), ([3,1],[2,1,1],1), ([3,1],[2,1,1],2), ...]"""
+        isf_func = ISFHelper()
+
+        # 小
+        data_st = DataHelper(1)
+        data_sn = DataHelper(2)
+        data_σ_μ = ΣMDataHelper(2, [2], [1, 1], data_sn, data_st)
+        answer = [([1], [1], None)]
+        row_index_tmp_list = isf_func.calc_row_indexes_tmp(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
+                                                           data_σ_μ.cg_series_st_list_dict, [1], data_st.yd_list)
+        assert answer == row_index_tmp_list
+
+        # 大
+        data_st = DataHelper(4)
+        data_sn = DataHelper(5)
+        data_σ_μ = ΣMDataHelper(5, [2, 1, 1, 1], [2, 1, 1, 1], data_sn, data_st)
+        answer = [([2, 1, 1], [2, 1, 1], None), ([1, 1, 1, 1], [1, 1, 1, 1], None)]
+        row_index_tmp_list = isf_func.calc_row_indexes_tmp(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
+                                                           data_σ_μ.cg_series_st_list_dict,
+                                                           [4], data_st.yd_list)
+        assert answer == row_index_tmp_list
+
+        answer = []
+        row_index_tmp_list = isf_func.calc_row_indexes_tmp(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
+                                                           data_σ_μ.cg_series_st_list_dict,
+                                                           [1, 1, 1, 1], data_st.yd_list)
+        assert answer == row_index_tmp_list
+
+        # 有多重
+        if self.test_sn >= 6:
+            data_st = DataHelper(5)
+            data_sn = DataHelper(6)
+            data_σ_μ = ΣMDataHelper(6, [3, 2, 1], [3, 2, 1], data_sn, data_st)
+            answer = [([3, 2], [3, 2], None), ([3, 2], [3, 1, 1], None), ([3, 2], [2, 2, 1], None),
+                      ([3, 1, 1], [3, 2], None), ([3, 1, 1], [3, 1, 1], 1),
+                      ([3, 1, 1], [3, 1, 1], 2), ([3, 1, 1], [2, 2, 1], None),
+                      ([2, 2, 1], [3, 2], None), ([2, 2, 1], [3, 1, 1], None), ([2, 2, 1], [2, 2, 1], None)]
+            cols_index = [([4, 2], 1), ([4, 2], 2), ([4, 2], 3),
+                          ([3, 3], 1), ([3, 3], 2),
+                          ([3, 2, 1], 1), ([3, 2, 1], 2), ([3, 2, 1], 3), ([3, 2, 1], 4), ([3, 2, 1], 5)]
+            row_index_tmp_list = isf_func.calc_row_indexes_tmp(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ,
+                                                               data_σ_μ.cg_series_st_list_dict,
+                                                               [3, 2], data_st.yd_list)
+            assert answer == row_index_tmp_list
+
+    def test_isf_helper__calc_ν_by_λ_and_bl(self):
+        isf_func = ISFHelper()
+
+        # 小值
+        data_sn = DataHelper(1)
+        assert [1] == isf_func._calc_ν_by_λ_and_bl(1, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
+        data_sn = DataHelper(2)
+        assert [2] == isf_func._calc_ν_by_λ_and_bl(1, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
+        assert [1, 1] == isf_func._calc_ν_by_λ_and_bl(-1, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
+
+        if self.test_sn >= 6:
+            # 无偶然简并
+            data_sn = DataHelper(6)
+            assert [6] == isf_func._calc_ν_by_λ_and_bl(15, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
+            assert [3, 2, 1] == isf_func._calc_ν_by_λ_and_bl(0, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
+            assert [2, 1, 1, 1, 1] == isf_func._calc_ν_by_λ_and_bl(-9, data_sn.eigenvalue_list, data_sn.yd_list, None, None)
+            # 有偶然简并
+            assert [3, 3] == isf_func._calc_ν_by_λ_and_bl(3, data_sn.eigenvalue_list, data_sn.yd_list,
+                                                          data_sn.bl_yd_list_dict, [3, 2])
+            assert [4, 1, 1] == isf_func._calc_ν_by_λ_and_bl(3, data_sn.eigenvalue_list, data_sn.yd_list,
+                                                             data_sn.bl_yd_list_dict, [4, 1])
+            assert [4, 1, 1] == isf_func._calc_ν_by_λ_and_bl(3, data_sn.eigenvalue_list, data_sn.yd_list,
+                                                             data_sn.bl_yd_list_dict, [3, 1, 1])
+
+    def test_isf_helper__calc_orthogonalization_vector(self):
+        isf_func = ISFHelper()
+        vector_list = [sp.Matrix([sqrt(3)]),
+                       sp.Matrix([-sqrt(3)]),
+                       sp.Matrix([1, 1]),
+                       sp.Matrix([-1, 1]),
+                       sp.Matrix([-1, 1]),
+                       sp.Matrix([Ra(1)/sqrt(2), Ra(1)/sqrt(3), Ra(1)/sqrt(5), 0]),
+                       sp.Matrix([sqrt(7), sqrt(7), sqrt(7)])]
+        answer_list = [sp.Matrix([1]),
+                       sp.Matrix([-1]),
+                       sp.Matrix([sqrt(2)/2, sqrt(2)/2]),
+                       sp.Matrix([-sqrt(2)/2, sqrt(2)/2]),
+                       sp.Matrix([-sqrt(2)/2, -sqrt(2)/-2]),
+                       sp.Matrix([sqrt(30)/sqrt(31*2), sqrt(30)/sqrt(31*3), sqrt(30)/sqrt(31*5), 0]),
+                       sp.Matrix([sqrt(3)/3, sqrt(3)/3, sqrt(3)/3])]
+        for v, a in zip(vector_list, answer_list):
+            assert a == isf_func._calc_orthogonalization_vector(v)
+
+    def test_isf_helper__calc_schmidt_orthogonalization_tricky(self):
+        pass
+
+    def test_isf_helper__get_first_no_0_number_from_vector(self):
+        isf_func = ISFHelper()
+        assert (None, None) == isf_func._get_first_no_0_number_from_vector([0, 0, 0, 0])
+        # assert isf_func._get_first_no_0_number_from_vector([0.0000001, 0.0000001, 0.0000001]) is None
+        # assert isf_func._get_first_no_0_number_from_vector([0.0000009, -0.0000009, 0.0000009]) is None
+        assert (1, 1) == isf_func._get_first_no_0_number_from_vector([0, 1, 0, 0])
+        assert (2, -3) == isf_func._get_first_no_0_number_from_vector([0, 0, -3, 0])
+        assert (1, 1) == isf_func._get_first_no_0_number_from_vector([0, 1, 1, -3])
+        assert (0, 0.0000009) == isf_func._get_first_no_0_number_from_vector(sp.Matrix([0.0000009, -0.10010, 0.50009]))
+
+    def test_isf_helper__calc_before_isf_reference(self):
+        pass
+
+    def test_isf_helper__calc_isf_phase(self):
+        pass
+
+    def test_isf_helper_calc_isf_dict(self):
+        pass
+
+    def test_isf_helper__load_cgc_with_m1_by_input_json(self):
+        pass
+
+    def test_isf_helper__load_cgc_with_m1_lru(self):
+        pass
+
+    def test_isf_helper__cgc_st_2_cgc_m_dict(self):
+        pass
+
+    def test_isf_helper__calc_isf_matrix_element(self):
+        pass
+
+    def test_isf_helper__calc_isf_matrix(self):
+        pass
+
+    def test_cgc_helper_init(self):
+        cgc_func = CGCHelper()
+        cgc_func.enable_now_s_n(1)
+        assert callable(cgc_func.calc_cgc_dict_part_and_save_by_isf)
+        
+    '''

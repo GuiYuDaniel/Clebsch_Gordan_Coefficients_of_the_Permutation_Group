@@ -38,8 +38,8 @@ logging_config = {
     "loggers": {
         "": {
             "handlers": ["console", "file_handler"],
-            "level": "INFO"
-            # "level": "DEBUG"
+            # "level": "INFO"
+            "level": "DEBUG"
         }
     }
 }
