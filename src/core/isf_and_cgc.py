@@ -202,6 +202,17 @@ def create_isf_and_cgc(s_n: int=default_s_n):
             [3/20,  2/5, 5/12, -1/30]])
             详见《群表示论的新途径》4-19节，3中最后一段的论述
             '''
+            '''
+            σ, μ = μ, σ的情况，
+            对于ISF，使用公式4-196b
+            既，ISF_σσ'μμ'νν'ββ' = ϵ(σμνβ)ϵ(σ'μ'ν'β') * ISF_μμ'σσ'νν'ββ',
+            也既，ISF_μμ'σσ'νν'ββ' = ϵ(σμνβ)ϵ(σ'μ'ν'β') * ISF_σσ'μμ'νν'ββ'（这个式子，可做推倒式子使用）
+            对于CGC，使用公式4-116a
+            既，CGC_{σm_σ,μm_μ,νβm} = ϵ(σμνβ) * CGC_{μm_μ,σm_σ,νβm}
+            也既，CGC_{μm_μ,σm_σ,νβm} = ϵ(σμνβ) * CGC_{σm_σ,μm_μ,νβm} （这个式子，可做推倒式子使用）
+            其中，ϵ(σμνβ) = sign(CGC_{σm_σ,μm_μ,νβm_1} | (m_μ,m_σ)=min)  (源自绝对相位约定)
+            表示ϵ取(m_μ,m_σ)编号为最小时的非零CG系数的符号(注意，μ在前，σ在后)
+            '''
             # σ_μ_start_time = time.time()
             logger.debug("σ={}, μ={}".format(σ, μ))
 
@@ -1594,6 +1605,7 @@ class CGCHelper(CalcHelper):
         
     def calc_cgc_dict_part_and_save_by_isf(self, isf_square_dict, ν_st, data_sn, data_st, data_σ_μ):
         # TODO 一张ISF表是可以算出对应m的完整CGC的，所以可以在里面检查N，也有可能分离save与calc
+        # 3-303
 
         # 先按照列计算吧，后面根据情况看看是否能优化
         σ_μ_β_all_st_tuple_list = isf_square_dict["rows"]
@@ -1639,19 +1651,23 @@ class CGCHelper(CalcHelper):
                     offset_of_m_μ = self._calc_m_with_m_st(μ_st, 0, data_sn.bl_yd_list_dict[tuple(data_σ_μ.μ)],
                                                            data_st.yt_num_dict)
                     for (m_σ_st, m_μ_st), cgc_st_square in cgc_st_square_dict.items():
-                        m_σ = offset_of_m_σ + m_σ_st
-                        m_μ = offset_of_m_μ + m_μ_st
+                        cgc_key = (offset_of_m_σ + m_σ_st, offset_of_m_μ + m_μ_st)
 
-                        if (m_σ, m_μ) not in cgc_square_part_dict:
-                            cgc_square_part_dict[(m_σ, m_μ)] = isf_square * cgc_st_square / cgc_st_square_n
+                        if cgc_key not in cgc_square_part_dict:
+                            single_cgc_square = isf_square * cgc_st_square / cgc_st_square_n
+                            if single_cgc_square != 0:
+                                cgc_square_part_dict[cgc_key] = isf_square * cgc_st_square / cgc_st_square_n
                         else:
                             cgc_new_part = sp.sign(isf_square) * sp.sign(cgc_st_square) \
                                            * sp.sqrt(abs(isf_square * cgc_st_square / cgc_st_square_n))
-                            cgc_old_part = sp.sign(cgc_square_part_dict[(m_σ, m_μ)]) \
-                                           * sp.sqrt(abs(cgc_square_part_dict[(m_σ, m_μ)]))
+                            cgc_old_part = sp.sign(cgc_square_part_dict[cgc_key]) \
+                                           * sp.sqrt(abs(cgc_square_part_dict[cgc_key]))
                             update_cgc_square = sp.sign(cgc_new_part + cgc_old_part) \
                                                 * (cgc_new_part + cgc_old_part)**2
-                            cgc_square_part_dict[(m_σ, m_μ)] = update_cgc_square  # 覆盖
+                            if update_cgc_square != 0:
+                                cgc_square_part_dict[cgc_key] = update_cgc_square  # 覆盖
+                            else:
+                                cgc_square_part_dict.pop(cgc_key)
 
                 # 部分的算好了，开始计算当前部分的N
                 cgc_square_part_dict.pop("N")

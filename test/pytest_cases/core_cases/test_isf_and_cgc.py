@@ -14,7 +14,7 @@ import sympy as sp
 from sympy import Rational as Ra
 from sympy import sqrt
 import pytest
-from itertools import chain
+from itertools import chain, product
 from conf.cgc_config import cgc_rst_folder, isf_0_error_value
 from core.young_diagrams import create_young_diagrams, load_young_diagrams
 from core.branching_laws import create_branching_laws
@@ -22,11 +22,11 @@ from core.young_tableaux import create_young_tableaux
 from core.yamanouchi_matrix import create_yamanouchi_matrix
 from core.characters_and_gi import create_characters_and_gi
 from core.cg_series import create_cg_series
-from core.eigenvalues import create_eigenvalues
+from core.eigenvalues import create_eigenvalues, load_eigenvalues
 from core.cgc_utils.cgc_db_typing import ISFInfo, CGCInfo
 from core.cgc_utils.cgc_local_db import get_isf_file_name, get_isf_finish_s_n_name
 from core.cgc_utils.cgc_local_db import get_cgc_file_name, get_cgc_finish_s_n_name
-from core.isf_and_cgc import create_isf_and_cgc, load_isf, load_cgc
+from core.isf_and_cgc import create_isf_and_cgc, load_isf, load_cgc, load_cgc_with_m1
 from core.isf_and_cgc import get_isf_finish_s_n, get_cgc_finish_s_n
 from core.isf_and_cgc import ΣMDataHelper, DataHelper, CalcHelper, ISFHelper, CGCHelper
 from db.local_db_protector import DBProtector
@@ -36,45 +36,132 @@ from utils.log import get_logger
 logger = get_logger(__name__)
 
 
-class TestISFAndCGC(object):
+class Helper(object):
+    """这里放一些非直接测试的辅助函数"""
 
-    def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_isf_and_cgc_protected")
-        self.protector.protector_setup()
+    def __init__(self, s_t_max=5):
+        # 这里拿yd对应的eigenvalues_list是为了判断(σ', μ')的Yamanouchi顺序，在S5之前，它都是和Yamanouchi序一致的
+        self.all_yd_dict = {}
+        self.all_ev_dict = {}
+        for s_t in range(1, s_t_max + 1):
+            # yd
+            _, yd_list = load_young_diagrams(s_t, is_flag_true_if_not_s_n=False)
+            self.all_yd_dict[s_t] = yd_list
 
-        # 准备前文
-        s_n = 5
-        self.test_sn = s_n
-        flag, msg = create_young_diagrams(s_n)
+            # eigenvalue
+            _, eigenvalue_list = load_eigenvalues(s_t, is_flag_true_if_not_s_n=False)
+            self.all_ev_dict[s_t] = eigenvalue_list
+
+    def calc_symmetry_cgc(self, s_n, σ, μ, ν, β, m, cgc_square_dict):
+        """CGC_{μm_μ,σm_σ,νβm} = ϵ(σμνβ) * CGC_{σm_σ,μm_μ,νβm}
+
+        return和Data中self.cgc_x格式一致"""
+        ϵ = self.calc_ϵ(s_n, σ, μ, ν, β)
+        symmetry_cgc_square_dict = {(k[1], k[0]): ϵ * v for k, v in cgc_square_dict.items() if k != "N"}
+        symmetry_cgc_square_dict["N"] = cgc_square_dict["N"]
+        return s_n, μ, σ, ν, β, m, symmetry_cgc_square_dict
+
+    def _calc_symmetry_isf_rows(self, s_n, isf_rows):
+        all_yd_list = self.all_yd_dict[s_n - 1]
+        all_ev_list = self.all_ev_dict[s_n - 1]
+        symmetry_isf_rows = []
+        μ_st_ev_set = set(all_ev_list[all_yd_list.index(i[1])] for i in isf_rows)
+        μ_st_ev_list = list(μ_st_ev_set)
+        for μ_st_ev in sorted(μ_st_ev_list, reverse=True):
+            μ_st = all_yd_list[all_ev_list.index(μ_st_ev)]
+            σ_st_ev_list_part = [all_ev_list[all_yd_list.index(i[0])] for i in isf_rows if i[1] == μ_st]
+            descending_σ_st_ev_list_part = sorted(σ_st_ev_list_part, reverse=True)
+            symmetry_isf_rows_part = [(μ_st, all_yd_list[all_ev_list.index(σ_st_ev)])
+                                      for σ_st_ev in descending_σ_st_ev_list_part]
+            symmetry_isf_rows += symmetry_isf_rows_part
+        return symmetry_isf_rows
+
+    @staticmethod
+    def _calc_symmetry_isf_square_matrix_tmp(isf_rows, symmetry_isf_rows, isf_square_matrix):
+        isf_anti_rows = [(i[1], i[0]) for i in isf_rows]  # S6之前，σ', μ'都可用  # 它是简单调换顺序，用来对比看哪些行移动了的
+        # 对比symmetry_isf_rows 和 isf_anti_rows，得出哪些行应该变动
+        symmetry_isf_tmp = sp.zeros(len(isf_rows))  # 还可以用交换来优化
+        for i, row in enumerate(symmetry_isf_rows):
+            symmetry_isf_tmp[i, :] = isf_square_matrix[isf_anti_rows.index(row), :]
+        return symmetry_isf_tmp
+
+    def calc_symmetry_isf_square_dict(self, s_n, isf_square_dict, σ, μ, ν_st):
+        isf_rows = isf_square_dict["rows"]  # rows需要按照σ，μ调换顺序，不仅仅左右换位置，还要考虑到Yamanouchi序
+        symmetry_isf_cols = isf_square_dict["cols"]  # cols是不变的
+        symmetry_isf_rows = self._calc_symmetry_isf_rows(s_n, isf_rows)
+        ϵ_list = []
+        for col in symmetry_isf_cols:
+            ν, β = (col, None) if isinstance(col, list) else (col[0], col[1])
+            ϵ = self.calc_ϵ(s_n, σ, μ, ν, β)
+            ϵ_list.append(ϵ)
+        ϵ_st_list = []
+        for row in symmetry_isf_rows:
+            μ_st, σ_st, β_st = (row[0], row[1], None) if len(row) == 2 else (row[0], row[1], row[2])
+            ϵ_st = self.calc_ϵ(s_n-1, σ_st, μ_st, ν_st, β_st)
+            ϵ_st_list.append(ϵ_st)
+        isf_square_matrix = isf_square_dict["isf"]
+        symmetry_isf_tmp = self._calc_symmetry_isf_square_matrix_tmp(isf_rows, symmetry_isf_rows, isf_square_matrix)
+        div = len(isf_rows)
+        symmetry_isf_square = sp.zeros(div)
+        for (row_i, ϵ_st), (col_i, ϵ) in product(zip(range(div), ϵ_st_list), zip(range(div), ϵ_list)):
+            symmetry_isf_square[row_i, col_i] = ϵ * ϵ_st * symmetry_isf_tmp[row_i, col_i]
+        return {"rows": symmetry_isf_rows,
+                "cols": symmetry_isf_cols,
+                "isf": symmetry_isf_square}
+
+    def calc_symmetry_isf(self, s_n, σ, μ, ν_st, isf_square_dict):
+        symmetry_isf_dict = self.calc_symmetry_isf_square_dict(s_n, isf_square_dict, σ, μ, ν_st)
+        return s_n, μ, σ, ν_st, symmetry_isf_dict
+
+    @staticmethod
+    def get_min_μ_σ_from_dict(cgc_square_dict):
+        m_μ_set = set(i[1] for i in cgc_square_dict.keys() if isinstance(i, tuple))
+        min_m_μ = min(m_μ_set)
+        m_σ_set_of_min_m_μ = set(i[0] for i in cgc_square_dict.keys() if isinstance(i, tuple) and i[1] == min_m_μ)
+        min_m_σ = min(m_σ_set_of_min_m_μ)
+        min_key = (min_m_σ, min_m_μ,)
+        return min_key, cgc_square_dict[min_key]
+
+    def calc_ϵ(self, s_n, σ, μ, ν, β):
+        """ϵ(σμνβ) = sign(CGC_{σm_σ,μm_μ,νβm_1} | (m_μ,m_σ)=min)"""
+        flag, cgc_square_dict = load_cgc_with_m1(s_n, σ, μ, ν, β)
         assert flag
-        assert msg == s_n
+        assert cgc_square_dict
+        _, min_value = self.get_min_μ_σ_from_dict(cgc_square_dict)
+        return sp.sign(min_value)
 
-        flag, msg = create_branching_laws(s_n)
-        assert flag
-        assert msg == s_n
+    @staticmethod
+    def is_isf_square_orthogonalization(isf_square_matrix):
+        """看一个平方方阵，所有行/列是否正交归一"""
+        assert isf_square_matrix.shape[0] == isf_square_matrix.shape[1]
+        div = isf_square_matrix.shape[0]
+        for i in range(div):
+            matrix_i_by_row = isf_square_matrix[i, :]
+            matrix_i_by_col = isf_square_matrix[:, i]
+            for j in range(div):
+                matrix_j_by_row = isf_square_matrix[j, :]
+                matrix_j_by_col = isf_square_matrix[:, j]
 
-        flag, msg = create_young_tableaux(s_n)
-        assert flag
-        assert msg == s_n
+                sum_row_row = sum(sp.sign(matrix_i_by_row[k])
+                                  * sp.sign(matrix_j_by_row[k])
+                                  * sqrt(abs(matrix_i_by_row[k]))
+                                  * sqrt(abs(matrix_j_by_row[k])) for k in range(div))
+                sum_col_col = sum(sp.sign(matrix_i_by_col[k])
+                                  * sp.sign(matrix_j_by_col[k])
+                                  * sqrt(abs(matrix_i_by_col[k]))
+                                  * sqrt(abs(matrix_j_by_col[k])) for k in range(div))
+                if i == j:
+                    assert sum_row_row == 1, "sum_row_row={} not eq 1 for i={},j={}".format(sum_row_row, i, j)
+                    assert sum_col_col == 1, "sum_col_col={} not eq 1 for i={},j={}".format(sum_col_col, i, j)
+                else:
+                    assert sum_row_row == 0, "sum_row_row={} not eq 0 for i={},j={}".format(sum_row_row, i, j)
+                    assert sum_col_col == 0, "sum_col_col={} not eq 0 for i={},j={}".format(sum_col_col, i, j)
 
-        flag, msg = create_yamanouchi_matrix(s_n)
-        assert flag
-        assert msg == s_n
 
-        flag, msg = create_characters_and_gi(s_n)
-        assert flag
-        assert msg == s_n
+class Data(object):
+    """ISF 和 CGC 等数据，独立出来易读性好，让test类继承它"""
 
-        flag, msg = create_cg_series(s_n)
-        assert flag
-        assert msg == s_n
-
-        flag, msg = create_eigenvalues(s_n)
-        assert flag
-        assert msg == s_n
-
-        self.decimals = len(str(isf_0_error_value))
-
+    def __init__(self):
         # isf data
         # 格式 Sn, σ, μ, ν_st, ISF_square_dict
         isf_square_dict = {"rows": [([1], [1])], "cols": [[2]], "isf": sp.Matrix([[1]])}
@@ -83,24 +170,24 @@ class TestISFAndCGC(object):
         # 数据来源见《群表示论的新途径》陈金全（上海科学技术出版社1984）表4.19
         isf_square_dict = {"rows": [([2], [2]), ([1, 1], [1, 1])],
                            "cols": [[3], [2, 1]],
-                           "isf": sp.Matrix([[Ra(1)/2, Ra(1)/2], [Ra(1)/2, -Ra(1)/2]])}
+                           "isf": sp.Matrix([[Ra(1) / 2, Ra(1) / 2], [Ra(1) / 2, -Ra(1) / 2]])}
         self.isf_2 = (3, [2, 1], [2, 1], [2], isf_square_dict)
 
         isf_square_dict = {"rows": [([2], [1, 1]), ([1, 1], [2])],
                            "cols": [[2, 1], [1, 1, 1]],
-                           "isf": sp.Matrix([[-Ra(1)/2, Ra(1)/2], [-Ra(1)/2, -Ra(1)/2]])}
+                           "isf": sp.Matrix([[-Ra(1) / 2, Ra(1) / 2], [-Ra(1) / 2, -Ra(1) / 2]])}
         self.isf_3 = (3, [2, 1], [2, 1], [1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3], [3]), ([2, 1], [2, 1])],
                            "cols": [[4], [3, 1]],
-                           "isf": sp.Matrix([[Ra(1)/3, Ra(2)/3], [Ra(2)/3, -Ra(1)/3]])}
+                           "isf": sp.Matrix([[Ra(1) / 3, Ra(2) / 3], [Ra(2) / 3, -Ra(1) / 3]])}
         self.isf_4 = (4, [3, 1], [3, 1], [3], isf_square_dict)
 
         isf_square_dict = {"rows": [([3], [2, 1]), ([2, 1], [3]), ([2, 1], [2, 1])],
                            "cols": [[3, 1], [2, 2], [2, 1, 1]],
-                           "isf": sp.Matrix([[-Ra(1)/6, Ra(1)/3, Ra(1)/2], 
-                                             [-Ra(1)/6, Ra(1)/3, -Ra(1)/2], 
-                                             [Ra(2)/3, Ra(1)/3, 0]])}
+                           "isf": sp.Matrix([[-Ra(1) / 6, Ra(1) / 3, Ra(1) / 2],
+                                             [-Ra(1) / 6, Ra(1) / 3, -Ra(1) / 2],
+                                             [Ra(2) / 3, Ra(1) / 3, 0]])}
         self.isf_5 = (4, [3, 1], [3, 1], [2, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[2, 1, 1]], "isf": sp.Matrix([[1]])}
@@ -111,43 +198,43 @@ class TestISFAndCGC(object):
 
         isf_square_dict = {"rows": [([3], [2, 1]), ([2, 1], [2, 1]), ([2, 1], [1, 1, 1])],
                            "cols": [[3, 1], [2, 2], [2, 1, 1]],
-                           "isf": sp.Matrix([[-Ra(1)/2, Ra(1)/3, Ra(1)/6], 
-                                             [0, -Ra(1)/3, Ra(2)/3], 
-                                             [Ra(1)/2, Ra(1)/3, Ra(1)/6]])}
+                           "isf": sp.Matrix([[-Ra(1) / 2, Ra(1) / 3, Ra(1) / 6],
+                                             [0, -Ra(1) / 3, Ra(2) / 3],
+                                             [Ra(1) / 2, Ra(1) / 3, Ra(1) / 6]])}
         self.isf_8 = (4, [3, 1], [2, 1, 1], [2, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1], [2, 1]), ([2, 1], [1, 1, 1])],
                            "cols": [[3, 1], [2, 1, 1]],
-                           "isf": sp.Matrix([[-Ra(1)/2, Ra(1)/2], [-Ra(1)/2, -Ra(1)/2]])}
+                           "isf": sp.Matrix([[-Ra(1) / 2, Ra(1) / 2], [-Ra(1) / 2, -Ra(1) / 2]])}
         self.isf_9 = (4, [2, 2], [2, 1, 1], [2, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1], [2, 1]), ([1, 1, 1], [1, 1, 1])],
                            "cols": [[4], [3, 1]],
-                           "isf": sp.Matrix([[Ra(2)/3, Ra(1)/3], [Ra(1)/3, -Ra(2)/3]])}
+                           "isf": sp.Matrix([[Ra(2) / 3, Ra(1) / 3], [Ra(1) / 3, -Ra(2) / 3]])}
         self.isf_10 = (4, [2, 1, 1], [2, 1, 1], [3], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1], [2, 1]), ([2, 1], [1, 1, 1]), ([1, 1, 1], [2, 1])],
                            "cols": [[3, 1], [2, 2], [2, 1, 1]],
-                           "isf": sp.Matrix([[Ra(2)/3, Ra(1)/3, 0], 
-                                             [-Ra(1)/6, Ra(1)/3, Ra(1)/2], 
-                                             [-Ra(1)/6, Ra(1)/3, -Ra(1)/2]])}
+                           "isf": sp.Matrix([[Ra(2) / 3, Ra(1) / 3, 0],
+                                             [-Ra(1) / 6, Ra(1) / 3, Ra(1) / 2],
+                                             [-Ra(1) / 6, Ra(1) / 3, -Ra(1) / 2]])}
         self.isf_11 = (4, [2, 1, 1], [2, 1, 1], [2, 1], isf_square_dict)  # 这个也可以用来检查first_no_0
 
         isf_square_dict = {"rows": [([4], [3, 1]), ([3, 1], [4]), ([3, 1], [3, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
-                           "isf": sp.Matrix([[-Ra(1)/12, Ra(5)/12, Ra(1)/2],
-                                             [-Ra(1)/12, Ra(5)/12, -Ra(1)/2],
-                                             [Ra(5)/6, Ra(1)/6, 0]])}
+                           "isf": sp.Matrix([[-Ra(1) / 12, Ra(5) / 12, Ra(1) / 2],
+                                             [-Ra(1) / 12, Ra(5) / 12, -Ra(1) / 2],
+                                             [Ra(5) / 6, Ra(1) / 6, 0]])}
         self.isf_12 = (5, [4, 1], [4, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([4], [2, 2]), ([3, 1], [3, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
-                           "isf": sp.Matrix([[-Ra(3)/8, Ra(5)/8], [-Ra(5)/8, -Ra(3)/8]])}
+                           "isf": sp.Matrix([[-Ra(3) / 8, Ra(5) / 8], [-Ra(5) / 8, -Ra(3) / 8]])}
         self.isf_13 = (5, [4, 1], [3, 2], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
-                           "isf": sp.Matrix([[-Ra(1)/16, Ra(15)/16], [Ra(15)/16, Ra(1)/16]])}
+                           "isf": sp.Matrix([[-Ra(1) / 16, Ra(15) / 16], [Ra(15) / 16, Ra(1) / 16]])}
         self.isf_14 = (5, [4, 1], [3, 1, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1])],
@@ -160,16 +247,16 @@ class TestISFAndCGC(object):
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 2], [3, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
-                           "isf": sp.Matrix([[Ra(1)/3, Ra(2)/3, 0],
-                                             [-Ra(1)/3, Ra(1)/6, Ra(1)/2],
-                                             [-Ra(1)/3, Ra(1)/6, -Ra(1)/2]])}
+                           "isf": sp.Matrix([[Ra(1) / 3, Ra(2) / 3, 0],
+                                             [-Ra(1) / 3, Ra(1) / 6, Ra(1) / 2],
+                                             [-Ra(1) / 3, Ra(1) / 6, -Ra(1) / 2]])}
         self.isf_17 = (5, [3, 2], [3, 2], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 2], [3, 1])],
                            "cols": [[3, 1, 1], [2, 2, 1], [2, 1, 1, 1]],
-                           "isf": sp.Matrix([[Ra(2)/5, 0, Ra(3)/5],
-                                             [Ra(3)/10, Ra(1)/2, -Ra(1)/5],
-                                             [-Ra(3)/10, Ra(1)/2, Ra(1)/5]])}
+                           "isf": sp.Matrix([[Ra(2) / 5, 0, Ra(3) / 5],
+                                             [Ra(3) / 10, Ra(1) / 2, -Ra(1) / 5],
+                                             [-Ra(3) / 10, Ra(1) / 2, Ra(1) / 5]])}
         self.isf_18 = (5, [3, 2], [3, 2], [2, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 2], [2, 2])],
@@ -184,23 +271,23 @@ class TestISFAndCGC(object):
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 2], [3, 1]), ([2, 2], [2, 1, 1])],
                            "cols": [[4, 1], [3, 2], ([3, 1, 1], 1), ([3, 1, 1], 2)],
-                           "isf": sp.Matrix([[-Ra(3)/10, 0, Ra(3)/5, Ra(1)/10],
-                                             [-Ra(1)/6, Ra(1)/3, 0, -Ra(1)/2],
-                                             [-Ra(1)/30, Ra(5)/12, -Ra(3)/20, Ra(2)/5],
-                                             [Ra(1)/2, Ra(1)/4, Ra(1)/4, 0]])}
+                           "isf": sp.Matrix([[-Ra(3) / 10, 0, Ra(3) / 5, Ra(1) / 10],
+                                             [-Ra(1) / 6, Ra(1) / 3, 0, -Ra(1) / 2],
+                                             [-Ra(1) / 30, Ra(5) / 12, -Ra(3) / 20, Ra(2) / 5],
+                                             [Ra(1) / 2, Ra(1) / 4, Ra(1) / 4, 0]])}
         self.isf_21 = (5, [3, 2], [3, 1, 1], [3, 1], isf_square_dict)  # 可测真实beta
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
-                           "isf": sp.Matrix([[-Ra(5)/8, Ra(3)/8], [-Ra(3)/8, -Ra(5)/8]])}
+                           "isf": sp.Matrix([[-Ra(5) / 8, Ra(3) / 8], [-Ra(3) / 8, -Ra(5) / 8]])}
         self.isf_22 = (5, [3, 2], [3, 1, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 2], [3, 1]), ([2, 2], [2, 1, 1])],
                            "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
-                           "isf": sp.Matrix([[0, Ra(1)/2, -Ra(1)/3, Ra(1)/6],
-                                             [-Ra(3)/5, Ra(1)/10, 0, -Ra(3)/10],
-                                             [Ra(1)/4, 0, -Ra(1)/4, -Ra(1)/2],
-                                             [Ra(3)/20, Ra(2)/5, Ra(5)/12, -Ra(1)/30]])}
+                           "isf": sp.Matrix([[0, Ra(1) / 2, -Ra(1) / 3, Ra(1) / 6],
+                                             [-Ra(3) / 5, Ra(1) / 10, 0, -Ra(3) / 10],
+                                             [Ra(1) / 4, 0, -Ra(1) / 4, -Ra(1) / 2],
+                                             [Ra(3) / 20, Ra(2) / 5, Ra(5) / 12, -Ra(1) / 30]])}
         self.isf_23 = (5, [3, 2], [3, 1, 1], [2, 1, 1], isf_square_dict)  # 可测真实beta  # 还能测first_no_0
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1])],
@@ -210,71 +297,71 @@ class TestISFAndCGC(object):
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 2], [2, 2])],
                            "cols": [[2, 1, 1, 1], [1, 1, 1, 1, 1]],
-                           "isf": sp.Matrix([[-Ra(2)/5, Ra(3)/5], [Ra(3)/5, Ra(2)/5]])}
+                           "isf": sp.Matrix([[-Ra(2) / 5, Ra(3) / 5], [Ra(3) / 5, Ra(2) / 5]])}
         self.isf_25 = (5, [3, 2], [2, 2, 1], [1, 1, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 2], [1, 1, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
-                           "isf": sp.Matrix([[Ra(3)/8, Ra(5)/8], [Ra(5)/8, -Ra(3)/8]])}
+                           "isf": sp.Matrix([[Ra(3) / 8, Ra(5) / 8], [Ra(5) / 8, -Ra(3) / 8]])}
         self.isf_26 = (5, [3, 2], [2, 1, 1, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[4, 1], ([3, 2], 1), ([3, 2], 2), [3, 1, 1]],
-                           "isf": sp.Matrix([[Ra(5)/12, Ra(1)/2, Ra(1)/12, 0],
-                                             [-Ra(1)/12, 0, Ra(5)/12, Ra(1)/2],
-                                             [-Ra(1)/12, 0, Ra(5)/12, -Ra(1)/2],
-                                             [Ra(5)/12, -Ra(1)/2, Ra(1)/12, 0]])}
+                           "isf": sp.Matrix([[Ra(5) / 12, Ra(1) / 2, Ra(1) / 12, 0],
+                                             [-Ra(1) / 12, 0, Ra(5) / 12, Ra(1) / 2],
+                                             [-Ra(1) / 12, 0, Ra(5) / 12, -Ra(1) / 2],
+                                             [Ra(5) / 12, -Ra(1) / 2, Ra(1) / 12, 0]])}
         self.isf_27 = (5, [3, 1, 1], [3, 1, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [([3, 2], 1), ([3, 2], 2), ([2, 2, 1], 1), ([2, 2, 1], 2)],
-                           "isf": sp.Matrix([[-Ra(3)/16, Ra(1)/2, Ra(5)/16, 0],
-                                             [Ra(5)/16, 0, Ra(3)/16, Ra(1)/2],
-                                             [Ra(5)/16, 0, Ra(3)/16, -Ra(1)/2],
-                                             [Ra(3)/16, Ra(1)/2, -Ra(5)/16, 0]])}
+                           "isf": sp.Matrix([[-Ra(3) / 16, Ra(1) / 2, Ra(5) / 16, 0],
+                                             [Ra(5) / 16, 0, Ra(3) / 16, Ra(1) / 2],
+                                             [Ra(5) / 16, 0, Ra(3) / 16, -Ra(1) / 2],
+                                             [Ra(3) / 16, Ra(1) / 2, -Ra(5) / 16, 0]])}
         self.isf_28 = (5, [3, 1, 1], [3, 1, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[3, 1, 1], ([2, 2, 1], 1), ([2, 2, 1], 2), [2, 1, 1, 1]],
-                           "isf": sp.Matrix([[Ra(1)/2, 0, -Ra(5)/12, Ra(1)/12],
-                                             [0, -Ra(1)/2, Ra(1)/12, Ra(5)/12],
-                                             [0, -Ra(1)/2, -Ra(1)/12, -Ra(5)/12],
-                                             [Ra(1)/2, 0, Ra(5)/12, -Ra(1)/12]])}
+                           "isf": sp.Matrix([[Ra(1) / 2, 0, -Ra(5) / 12, Ra(1) / 12],
+                                             [0, -Ra(1) / 2, Ra(1) / 12, Ra(5) / 12],
+                                             [0, -Ra(1) / 2, -Ra(1) / 12, -Ra(5) / 12],
+                                             [Ra(1) / 2, 0, Ra(5) / 12, -Ra(1) / 12]])}
         self.isf_29 = (5, [3, 1, 1], [3, 1, 1], [2, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 2]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 2]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[4, 1], [3, 2], ([3, 1, 1], 1), ([3, 1, 1], 2)],
-                           "isf": sp.Matrix([[Ra(1)/2, Ra(1)/4, Ra(1)/4, 0],
-                                             [Ra(1)/6, -Ra(1)/3, 0, Ra(1)/2],
-                                             [Ra(1)/30, -Ra(5)/12, Ra(3)/20, -Ra(2)/5],
-                                             [Ra(3)/10, 0, -Ra(3)/5, -Ra(1)/10]])}
+                           "isf": sp.Matrix([[Ra(1) / 2, Ra(1) / 4, Ra(1) / 4, 0],
+                                             [Ra(1) / 6, -Ra(1) / 3, 0, Ra(1) / 2],
+                                             [Ra(1) / 30, -Ra(5) / 12, Ra(3) / 20, -Ra(2) / 5],
+                                             [Ra(3) / 10, 0, -Ra(3) / 5, -Ra(1) / 10]])}
         self.isf_30 = (5, [3, 1, 1], [2, 2, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
-                           "isf": sp.Matrix([[-Ra(3)/8, Ra(5)/8], [Ra(5)/8, Ra(3)/8]])}
+                           "isf": sp.Matrix([[-Ra(3) / 8, Ra(5) / 8], [Ra(5) / 8, Ra(3) / 8]])}
         self.isf_31 = (5, [3, 1, 1], [2, 2, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 2]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 2]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
-                           "isf": sp.Matrix([[Ra(3)/20, Ra(2)/5, -Ra(5)/12, Ra(1)/30],
-                                             [-Ra(3)/5, Ra(1)/10, 0, Ra(3)/10],
-                                             [-Ra(1)/4, 0, -Ra(1)/4, -Ra(1)/2],
-                                             [0, -Ra(1)/2, -Ra(1)/3, Ra(1)/6]])}
+                           "isf": sp.Matrix([[Ra(3) / 20, Ra(2) / 5, -Ra(5) / 12, Ra(1) / 30],
+                                             [-Ra(3) / 5, Ra(1) / 10, 0, Ra(3) / 10],
+                                             [-Ra(1) / 4, 0, -Ra(1) / 4, -Ra(1) / 2],
+                                             [0, -Ra(1) / 2, -Ra(1) / 3, Ra(1) / 6]])}
         self.isf_32 = (5, [3, 1, 1], [2, 2, 1], [2, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 1, 1]), ([2, 1, 1], [1, 1, 1, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
-                           "isf": sp.Matrix([[-Ra(2)/3, Ra(5)/24, Ra(1)/8],
-                                             [0, -Ra(3)/8, Ra(5)/8],
-                                             [Ra(1)/3, Ra(5)/12, Ra(1)/4]])}
+                           "isf": sp.Matrix([[-Ra(2) / 3, Ra(5) / 24, Ra(1) / 8],
+                                             [0, -Ra(3) / 8, Ra(5) / 8],
+                                             [Ra(1) / 3, Ra(5) / 12, Ra(1) / 4]])}
         self.isf_33 = (5, [3, 1, 1], [2, 1, 1, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 2], [2, 1, 1]), ([2, 1, 1], [2, 2]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
-                           "isf": sp.Matrix([[-Ra(1)/3, Ra(1)/6, Ra(1)/2],
-                                             [-Ra(1)/3, Ra(1)/6, -Ra(1)/2],
-                                             [Ra(1)/3, Ra(2)/3, 0]])}
+                           "isf": sp.Matrix([[-Ra(1) / 3, Ra(1) / 6, Ra(1) / 2],
+                                             [-Ra(1) / 3, Ra(1) / 6, -Ra(1) / 2],
+                                             [Ra(1) / 3, Ra(2) / 3, 0]])}
         self.isf_34 = (5, [2, 2, 1], [2, 2, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 2], [2, 2])], "cols": [[2, 1, 1, 1]], "isf": sp.Matrix([[-1]])}
@@ -285,7 +372,7 @@ class TestISFAndCGC(object):
 
         isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1]), ([1, 1, 1, 1], [1, 1, 1, 1])],
                            "cols": [[5], [4, 1]],
-                           "isf": sp.Matrix([[Ra(3)/4, Ra(1)/4], [Ra(1)/4, -Ra(3)/4]])}
+                           "isf": sp.Matrix([[Ra(3) / 4, Ra(1) / 4], [Ra(1) / 4, -Ra(3) / 4]])}
         self.isf_37 = (5, [2, 1, 1, 1], [2, 1, 1, 1], [4], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])], "cols": [[3, 2]], "isf": sp.Matrix([[1]])}
@@ -297,18 +384,18 @@ class TestISFAndCGC(object):
         # 自己算的
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 2])],
                            "cols": [[4, 1], [3, 2], ([3, 1, 1], 1), ([3, 1, 1], 2)],
-                           "isf": sp.Matrix([[-Ra(3)/10, 0, Ra(3)/5, Ra(1)/10],
-                                             [-Ra(1)/30, Ra(5)/12, -Ra(3)/20, Ra(2)/5],
-                                             [-Ra(1)/6, Ra(1)/3, 0, -Ra(1)/2],
-                                             [Ra(1)/2, Ra(1)/4, Ra(1)/4, 0]])}
+                           "isf": sp.Matrix([[-Ra(3) / 10, 0, Ra(3) / 5, Ra(1) / 10],
+                                             [-Ra(1) / 30, Ra(5) / 12, -Ra(3) / 20, Ra(2) / 5],
+                                             [-Ra(1) / 6, Ra(1) / 3, 0, -Ra(1) / 2],
+                                             [Ra(1) / 2, Ra(1) / 4, Ra(1) / 4, 0]])}
         self.isf_40 = (5, [3, 1, 1], [3, 2], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 2])],
                            "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
-                           "isf": sp.Matrix([[0, Ra(1)/2, -Ra(1)/3, Ra(1)/6],
-                                             [Ra(1)/4, 0, -Ra(1)/4, -Ra(1)/2],
-                                             [-Ra(3)/5, Ra(1)/10, 0, -Ra(3)/10],
-                                             [Ra(3)/20, Ra(2)/5, Ra(5)/12, -Ra(1)/30]])}
+                           "isf": sp.Matrix([[0, Ra(1) / 2, -Ra(1) / 3, Ra(1) / 6],
+                                             [Ra(1) / 4, 0, -Ra(1) / 4, -Ra(1) / 2],
+                                             [-Ra(3) / 5, Ra(1) / 10, 0, -Ra(3) / 10],
+                                             [Ra(3) / 20, Ra(2) / 5, Ra(5) / 12, -Ra(1) / 30]])}
         self.isf_41 = (5, [3, 1, 1], [3, 2], [2, 1, 1], isf_square_dict)
 
         # TODO 错误原因待定，目前看是因为isf_matrix顺序变了导致高斯消元法在计算有自由度的基失时，会有'旋转'，不再对称
@@ -316,16 +403,11 @@ class TestISFAndCGC(object):
         # 它不是错了，只是不符合我们约定的对称性
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 2])],
                            "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
-                           "isf": sp.Matrix([[-Ra(1)/14, -Ra(3)/7, Ra(1)/3, Ra(1)/6],
-                                             [-Ra(3)/14, Ra(1)/28, -Ra(1)/4, Ra(1)/2],
-                                             [Ra(7)/10, 0, 0, Ra(3)/10],
-                                             [-Ra(1)/70, Ra(15)/28, Ra(5)/12, Ra(1)/30]])}
+                           "isf": sp.Matrix([[-Ra(1) / 14, -Ra(3) / 7, Ra(1) / 3, Ra(1) / 6],
+                                             [-Ra(3) / 14, Ra(1) / 28, -Ra(1) / 4, Ra(1) / 2],
+                                             [Ra(7) / 10, 0, 0, Ra(3) / 10],
+                                             [-Ra(1) / 70, Ra(15) / 28, Ra(5) / 12, Ra(1) / 30]])}
         self.isf_41_wrong = (5, [3, 1, 1], [3, 2], [2, 1, 1], isf_square_dict)
-
-        # self.isf_ban_set = {21, 23, 27, 28, 29, 30, 32}
-        # self.isf_ban_set = {27}
-        self.isf_ban_set = set()
-        self.isf_num_list = list(set(range(1, 39 + 1)) - self.isf_ban_set)
 
         # cgc data
         # 格式 Sn, σ, μ, ν, β, m, cgc_square_dict
@@ -642,6 +724,64 @@ class TestISFAndCGC(object):
                            (4, 5): 15, (5, 2): 1, (5, 4): -15, (6, 1): 4, "N": 72}
         self.cgc_88 = (5, [3, 1, 1], [3, 1, 1], [2, 2, 1], 2, 5, cgc_square_dict)
 
+        # isf matrix
+        # 格式 Sn, σ, μ, ν_st, row_index_tmp_list, isf_matrix
+        row_index_tmp_list = [([2], [2], None), ([1, 1], [1, 1], None)]
+        isf_matrix = sp.Matrix([[Ra(1) / 2, Ra(3) / 2], [Ra(3) / 2, Ra(1) / 2]])
+        self.isf_matrix_1 = (3, [2, 1], [2, 1], [2], row_index_tmp_list, isf_matrix)
+
+        row_index_tmp_list = [([3], [2, 1], None), ([2, 1], [2, 1], None)]
+        isf_matrix = sp.Matrix([[0, 2], [2, 0]])
+        self.isf_matrix_2 = (4, [3, 1], [2, 2], [2, 1], row_index_tmp_list, isf_matrix)  # 4-19 例2
+
+
+class TestISFAndCGC(object):
+
+    def setup_class(self):
+        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_isf_and_cgc_protected")
+        self.protector.protector_setup()
+
+        # 准备前文
+        s_n = 4
+        self.test_sn = s_n
+        flag, msg = create_young_diagrams(s_n)
+        assert flag
+        assert msg == s_n
+
+        flag, msg = create_branching_laws(s_n)
+        assert flag
+        assert msg == s_n
+
+        flag, msg = create_young_tableaux(s_n)
+        assert flag
+        assert msg == s_n
+
+        flag, msg = create_yamanouchi_matrix(s_n)
+        assert flag
+        assert msg == s_n
+
+        flag, msg = create_characters_and_gi(s_n)
+        assert flag
+        assert msg == s_n
+
+        flag, msg = create_cg_series(s_n)
+        assert flag
+        assert msg == s_n
+
+        flag, msg = create_eigenvalues(s_n)
+        assert flag
+        assert msg == s_n
+
+        self.decimals = len(str(isf_0_error_value))
+
+        self.data = Data()
+        self.helper = Helper()
+
+        # self.isf_ban_set = {21, 23, 27, 28, 29, 30, 32}
+        # self.isf_ban_set = {27}
+        self.isf_ban_set = set()
+        self.isf_num_list = list(set(range(1, 39 + 1)) - self.isf_ban_set)
+
         # self.cgc_ban_set = set(chain(range(51, 56 + 1), range(60, 65 + 1), range(69, 88 + 1)))
         self.cgc_ban_set = set()
         self.cgc_num_list = list(set(range(1, 88 + 1)) - self.cgc_ban_set)
@@ -655,16 +795,6 @@ class TestISFAndCGC(object):
         _, self.cgc_s_n_finish_full_file_name = get_cgc_finish_s_n_name(is_full_path=True)
         self.cgc_create_time_dict = {}  # 用于检查计算好的部分不会重复计算
 
-        # isf matrix
-        # 格式 Sn, σ, μ, ν_st, row_index_tmp_list, isf_matrix
-        row_index_tmp_list = [([2], [2], None), ([1, 1], [1, 1], None)]
-        isf_matrix = sp.Matrix([[Ra(1)/2, Ra(3)/2], [Ra(3)/2, Ra(1)/2]])
-        self.isf_matrix_1 = (3, [2, 1], [2, 1], [2], row_index_tmp_list, isf_matrix)
-
-        row_index_tmp_list = [([3], [2, 1], None), ([2, 1], [2, 1], None)]
-        isf_matrix = sp.Matrix([[0, 2], [2, 0]])
-        self.isf_matrix_2 = (4, [3, 1], [2, 2], [2, 1], row_index_tmp_list, isf_matrix)  # 4-19 例2
-
         self.isf_matrix_num_list = list(range(1, 2 + 1))
 
     def teardown_class(self):
@@ -672,31 +802,6 @@ class TestISFAndCGC(object):
         pass
 
     # start with 0xx tests need test by order
-    @staticmethod
-    def is_isf_square_orthogonalization(isf_square_matrix):
-        assert isf_square_matrix.shape[0] == isf_square_matrix.shape[1]
-        div = isf_square_matrix.shape[0]
-        for i in range(div):
-            matrix_i_by_row = isf_square_matrix[i, :]
-            matrix_i_by_col = isf_square_matrix[:, i]
-            for j in range(div):
-                matrix_j_by_row = isf_square_matrix[j, :]
-                matrix_j_by_col = isf_square_matrix[:, j]
-
-                sum_row_row = sum(sp.sign(matrix_i_by_row[k])
-                                  * sp.sign(matrix_j_by_row[k])
-                                  * sqrt(abs(matrix_i_by_row[k]))
-                                  * sqrt(abs(matrix_j_by_row[k])) for k in range(div))
-                sum_col_col = sum(sp.sign(matrix_i_by_col[k])
-                                  * sp.sign(matrix_j_by_col[k])
-                                  * sqrt(abs(matrix_i_by_col[k]))
-                                  * sqrt(abs(matrix_j_by_col[k])) for k in range(div))
-                if i == j:
-                    assert sum_row_row == 1, "sum_row_row={} not eq 1 for i={},j={}".format(sum_row_row, i, j)
-                    assert sum_col_col == 1, "sum_col_col={} not eq 1 for i={},j={}".format(sum_col_col, i, j)
-                else:
-                    assert sum_row_row == 0, "sum_row_row={} not eq 0 for i={},j={}".format(sum_row_row, i, j)
-                    assert sum_col_col == 0, "sum_col_col={} not eq 0 for i={},j={}".format(sum_col_col, i, j)
 
     # @pytest.mark.skip("pass")
     def test_001_create_isf_and_cgc_s_n_1(self):  # 初始cgc
@@ -705,16 +810,16 @@ class TestISFAndCGC(object):
         for ex in [".pkl", ".txt"]:
             assert not os.path.exists(self.isf_s_n_finish_full_file_name + ex)
             assert not os.path.exists(self.cgc_s_n_finish_full_file_name + ex)
-        flag, isf_square_dict = load_isf(*self.isf_1[: -1], is_flag_true_if_not_s_n=True)
+        flag, isf_square_dict = load_isf(*self.data.isf_1[: -1], is_flag_true_if_not_s_n=True)
         assert flag
         assert isf_square_dict is False
-        flag, isf_square_dict = load_isf(*self.isf_1[: -1], is_flag_true_if_not_s_n=False)
+        flag, isf_square_dict = load_isf(*self.data.isf_1[: -1], is_flag_true_if_not_s_n=False)
         assert not flag
         assert isinstance(isf_square_dict, str)
-        flag, cgc_square_dict = load_cgc(*self.cgc_1[: -1], is_flag_true_if_not_s_n=True)
+        flag, cgc_square_dict = load_cgc(*self.data.cgc_1[: -1], is_flag_true_if_not_s_n=True)
         assert flag
         assert cgc_square_dict is False
-        flag, cgc_square_dict = load_cgc(*self.cgc_1[: -1], is_flag_true_if_not_s_n=False)
+        flag, cgc_square_dict = load_cgc(*self.data.cgc_1[: -1], is_flag_true_if_not_s_n=False)
         assert not flag
         assert isinstance(cgc_square_dict, str)
 
@@ -732,8 +837,9 @@ class TestISFAndCGC(object):
 
         # check answer
         for nb in self.isf_num_list:
-            isf_param = eval("self.isf_{}".format(nb))[: -1]
-            isf_answer = eval("self.isf_{}".format(nb))[-1]
+            isf_tuple = eval("self.data.isf_{}".format(nb))
+            isf_param = isf_tuple[: -1]
+            isf_answer = isf_tuple[-1]
             if isf_param[0] > finish_s_n:
                 continue
             _, file_name = get_isf_file_name(*isf_param)
@@ -749,11 +855,23 @@ class TestISFAndCGC(object):
             assert flag
             assert isf["rows"] == isf_answer["rows"]
             assert isf["cols"] == isf_answer["cols"]
-            assert isf["isf"] == isf_answer["isf"], "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+            assert isf["isf"] == isf_answer["isf"], "self.data.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+
+            # 以下都是和isf_x σ, μ对称isf的验证
+            symmetry_isf_tuple = self.helper.calc_symmetry_isf(*isf_tuple)
+            symmetry_isf_param = symmetry_isf_tuple[: -1]
+            symmetry_isf_answer = symmetry_isf_tuple[-1]
+            flag, symmetry_isf = load_isf(*symmetry_isf_param, is_flag_true_if_not_s_n=True)
+            assert flag
+            assert symmetry_isf["rows"] == symmetry_isf_answer["rows"]
+            assert symmetry_isf["cols"] == symmetry_isf_answer["cols"]
+            assert symmetry_isf["isf"] == symmetry_isf_answer["isf"], \
+                "self.data.symmetry_isf_{}, ={} with {}".format(nb, symmetry_isf_param, symmetry_isf_answer)
 
         for nb in self.cgc_num_list:
-            cgc_param = eval("self.cgc_{}".format(nb))[: -1]
-            cgc_answer = eval("self.cgc_{}".format(nb))[-1]
+            cgc_tuple = eval("self.data.cgc_{}".format(nb))
+            cgc_param = cgc_tuple[: -1]
+            cgc_answer = cgc_tuple[-1]
             if cgc_param[0] > finish_s_n:
                 continue
             _, file_name = get_cgc_file_name(*cgc_param)
@@ -773,8 +891,23 @@ class TestISFAndCGC(object):
             assert 1 - isf_0_error_value < abs(cgc["N"]) < 1 + isf_0_error_value
             for cgc_k, cgc_v in cgc_answer.items():
                 assert cgc[cgc_k] == Ra(cgc_v)/cgc_answer_n, \
-                    "self.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
+                    "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
+
+            # 以下都是和cgc_x σ, μ对称cgc的验证
+            symmetry_cgc_tuple = self.helper.calc_symmetry_cgc(*cgc_tuple)
+            symmetry_cgc_param = symmetry_cgc_tuple[: -1]
+            symmetry_cgc_answer = symmetry_cgc_tuple[-1]
+            flag, symmetry_cgc = load_cgc(*symmetry_cgc_param, is_flag_true_if_not_s_n=True)
+            assert flag
+            symmetry_cgc_answer_n = symmetry_cgc_answer.pop("N")
+            assert sum(abs(cgc_v) for cgc_v in symmetry_cgc_answer.values()) == symmetry_cgc_answer_n
+            assert 1 - isf_0_error_value < abs(symmetry_cgc["N"]) < 1 + isf_0_error_value
+            for cgc_k, cgc_v in symmetry_cgc_answer.items():
+                assert symmetry_cgc[cgc_k] == Ra(cgc_v) / symmetry_cgc_answer_n, \
+                    "symmetry_cgc_{}, ={} with {} with key={} and cgc={}".format(
+                        nb, symmetry_cgc_param, symmetry_cgc_answer, cgc_k, cgc)
+            symmetry_cgc_answer["N"] = symmetry_cgc_answer_n
 
         # check finish s_n
         flag, isf_finish_s_n = get_isf_finish_s_n()
@@ -803,10 +936,10 @@ class TestISFAndCGC(object):
         # check with no isf db
         for ex in [".pkl", ".txt"]:
             assert not os.path.exists(self.isf_s_n_finish_full_file_name + ex)
-        flag, isf_square_dict = load_isf(*self.isf_1[: -1], is_flag_true_if_not_s_n=True)
+        flag, isf_square_dict = load_isf(*self.data.isf_1[: -1], is_flag_true_if_not_s_n=True)
         assert flag
         assert isf_square_dict is False
-        flag, isf_square_dict = load_isf(*self.isf_1[: -1], is_flag_true_if_not_s_n=False)
+        flag, isf_square_dict = load_isf(*self.data.isf_1[: -1], is_flag_true_if_not_s_n=False)
         assert not flag
         assert isinstance(isf_square_dict, str)
 
@@ -823,16 +956,17 @@ class TestISFAndCGC(object):
         assert finish_s_n == 2
 
         # check create time
-        _, file_name = get_cgc_file_name(*self.cgc_1[: -1])
-        flag, data = CGCInfo(self.cgc_1[0]).query_by_file_name(file_name)
+        _, file_name = get_cgc_file_name(*self.data.cgc_1[: -1])
+        flag, data = CGCInfo(self.data.cgc_1[0]).query_by_file_name(file_name)
         assert flag
         assert isinstance(data.get("create_time"), str)
         assert self.cgc_create_time_dict["S1"] == data.get("create_time")
 
         # check answer
         for nb in self.isf_num_list:
-            isf_param = eval("self.isf_{}".format(nb))[: -1]
-            isf_answer = eval("self.isf_{}".format(nb))[-1]
+            isf_tuple = eval("self.data.isf_{}".format(nb))
+            isf_param = isf_tuple[: -1]
+            isf_answer = isf_tuple[-1]
             if isf_param[0] > finish_s_n:
                 continue
             _, file_name = get_isf_file_name(*isf_param)
@@ -849,11 +983,23 @@ class TestISFAndCGC(object):
             assert flag
             assert isf["rows"] == isf_answer["rows"]
             assert isf["cols"] == isf_answer["cols"]
-            assert isf["isf"] == isf_answer["isf"], "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+            assert isf["isf"] == isf_answer["isf"], "self.data.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+
+            # 以下都是和isf_x σ, μ对称isf的验证
+            symmetry_isf_tuple = self.helper.calc_symmetry_isf(*isf_tuple)
+            symmetry_isf_param = symmetry_isf_tuple[: -1]
+            symmetry_isf_answer = symmetry_isf_tuple[-1]
+            flag, symmetry_isf = load_isf(*symmetry_isf_param, is_flag_true_if_not_s_n=True)
+            assert flag
+            assert symmetry_isf["rows"] == symmetry_isf_answer["rows"]
+            assert symmetry_isf["cols"] == symmetry_isf_answer["cols"]
+            assert symmetry_isf["isf"] == symmetry_isf_answer["isf"], \
+                "self.data.symmetry_isf_{}, ={} with {}".format(nb, symmetry_isf_param, symmetry_isf_answer)
 
         for nb in self.cgc_num_list:
-            cgc_param = eval("self.cgc_{}".format(nb))[: -1]
-            cgc_answer = eval("self.cgc_{}".format(nb))[-1]
+            cgc_tuple = eval("self.data.cgc_{}".format(nb))
+            cgc_param = cgc_tuple[: -1]
+            cgc_answer = cgc_tuple[-1]
             if cgc_param[0] > finish_s_n:
                 continue
             _, file_name = get_cgc_file_name(*cgc_param)
@@ -872,8 +1018,23 @@ class TestISFAndCGC(object):
             assert 1 - isf_0_error_value < abs(cgc["N"]) < 1 + isf_0_error_value
             for cgc_k, cgc_v in cgc_answer.items():
                 assert cgc[cgc_k] == Ra(cgc_v)/cgc_answer_n, \
-                    "self.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
+                    "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
+
+            # 以下都是和cgc_x σ, μ对称cgc的验证
+            symmetry_cgc_tuple = self.helper.calc_symmetry_cgc(*cgc_tuple)
+            symmetry_cgc_param = symmetry_cgc_tuple[: -1]
+            symmetry_cgc_answer = symmetry_cgc_tuple[-1]
+            flag, symmetry_cgc = load_cgc(*symmetry_cgc_param, is_flag_true_if_not_s_n=True)
+            assert flag
+            symmetry_cgc_answer_n = symmetry_cgc_answer.pop("N")
+            assert sum(abs(cgc_v) for cgc_v in symmetry_cgc_answer.values()) == symmetry_cgc_answer_n
+            assert 1 - isf_0_error_value < abs(symmetry_cgc["N"]) < 1 + isf_0_error_value
+            for cgc_k, cgc_v in symmetry_cgc_answer.items():
+                assert symmetry_cgc[cgc_k] == Ra(cgc_v) / symmetry_cgc_answer_n, \
+                    "symmetry_cgc_{}, ={} with {} with key={} and cgc={}".format(
+                        nb, symmetry_cgc_param, symmetry_cgc_answer, cgc_k, cgc)
+            symmetry_cgc_answer["N"] = symmetry_cgc_answer_n
 
         # check finish s_n
         flag, isf_finish_s_n = get_isf_finish_s_n()
@@ -933,22 +1094,23 @@ class TestISFAndCGC(object):
         assert finish_s_n == end_sn
 
         # check create time
-        _, file_name = get_isf_file_name(*self.isf_1[: -1])
-        flag, data = ISFInfo(self.isf_1[0]).query_by_file_name(file_name)
+        _, file_name = get_isf_file_name(*self.data.isf_1[: -1])
+        flag, data = ISFInfo(self.data.isf_1[0]).query_by_file_name(file_name)
         assert flag
         assert isinstance(data.get("create_time"), str)
         assert self.isf_create_time_dict["S2"] == data.get("create_time")
 
-        _, file_name = get_cgc_file_name(*self.cgc_1[: -1])
-        flag, data = CGCInfo(self.cgc_1[0]).query_by_file_name(file_name)
+        _, file_name = get_cgc_file_name(*self.data.cgc_1[: -1])
+        flag, data = CGCInfo(self.data.cgc_1[0]).query_by_file_name(file_name)
         assert flag
         assert isinstance(data.get("create_time"), str)
         assert self.cgc_create_time_dict["S1"] == data.get("create_time")
 
         # check answer
         for nb in self.isf_num_list:
-            isf_param = eval("self.isf_{}".format(nb))[: -1]
-            isf_answer = eval("self.isf_{}".format(nb))[-1]
+            isf_tuple = eval("self.data.isf_{}".format(nb))
+            isf_param = isf_tuple[: -1]
+            isf_answer = isf_tuple[-1]
             if isf_param[0] > end_sn or isf_param[0] < start_sn:
                 continue
             _, file_name = get_isf_file_name(*isf_param)
@@ -964,11 +1126,23 @@ class TestISFAndCGC(object):
             assert flag
             assert isf["rows"] == isf_answer["rows"]
             assert isf["cols"] == isf_answer["cols"]
-            assert isf["isf"] == isf_answer["isf"], "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+            assert isf["isf"] == isf_answer["isf"], "self.data.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+
+            # 以下都是和isf_x σ, μ对称isf的验证
+            symmetry_isf_tuple = self.helper.calc_symmetry_isf(*isf_tuple)
+            symmetry_isf_param = symmetry_isf_tuple[: -1]
+            symmetry_isf_answer = symmetry_isf_tuple[-1]
+            flag, symmetry_isf = load_isf(*symmetry_isf_param, is_flag_true_if_not_s_n=True)
+            assert flag
+            assert symmetry_isf["rows"] == symmetry_isf_answer["rows"]
+            assert symmetry_isf["cols"] == symmetry_isf_answer["cols"]
+            assert symmetry_isf["isf"] == symmetry_isf_answer["isf"], \
+                "self.data.symmetry_isf_{}, ={} with {}".format(nb, symmetry_isf_param, symmetry_isf_answer)
 
         for nb in self.cgc_num_list:
-            cgc_param = eval("self.cgc_{}".format(nb))[: -1]
-            cgc_answer = eval("self.cgc_{}".format(nb))[-1]
+            cgc_tuple = eval("self.data.cgc_{}".format(nb))
+            cgc_param = cgc_tuple[: -1]
+            cgc_answer = cgc_tuple[-1]
             if cgc_param[0] > end_sn or cgc_param[0] < start_sn:
                 continue
             _, file_name = get_cgc_file_name(*cgc_param)
@@ -987,8 +1161,23 @@ class TestISFAndCGC(object):
             assert cgc["N"] == 1
             for cgc_k, cgc_v in cgc_answer.items():
                 assert cgc[cgc_k] == Ra(cgc_v) / cgc_answer_n, \
-                    "self.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
+                    "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
+
+            # 以下都是和cgc_x σ, μ对称cgc的验证
+            symmetry_cgc_tuple = self.helper.calc_symmetry_cgc(*cgc_tuple)
+            symmetry_cgc_param = symmetry_cgc_tuple[: -1]
+            symmetry_cgc_answer = symmetry_cgc_tuple[-1]
+            flag, symmetry_cgc = load_cgc(*symmetry_cgc_param, is_flag_true_if_not_s_n=True)
+            assert flag
+            symmetry_cgc_answer_n = symmetry_cgc_answer.pop("N")
+            assert sum(abs(cgc_v) for cgc_v in symmetry_cgc_answer.values()) == symmetry_cgc_answer_n
+            assert 1 - isf_0_error_value < abs(symmetry_cgc["N"]) < 1 + isf_0_error_value
+            for cgc_k, cgc_v in symmetry_cgc_answer.items():
+                assert symmetry_cgc[cgc_k] == Ra(cgc_v) / symmetry_cgc_answer_n, \
+                    "symmetry_cgc_{}, ={} with {} with key={} and cgc={}".format(
+                        nb, symmetry_cgc_param, symmetry_cgc_answer, cgc_k, cgc)
+            symmetry_cgc_answer["N"] = symmetry_cgc_answer_n
 
         # check finish s_n
         flag, isf_finish_s_n = get_isf_finish_s_n()
@@ -1031,7 +1220,7 @@ class TestISFAndCGC(object):
         for i in range(1, cgc_finish_s_n + 1):
             assert isinstance(data.get("history_times").get("S{}".format(i)), int)
 
-    # @pytest.mark.skip("pass")
+    @pytest.mark.skip("pass")
     def test_004_create_isf_and_cgc_s_n_5_to_6(self):  # beta  # 005就该优化7～9了 放在benchmark里
         start_sn = 5
         end_sn = 5
@@ -1048,28 +1237,29 @@ class TestISFAndCGC(object):
         assert finish_s_n == end_sn
 
         # check create time
-        _, file_name = get_isf_file_name(*self.isf_1[: -1])
-        flag, data = ISFInfo(self.isf_1[0]).query_by_file_name(file_name)
+        _, file_name = get_isf_file_name(*self.data.isf_1[: -1])
+        flag, data = ISFInfo(self.data.isf_1[0]).query_by_file_name(file_name)
         assert flag
         assert isinstance(data.get("create_time"), str)
         assert self.isf_create_time_dict["S2"] == data.get("create_time")
 
-        _, file_name = get_cgc_file_name(*self.cgc_1[: -1])
-        flag, data = CGCInfo(self.cgc_1[0]).query_by_file_name(file_name)
+        _, file_name = get_cgc_file_name(*self.data.cgc_1[: -1])
+        flag, data = CGCInfo(self.data.cgc_1[0]).query_by_file_name(file_name)
         assert flag
         assert isinstance(data.get("create_time"), str)
         assert self.cgc_create_time_dict["S1"] == data.get("create_time")
 
         # check answer
         for nb in self.isf_num_list:
-            isf_param = eval("self.isf_{}".format(nb))[: -1]
-            isf_answer = eval("self.isf_{}".format(nb))[-1]
+            isf_tuple = eval("self.data.isf_{}".format(nb))
+            isf_param = isf_tuple[: -1]
+            isf_answer = isf_tuple[-1]
             if isf_param[0] > end_sn or isf_param[0] < start_sn:
                 continue
             _, file_name = get_isf_file_name(*isf_param)
             flag, data = ISFInfo(isf_param[0]).query_by_file_name(file_name)
             assert flag
-            assert isinstance(data, dict), "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+            assert isinstance(data, dict), "self.data.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
             assert isinstance(data.get("create_time"), str)
             _, full_file_name = get_isf_file_name(*isf_param, is_full_path=True)
             _, full_finish_file_name = get_isf_finish_s_n_name(is_full_path=True)
@@ -1080,17 +1270,29 @@ class TestISFAndCGC(object):
             assert flag
             assert isf["rows"] == isf_answer["rows"]
             assert isf["cols"] == isf_answer["cols"]
-            assert isf["isf"] == isf_answer["isf"], "self.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+            assert isf["isf"] == isf_answer["isf"], "self.data.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+
+            # 以下都是和isf_x σ, μ对称isf的验证
+            symmetry_isf_tuple = self.helper.calc_symmetry_isf(*isf_tuple)
+            symmetry_isf_param = symmetry_isf_tuple[: -1]
+            symmetry_isf_answer = symmetry_isf_tuple[-1]
+            flag, symmetry_isf = load_isf(*symmetry_isf_param, is_flag_true_if_not_s_n=True)
+            assert flag
+            assert symmetry_isf["rows"] == symmetry_isf_answer["rows"]
+            assert symmetry_isf["cols"] == symmetry_isf_answer["cols"]
+            assert symmetry_isf["isf"] == symmetry_isf_answer["isf"], \
+                "self.data.symmetry_isf_{}, ={} with {}".format(nb, symmetry_isf_param, symmetry_isf_answer)
 
         for nb in self.cgc_num_list:
-            cgc_param = eval("self.cgc_{}".format(nb))[: -1]
-            cgc_answer = eval("self.cgc_{}".format(nb))[-1]
+            cgc_tuple = eval("self.data.cgc_{}".format(nb))
+            cgc_param = cgc_tuple[: -1]
+            cgc_answer = cgc_tuple[-1]
             if cgc_param[0] > end_sn or cgc_param[0] < start_sn:
                 continue
             _, file_name = get_cgc_file_name(*cgc_param)
             flag, data = CGCInfo(cgc_param[0]).query_by_file_name(file_name)
             assert flag
-            assert isinstance(data, dict), "self.cgc_{}, ={} with {}".format(nb, cgc_param, cgc_answer)
+            assert isinstance(data, dict), "self.data.cgc_{}, ={} with {}".format(nb, cgc_param, cgc_answer)
             assert isinstance(data.get("create_time"), str)
             _, full_file_name = get_cgc_file_name(*cgc_param, is_full_path=True)
             _, full_finish_file_name = get_cgc_finish_s_n_name(is_full_path=True)
@@ -1104,8 +1306,23 @@ class TestISFAndCGC(object):
             assert cgc["N"] == 1
             for cgc_k, cgc_v in cgc_answer.items():
                 assert cgc[cgc_k] == Ra(cgc_v) / cgc_answer_n, \
-                    "self.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
+                    "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
+
+            # 以下都是和cgc_x σ, μ对称cgc的验证
+            symmetry_cgc_tuple = self.helper.calc_symmetry_cgc(*cgc_tuple)
+            symmetry_cgc_param = symmetry_cgc_tuple[: -1]
+            symmetry_cgc_answer = symmetry_cgc_tuple[-1]
+            flag, symmetry_cgc = load_cgc(*symmetry_cgc_param, is_flag_true_if_not_s_n=True)
+            assert flag
+            symmetry_cgc_answer_n = symmetry_cgc_answer.pop("N")
+            assert sum(abs(cgc_v) for cgc_v in symmetry_cgc_answer.values()) == symmetry_cgc_answer_n
+            assert 1 - isf_0_error_value < abs(symmetry_cgc["N"]) < 1 + isf_0_error_value
+            for cgc_k, cgc_v in symmetry_cgc_answer.items():
+                assert symmetry_cgc[cgc_k] == Ra(cgc_v) / symmetry_cgc_answer_n, \
+                    "symmetry_cgc_{}, ={} with {} with key={} and cgc={}".format(
+                        nb, symmetry_cgc_param, symmetry_cgc_answer, cgc_k, cgc)
+            symmetry_cgc_answer["N"] = symmetry_cgc_answer_n
 
         # check finish s_n
         flag, isf_finish_s_n = get_isf_finish_s_n()
