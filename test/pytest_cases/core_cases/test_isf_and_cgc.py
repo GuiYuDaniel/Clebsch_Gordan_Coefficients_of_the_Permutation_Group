@@ -742,7 +742,7 @@ class TestISFAndCGC(object):
         self.protector.protector_setup()
 
         # 准备前文
-        s_n = 4
+        s_n = 5
         self.test_sn = s_n
         flag, msg = create_young_diagrams(s_n)
         assert flag
@@ -778,7 +778,7 @@ class TestISFAndCGC(object):
         self.helper = Helper()
 
         # self.isf_ban_set = {21, 23, 27, 28, 29, 30, 32}
-        # self.isf_ban_set = {27}
+        # self.isf_ban_set = {30, 32}
         self.isf_ban_set = set()
         self.isf_num_list = list(set(range(1, 39 + 1)) - self.isf_ban_set)
 
@@ -1220,7 +1220,7 @@ class TestISFAndCGC(object):
         for i in range(1, cgc_finish_s_n + 1):
             assert isinstance(data.get("history_times").get("S{}".format(i)), int)
 
-    @pytest.mark.skip("pass")
+    # @pytest.mark.skip("pass")
     def test_004_create_isf_and_cgc_s_n_5_to_6(self):  # beta  # 005就该优化7～9了 放在benchmark里
         start_sn = 5
         end_sn = 5
