@@ -38,7 +38,7 @@ import time
 from core.branching_laws import load_branching_law
 from conf.cgc_config import default_s_n, min_s_n_of_young_table
 from core.cgc_utils.cgc_local_db import get_young_tableaux_file_name, get_young_tableaux_finish_s_n_name, \
-    get_young_tableaux_num_file_name
+    get_young_tableaux_num_file_name, get_young_tableaux_phase_factor_file_name
 from core.cgc_utils.cgc_db_typing import YoungTableInfo
 from core.young_diagrams import load_young_diagrams
 from core.young_diagrams import is_young_diagram, calc_s_n_from_young_diagram, calc_s_n_from_young_diagram_without_check
@@ -116,13 +116,31 @@ def create_young_tableaux(s_n: int=default_s_n):
                 logger.error(err_msg)
                 return False, err_msg
 
-            # young_table特别单独存一个young_table_num
-            flag, msg = save_single_young_table_num(s_i, yd_i, young_table_i)
+            # young_table特别另存一个young_table_num
+            flag, msg = save_single_young_table_num(s_i, yd_i, len(young_table_i))
             if not flag:
                 err_msg = "save save_single_young_table_num meet error with s_i={}, yd_i={}, msg={}".format(
                     s_i, yd_i, msg)
                 logger.error(err_msg)
                 return False, err_msg
+
+            # 计算young_table的phase_factor，按照顺序存列表
+            flag, phase_factor_list = quick_calc_phase_factor_list(s_i, yd_i, young_table_i)
+            if not flag:
+                err_msg = "calc phase_factor_list meet error with s_i={}, yd_i={}, msg={}".format(
+                    s_i, yd_i, young_table_i)
+                logger.error(err_msg)
+                return False, err_msg
+
+            # young_table特别另存一个young_table_Λ
+            flag, msg = save_single_young_table_phase_factor(s_i, yd_i, phase_factor_list)
+            if not flag:
+                err_msg = "save save_single_young_table_phase_factor meet error with s_i={}, yd_i={}, msg={}".format(
+                    s_i, yd_i, msg)
+                logger.error(err_msg)
+                return False, err_msg
+
+
 
         # 别忘了也要更新Finish_Sn
         s_i_speed_time = int(time.time() - s_i_start_time)
@@ -192,7 +210,7 @@ def save_single_young_table(s_n: int, yd: list, young_table: dict, speed_time: i
     return True, None
 
 
-def save_single_young_table_num(s_n: int, yd: list, young_table: dict):
+def save_single_young_table_num(s_n: int, yd: list, young_table_num: int):
     """
     杨盘总数的落盘格式为：
     <CG>/young_tableaux_info/Sn/[ν_i]_num.pkl  ->
@@ -214,9 +232,48 @@ def save_single_young_table_num(s_n: int, yd: list, young_table: dict):
 
     db_info = YoungTableInfo(s_n)
     _, file_name = get_young_tableaux_num_file_name(s_n, yd)
-    total_num = len(young_table)
     table = {"file_name": file_name,
-             "data": {"total_num": total_num},
+             "data": young_table_num,
+             "flags": {}}
+    flag, msg = db_info.insert(table)
+    if not flag:
+        return flag, msg
+    flag, msg = db_info.insert_txt(table, point_key="data")
+    if not flag:
+        return flag, msg
+
+    return True, None
+
+
+def save_single_young_table_phase_factor(s_n: int, yd: list, young_table_phase_factor_list: list):
+    """
+    杨盘相位因子的落盘格式为：
+    <CG>/young_tableaux_info/Sn/[ν_i]_Λ.pkl  ->
+    {
+    "file_name": "Sn/[ν_i]_Λ",
+    "data": phase_factor_list
+    "flags": {}
+    }
+
+    其中，
+    Sn表示n阶置换群;
+    [ν_i]表示杨图;
+    phase_factor_list就是Λ按照m从小到大，或者说Yamanouchi序排列的
+
+    例如：
+    S3/[2, 1]_Λ.pkl: [1, -1]
+    """
+    # 检查
+    if not isinstance(young_table_phase_factor_list, list):
+        err_msg = "young_table_phase_factor_list={} with type={} must be list".format(
+            young_table_phase_factor_list, type(young_table_phase_factor_list))
+        logger.error(err_msg)
+        return False, err_msg
+
+    db_info = YoungTableInfo(s_n)
+    _, file_name = get_young_tableaux_phase_factor_file_name(s_n, yd)
+    table = {"file_name": file_name,
+             "data": young_table_phase_factor_list,
              "flags": {}}
     flag, msg = db_info.insert(table)
     if not flag:
@@ -485,13 +542,13 @@ def load_young_table_num(s_n: int, yd: list, is_flag_true_if_not_s_n=True):
         return False, err_msg
 
     if data:
-        young_table_num = data.get("data", {}).get("total_num")
+        young_table_num = data.get("data", None)
         if young_table_num and isinstance(young_table_num, int):
             # 只检查有没有 不对内容做检查了
             return True, young_table_num  # bingo！
 
         else:
-            err_msg = "young_table_num queried from db, but cannot get young_table_num from data" \
+            err_msg = "data queried from db, but cannot get young_table_num from data" \
                       "with data={}, young_table_num={} from db".format(data, young_table_num)
             logger.error(err_msg)
             return False, err_msg
@@ -500,6 +557,51 @@ def load_young_table_num(s_n: int, yd: list, is_flag_true_if_not_s_n=True):
             return True, False
         else:
             err_msg = "query not exist young_table_num db with s_n={}, file_name={}, err_msg={}".format(
+                s_n, file_name, data)
+            return False, err_msg
+
+
+def load_young_table_phase_factor(s_n: int, yd: list, is_flag_true_if_not_s_n=True):
+    """
+    取得s_n下young_diagram的相位因子列表
+    如果没有，根据is_flag_true_if_not_s_n决定返回True or False
+    """
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_table:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_table)
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(yd, list):
+        err_msg = "yd={} with type={} must be list".format(yd, type(yd))
+        logger.error(err_msg)
+        return False, err_msg
+
+    flag, file_name = get_young_tableaux_phase_factor_file_name(s_n, yd)
+    if not flag:
+        err_msg = "cannot get file_name by s_n={} because {}".format(s_n, file_name)
+        logger.error(err_msg)
+        return False, err_msg
+    flag, data = YoungTableInfo(s_n).query_by_file_name(file_name)
+    if not flag:
+        err_msg = "cannot query young_table_num with s_n={}, file_name={} because {}".format(s_n, file_name, data)
+        logger.error(err_msg)
+        return False, err_msg
+
+    if data:
+        young_table_phase_factor = data.get("data", None)
+        if young_table_phase_factor and isinstance(young_table_phase_factor, list):
+            # 只检查有没有 不对内容做检查了
+            return True, young_table_phase_factor  # bingo！
+
+        else:
+            err_msg = "data queried from db, but cannot get young_table_phase_factor from data" \
+                      "with data={}, young_table_phase_factor={} from db".format(data, young_table_phase_factor)
+            logger.error(err_msg)
+            return False, err_msg
+    else:
+        if is_flag_true_if_not_s_n:
+            return True, False
+        else:
+            err_msg = "query not exist young_table_phase_factor db with s_n={}, file_name={}, err_msg={}".format(
                 s_n, file_name, data)
             return False, err_msg
 
@@ -714,3 +816,110 @@ def quickly_calc_young_table_in_decreasing_page_order(young_table, yd=None, s_n=
         return True, idp_order
     else:
         return True, str(idp_order)
+
+
+def _calc_single_phase_factor(y_target, y_start, is_output_exchange_list=False):
+    """
+    使用下面的算法（优化），总能把任意y_start通过有限次临近交换，变换成y_target：
+    # 很像最笨的方法玩魔方，每次轮只把一个目标数字移动到最终位置，下一轮就可以不触动它和更小的数字，去移动更大的数字了
+    1，找不同（y_xxx 不使用标准yt，使用list(int)就够了）
+    2，得到不同中最小的数
+    3，该数字出现在目标中的位置
+    4，该位置，对应start中的数字
+    5，使用临近交换，把y_start中上述最小数字换过去（不用逐个交换，直接使用(k-1, k)(k-2, k-1)...(i,i+1)的结果就可以了）
+    （结果就是：i去到k位置，其他数字，顺序去到前一个数字的位置；使用了k-i次交换）
+    6，得到交换后的y_start
+    7，循环，直到y_target == y_start
+
+    对于is_output_exchange_list开关，常规是关闭的，但如果有需要，可以通过传入True，得到形如[(4,5),(3,4),(2,3),(5,6)]这样的具体交换细节
+    注意：is_output_exchange_list会改变输出个数
+    """
+    exchange_times = 0
+    exchange_list = []  # 具体的交换顺序
+    while y_target != y_start:
+        diff_num_list = [start for target, start in zip(y_target, y_start) if target != start]
+        min_diff_num = min(diff_num_list)  # 由于diff_num_list生成方式，也是diff_num_list[0]
+        target_index_of_min_diff_num = y_target.index(min_diff_num)
+        start_num_of_target_index = y_start[target_index_of_min_diff_num]
+        # 开始通过改造start生成end（注意，由于python机制，y_start会变）
+        y_start[target_index_of_min_diff_num] = min_diff_num  # 首先把min_diff_num换过去
+        # 然后平移剩下的
+        for num in range(start_num_of_target_index-1, min_diff_num-1, -1):  # k-1 ~ i
+            # 点到名字的数字加一，等价于i~k-1左移动
+            # 其中，列表中有两个min_diff_num，只拿第一个index是合理利用python机制
+            y_start[y_start.index(num)] += 1
+            if is_output_exchange_list:
+                exchange_list.append(tuple([num, num+1]))
+        exchange_times += start_num_of_target_index - min_diff_num
+    if exchange_times % 2 == 0:
+        phase_factor = 1  # 按照定义，偶数次交换，相位因子为1
+    else:
+        phase_factor = -1  # 按照定义，奇数次交换，相位因子为-1
+
+    if is_output_exchange_list:
+        return phase_factor, exchange_list
+    else:
+        return phase_factor
+
+
+def calc_single_yt_phase_factor(young_table_target, _is_check_yt=True, is_output_exchange_list=False):
+    """根据定义的原始方法，遍历临近交换树，计算Λ
+    作为独立对外的API，建议检查yt
+
+    对于_is_check_yt开关，默认打开，如需关闭，请保证传入的young_table_target一定正确
+    对于is_output_exchange_list开关，默认关闭，但如果有需要，可以通过传入True，得到具体交换细节
+    注意：is_output_exchange_list会改变输出个数
+    """
+    if _is_check_yt and not is_young_table(young_table_target):
+        err_msg = "young_table_target={} should be a real young table".format(young_table_target)
+        logger.error(err_msg)
+        return False, err_msg
+
+    y_target = []
+    for yt_row in young_table_target:
+        y_target += yt_row
+    y_first = list(range(1, len(y_target) + 1))
+    # _calc_single_phase_factor不改变young_table_target，只改变y_first，所以是安全的
+    return _calc_single_phase_factor(y_target, y_first, is_output_exchange_list=is_output_exchange_list)
+
+
+def quick_calc_phase_factor_list(s_n: int, yd: list, young_tableaux: dict):
+    """使用论文中的推论1，快速计算全部yt的相位因子Λ"""
+    if not isinstance(s_n, int) or s_n < min_s_n_of_young_table:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_young_table)
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(yd, list):
+        err_msg = "young_diagram={} with type={} must be list".format(yd, type(yd))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(young_tableaux, dict):
+        err_msg = "young_tableaux={} with type={} must be dict".format(young_tableaux, type(young_tableaux))
+        logger.error(err_msg)
+        return False, err_msg
+
+    # 保护
+    if s_n == 1:
+        return True, [1]
+
+    # 取前置数据
+    _, bl_tuple = load_branching_law(s_n, yd, is_flag_true_if_not_s_n=False, is_return_tuple=True)
+    _, _, _, before_yd = bl_tuple
+    s_b = s_n - 1
+
+    # 开始计算
+    phase_factor_list = []
+    for yd_sb in before_yd:
+        leader_yt = young_tableaux.get(str(len(phase_factor_list) + 1))
+        leader_yt_phase_factor = calc_single_yt_phase_factor(leader_yt, _is_check_yt=False)
+        flag, sb_phase_factor_list = load_young_table_phase_factor(s_b, yd_sb, is_flag_true_if_not_s_n=False)
+        if not flag:
+            err_msg = "get sb_phase_factor_list meet error with s_i={}, yd={}, msg={}".format(
+                s_b, yd_sb, sb_phase_factor_list)
+            logger.error(err_msg)
+            return False, err_msg
+        if leader_yt_phase_factor != sb_phase_factor_list[0]:
+            sb_phase_factor_list = [-1 * i for i in sb_phase_factor_list]
+        phase_factor_list += sb_phase_factor_list
+
+    return True, phase_factor_list

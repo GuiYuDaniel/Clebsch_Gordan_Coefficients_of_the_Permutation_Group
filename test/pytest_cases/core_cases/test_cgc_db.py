@@ -742,7 +742,7 @@ class TestBranchingLawInfo(object):
         assert data is False
 
 
-@pytest.mark.skip("pass")
+# @pytest.mark.skip("pass")
 class TestYoungTableInfo(object):
     """
     test python file cgc_db_typing.py:YoungTableInfo class
@@ -787,10 +787,18 @@ class TestYoungTableInfo(object):
         self.fake_yt_num_name = "S{}/{}_num".format(self.fake_finish_s_n, self.fake_nu)
         self.fake_yt_num_table = {
             "file_name": self.fake_yt_num_name,
-            "data": {"total_num": 2},
+            "data": 2,
             "flags": {}
         }
         self.fake_yt_num_table_copy = copy.deepcopy(self.fake_yt_num_table)
+
+        self.fake_yt_Λ_name = "S{}/{}_Λ".format(self.fake_finish_s_n, self.fake_nu)
+        self.fake_yt_Λ_table = {
+            "file_name": self.fake_yt_Λ_name,
+            "data": [1, -1],
+            "flags": {}
+        }
+        self.fake_yt_Λ_table_copy = copy.deepcopy(self.fake_yt_Λ_table)
 
     def teardown(self):
         self.protector.protector_teardown()
@@ -956,6 +964,40 @@ class TestYoungTableInfo(object):
         assert flag
         assert msg is True
         flag, data_3 = db_info.query({"file_name": self.fake_yt_num_name})
+        assert flag
+        assert data_3 is False
+
+    def test_fake_yt_Λ(self):
+        db_info = YoungTableInfo(self.fake_finish_s_n)
+        # insert
+        flag, msg = db_info.insert(self.fake_yt_Λ_table)
+        assert flag
+        assert msg is True
+        # query
+        flag, data = db_info.query_by_file_name(self.fake_yt_Λ_name)
+        assert flag
+        assert isinstance(data.get("create_time"), str)
+        assert isinstance(data.get("last_write_time"), str)
+        create_time_1 = data.get("create_time")
+        last_write_time_1 = data.get("last_write_time")
+        del data["create_time"]
+        del data["last_write_time"]
+        assert data == self.fake_yt_Λ_table_copy
+        # update
+        time.sleep(1.1)
+        flag, msg = db_info.update_by_file_name(self.fake_yt_Λ_name, self.fake_yt_Λ_table)
+        assert flag
+        assert msg is True
+        flag, data_2 = db_info.query({"file_name": self.fake_yt_Λ_name})
+        assert data_2.get("create_time") == create_time_1
+        assert data_2.get("last_write_time") == last_write_time_1
+        assert data_2.get("data") == self.fake_yt_Λ_table_copy.get("data")
+        assert data_2.get("flags") == self.fake_yt_Λ_table_copy.get("flags")
+        # test delete
+        flag, msg = db_info.delete_by_file_name(self.fake_yt_Λ_name)
+        assert flag
+        assert msg is True
+        flag, data_3 = db_info.query({"file_name": self.fake_yt_Λ_name})
         assert flag
         assert data_3 is False
 

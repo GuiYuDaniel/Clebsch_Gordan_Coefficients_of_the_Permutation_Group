@@ -44,6 +44,7 @@ branching_laws_file_name_format = os.path.join("S{}", "{}")  # "S{}/{}"
 # young tableaux file name format
 young_tableaux_file_name_format = os.path.join("S{}", "{}")  # "S{}/{}"
 young_tableaux_num_file_name_format = os.path.join("S{}", "{}_num")  # "S{}/{}_num"
+young_tableaux_phase_factor_file_name_format = os.path.join("S{}", "{}_Λ")  # "S{}/{}_Λ"
 # yamanouchi matrix file name format
 yamanouchi_matrix_file_name_format = os.path.join("S{}", "{}", "{}{}")  # "S{}/{}/{}{}"
 # characters and gi file name format

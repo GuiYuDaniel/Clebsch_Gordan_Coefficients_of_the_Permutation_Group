@@ -12,19 +12,38 @@ from conf.cgc_config import cgc_rst_folder
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo, BranchingLawInfo, YoungTableInfo
 from core.cgc_utils.cgc_local_db import get_young_tableaux_file_name, get_young_tableaux_finish_s_n_name
 from core.branching_laws import create_branching_laws
-from core.young_diagrams import create_young_diagrams
+from core.young_diagrams import create_young_diagrams, load_young_diagrams
 from core.young_tableaux import create_young_tableaux, calc_single_young_table
-from core.young_tableaux import load_young_table, get_young_tableaux_finish_s_n, load_young_table_num
+from core.young_tableaux import load_young_table, get_young_tableaux_finish_s_n
+from core.young_tableaux import load_young_table_num, load_young_table_phase_factor
 from core.young_tableaux import read_young_table_in_decreasing_page_order
 from core.young_tableaux import quickly_calc_young_table_in_decreasing_page_order
 from core.young_tableaux import is_young_table
 from core.young_tableaux import calc_young_diagram_from_young_table, calc_s_n_from_young_table
 from core.young_tableaux import get_s_i_index_in_young_table
+from core.young_tableaux import _calc_single_phase_factor, calc_single_yt_phase_factor
+from core.young_tableaux import quick_calc_phase_factor_list
 from db.local_db_protector import DBProtector
 from utils.log import get_logger
 
 
 logger = get_logger(__name__)
+
+
+def normal_calc_phase_factor_list(s_n: int, young_tableaux: dict):
+    """平庸的逐个循环算相位因子Λ"""
+    # 保护
+    if s_n == 1:
+        return True, [1]
+
+    # 开始计算
+    phase_factor_list = []
+    for i in range(len(young_tableaux)):
+        m = str(i + 1)
+        yt = young_tableaux[m]
+        yt_phase_factor = calc_single_yt_phase_factor(yt, _is_check_yt=False)
+        phase_factor_list.append(yt_phase_factor)
+    return True, phase_factor_list
 
 
 class TestYoungTableaux(object):
@@ -36,12 +55,15 @@ class TestYoungTableaux(object):
         # regular YT
         self.sn_1, self.yd_1 = 3, [2, 1]
         self.yt_1 = {"1": [[1, 2], [3]], "2": [[1, 3], [2]]}
+        self.yt_1_Λ = [1, -1]
         self.sn_2, self.yd_2 = 1, [1]
         self.yt_2 = {"1": [[1]]}
+        self.yt_2_Λ = [1]
         self.sn_3, self.yd_3 = 4, [3, 1]
         self.yt_3 = {"1": [[1, 2, 3], [4]],
                      "2": [[1, 2, 4], [3]],
                      "3": [[1, 3, 4], [2]]}
+        self.yt_3_Λ = [1, -1, 1]
         # error YT
         self.sn_e1, self.yd_e1 = 3, [2, 2]
 
@@ -114,6 +136,7 @@ class TestYoungTableaux(object):
         # check answers
         for i in [1, 2, 3]:
             s_i, yd_i, yt_i = eval("self.sn_{}".format(i)), eval("self.yd_{}".format(i)), eval("self.yt_{}".format(i))
+            yt_i_Λ = eval("self.yt_{}_Λ".format(i))
             flag, yt = load_young_table(s_i, yd_i)
             assert flag
             if s_i > 2:
@@ -130,6 +153,10 @@ class TestYoungTableaux(object):
                 assert flag
                 assert isinstance(yt_num, int)
                 assert yt_num == len(yt_i) == data.get("flags").get("total_num")
+                flag, yt_Λ = load_young_table_phase_factor(s_i, yd_i)
+                assert flag
+                assert isinstance(yt_Λ, list)
+                assert yt_Λ == yt_i_Λ
                 self.create_time_dict[file_name] = data.get("create_time")
 
         # check finish s_n
@@ -163,6 +190,7 @@ class TestYoungTableaux(object):
         # check answers
         for i in [1, 2, 3]:
             s_i, yd_i, yt_i = eval("self.sn_{}".format(i)), eval("self.yd_{}".format(i)), eval("self.yt_{}".format(i))
+            yt_i_Λ = eval("self.yt_{}_Λ".format(i))
             flag, yt = load_young_table(s_i, yd_i)
             assert flag
             if s_i > 4:
@@ -179,6 +207,10 @@ class TestYoungTableaux(object):
                 assert flag
                 assert isinstance(yt_num, int)
                 assert yt_num == len(yt_i) == data.get("flags").get("total_num")
+                flag, yt_Λ = load_young_table_phase_factor(s_i, yd_i)
+                assert flag
+                assert isinstance(yt_Λ, list)
+                assert yt_Λ == yt_i_Λ
                 if s_i <= 2:
                     assert self.create_time_dict.get(file_name) == data.get("create_time")
                 else:
@@ -325,7 +357,7 @@ class TestYoungTableaux(object):
         assert flag
         assert rst is None
 
-    def test_quickly_calc_young_table_in_decreasing_page_order(self):
+    def test_003_quickly_calc_young_table_in_decreasing_page_order(self):
         # 准备前文
         flag, msg = create_young_diagrams(6)
         assert flag
@@ -347,3 +379,82 @@ class TestYoungTableaux(object):
             flag, rst = quickly_calc_young_table_in_decreasing_page_order(yt, yd=[3, 1], s_n=4)
             assert flag
             assert rst == idp_order_str
+
+    def test__calc_single_phase_factor(self):
+        # answer
+        y_target_1 = [1, 3, 4, 6, 2, 5]
+        phase_factor_1 = 1
+        exchange_list_1 = [(4, 5), (3, 4), (2, 3), (5, 6)]
+
+        y_target_2 = [1]
+        phase_factor_2 = 1
+        exchange_list_2 = []
+
+        y_target_3 = [1, 4, 2, 5, 3, 6]
+        phase_factor_3 = -1
+        exchange_list_3 = [(2, 3), (4, 5), (3, 4)]
+        
+        for num in [1, 2, 3]:
+            y_target = eval("y_target_{}".format(num))
+            phase_factor = eval("phase_factor_{}".format(num))
+            exchange_list = eval("exchange_list_{}".format(num))
+
+            y_start = list(range(1, len(y_target)+1))
+            assert _calc_single_phase_factor(y_target, y_start) == phase_factor
+            assert y_target == y_start  # y_start会变
+
+            y_start = list(range(1, len(y_target) + 1))
+            phase_factor_rst, exchange_list_rst = _calc_single_phase_factor(y_target, y_start,
+                                                                            is_output_exchange_list=True)
+            assert phase_factor_rst == phase_factor
+            assert exchange_list == exchange_list_rst
+            assert y_target == y_start  # y_start会变
+
+    def test_calc_single_yt_phase_factor(self):
+        # answer
+        yt_target_1 = [[1, 3, 4, 6],
+                       [2, 5]]
+        phase_factor_1 = 1
+        exchange_list_1 = [(4, 5), (3, 4), (2, 3), (5, 6)]
+
+        yt_target_2 = [[1]]
+        phase_factor_2 = 1
+        exchange_list_2 = []
+
+        yt_target_3 = [[1, 4],
+                       [2, 5],
+                       [3],
+                       [6]]
+        phase_factor_3 = -1
+        exchange_list_3 = [(2, 3), (4, 5), (3, 4)]
+
+        for num in [1, 2, 3]:
+            yt_target = eval("yt_target_{}".format(num))
+            phase_factor = eval("phase_factor_{}".format(num))
+            exchange_list = eval("exchange_list_{}".format(num))
+
+            assert calc_single_yt_phase_factor(yt_target) == phase_factor
+            assert calc_single_yt_phase_factor(yt_target, _is_check_yt=False) == phase_factor
+            phase_factor_rst, exchange_list_rst = calc_single_yt_phase_factor(yt_target,
+                                                                              is_output_exchange_list=True)
+            assert phase_factor_rst == phase_factor
+            assert exchange_list_rst == exchange_list
+            phase_factor_rst, exchange_list_rst = calc_single_yt_phase_factor(yt_target, _is_check_yt=False,
+                                                                              is_output_exchange_list=True)
+            assert phase_factor_rst == phase_factor
+            assert exchange_list_rst == exchange_list
+
+    def test_004_quick_calc_phase_factor_list(self):
+        for s_i in range(1, 6+1):
+            _, young_diagrams = load_young_diagrams(s_i, is_flag_true_if_not_s_n=False)
+            for yd in young_diagrams:
+                # 拿quick_calc_phase_factor_list的结果
+                flag, phase_factor_list_quick = load_young_table_phase_factor(s_i, yd, is_flag_true_if_not_s_n=False)
+                assert flag
+                # 按照normal_calc_phase_factor_list算
+                _, yt = load_young_table(s_i, yd, is_flag_true_if_not_s_n=False)
+                assert flag
+                flag, phase_factor_list_normal = normal_calc_phase_factor_list(s_i, yt)
+                assert flag
+                assert phase_factor_list_quick == phase_factor_list_normal
+

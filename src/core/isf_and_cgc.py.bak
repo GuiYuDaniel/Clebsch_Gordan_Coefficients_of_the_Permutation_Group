@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 this code for creating ISF and CGC
-计算ISF采用对称性方法
+计算ISF采用非对称性方法
 """
 
 # 见《群表示论的新途径》陈金全（上海科学技术出版社1984）本段代码主要依据置换群CGC的第二种递推计算方法
@@ -51,7 +51,7 @@ def _debug_condition(data_σ_μ, ν_st):
     cond_5 = (data_σ_μ.σ == [3, 1, 1] and data_σ_μ.μ == [3, 2] and ν_st == [2, 1, 1])
     cond_5_1 = (data_σ_μ.σ == [3, 1, 1] and data_σ_μ.μ == [3, 2] and ν_st in ([3, 1], [2, 1, 1]))
     cond_5_2 = (data_σ_μ.σ == [3, 2] and data_σ_μ.μ == [3, 1, 1] and ν_st in ([3, 1], [2, 1, 1]))
-    if cond_5_1 or cond_5_2:
+    if condition:
         return True
     return False
 
@@ -202,17 +202,6 @@ def create_isf_and_cgc(s_n: int=default_s_n):
             [-3/5, 1/10,    0, -3/10],
             [3/20,  2/5, 5/12, -1/30]])
             详见《群表示论的新途径》4-19节，3中最后一段的论述
-            '''
-            '''
-            σ, μ = μ, σ的情况，
-            对于ISF，使用公式4-196b
-            既，ISF_σσ'μμ'νν'ββ' = ϵ(σμνβ)ϵ(σ'μ'ν'β') * ISF_μμ'σσ'νν'ββ',
-            也既，ISF_μμ'σσ'νν'ββ' = ϵ(σμνβ)ϵ(σ'μ'ν'β') * ISF_σσ'μμ'νν'ββ'（这个式子，可做推倒式子使用）
-            对于CGC，使用公式4-116a
-            既，CGC_{σm_σ,μm_μ,νβm} = ϵ(σμνβ) * CGC_{μm_μ,σm_σ,νβm}
-            也既，CGC_{μm_μ,σm_σ,νβm} = ϵ(σμνβ) * CGC_{σm_σ,μm_μ,νβm} （这个式子，可做推倒式子使用）
-            其中，ϵ(σμνβ) = sign(CGC_{σm_σ,μm_μ,νβm_1} | (m_μ,m_σ)=min)  (源自绝对相位约定)
-            表示ϵ取(m_μ,m_σ)编号为最小时的非零CG系数的符号(注意，μ在前，σ在后)
             '''
             # σ_μ_start_time = time.time()
             logger.debug("σ={}, μ={}".format(σ, μ))
@@ -1010,7 +999,7 @@ class ISFHelper(CalcHelper):
                       Matrix([[1],  [0],  [1]])])]
             注意，这里的结果，但根是正交未归一的，多根不一定正交，也不归一
             '''
-            eigen_tuple_list = isf_matrix.eigenvects()
+            eigen_tuple_list = isf_matrix.eigenvects()[::-1]  # 得到按照e_value降序的结果
         except Exception as e:
             logger.error(Exception(e))
             err_msg = "calc eigh meet fail with isf_matrix={} s_n={}".format(isf_matrix, self.s_n)
@@ -1028,21 +1017,23 @@ class ISFHelper(CalcHelper):
         isf_square_tmp_dict = {"ν_tmp": [],
                                "β_tmp": [],
                                "isf_tmp": []}
-        for e_value, β_max, e_vectors in eigen_tuple_list[::-1]:  # 按照e_value降序循环
+        for e_value, β_max, e_vectors in eigen_tuple_list:  # 按照e_value降序循环
             # 计算本征值对应的ν
             λ_ν = e_value + λ_ν_st
             ν = self._calc_ν_by_λ_and_bl(λ_ν, data_sn.eigenvalue_list, data_sn.yd_list,
                                          data_sn.bl_yd_list_dict, ν_st)
 
-            # 这里是用[::-1]倒序而不是正序就是为了对齐书中给的多重根自由度选择
-            soe_vectors = self._calc_schmidt_orthogonalization_tricky(e_vectors)[::-1] if β_max > 1 \
+            soe_vectors = self._calc_schmidt_orthogonalization_tricky(e_vectors) if β_max > 1 \
                 else [self._calc_orthogonalization_vector(e_vectors[0])]
 
-            flag, β_tmp_list, isf_phase_list = \
-                self._calc_isf_β_and_phase_list(soe_vectors, ν, ν_st, row_index_tmp_list, β_max,
-                                                data_sn, data_st, data_σ_μ, data_st_st_yt_num_dict)
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ soe_vectors={}".format(soe_vectors))
+
+            flag, β_tmp_list, isf_phase_vector_list = \
+                self._calc_isf_β_and_phase_vector_list(soe_vectors, ν, ν_st, row_index_tmp_list, β_max,
+                                                       data_sn, data_st, data_σ_μ, data_st_st_yt_num_dict)
             if not flag:
-                err_msg = "calc _calc_isf_β_and_phase_list meet error " \
+                err_msg = "calc β_tmp_list, isf_phase_vector_list meet error " \
                           "with soe_vectors={}, ν={}, ν_st={}, row_index_tmp_list={}, β_max={} " \
                           "data_sn={}, data_st={}, data_σ_μ={}, data_st_st_yt_num_dict={}, " \
                           "msg={}".format(soe_vectors, ν, ν_st, row_index_tmp_list, β_max, data_sn, data_st, data_σ_μ,
@@ -1052,16 +1043,13 @@ class ISFHelper(CalcHelper):
 
             if _debug_condition(data_σ_μ, ν_st):
                 logger.warning("@@@@ β_tmp_list={}".format(β_tmp_list))
-                logger.warning("@@@@ isf_phase_list={}".format(isf_phase_list))
+                logger.warning("@@@@ isf_phase_vector_list={}".format(isf_phase_vector_list))
 
             for β_tmp in range(1, β_max + 1):  # 因为按照soe_vectors对应的β乱序了，所以需要正序
                 if β_max == 1:
                     β_tmp = None
                 β_tmp_index = β_tmp_list.index(β_tmp)
-                isf_phase = isf_phase_list[β_tmp_index]
-                soe_vector = soe_vectors[β_tmp_index]
-
-                phase_vector = soe_vector * isf_phase
+                phase_vector = isf_phase_vector_list[β_tmp_index]
 
                 # 计算单列的ISF
                 isf_square = sp.Matrix([sp.sign(i) * i**2 for i in phase_vector])
@@ -1101,16 +1089,18 @@ class ISFHelper(CalcHelper):
 
         return True, isf_square_dict
 
-    def _calc_isf_β_and_phase_list(self, soe_vectors, ν, ν_st, row_index_tmp_list, β_max,
-                                   data_sn, data_st, data_σ_μ, data_st_st_yt_num_dict):
+    def _calc_isf_β_and_phase_vector_list(self, soe_vectors, ν, ν_st, row_index_tmp_list, β_max,
+                                          data_sn, data_st, data_σ_μ, data_st_st_yt_num_dict):
         """ 将经过施密特正交归一化手续后的本征矢量调整为Yamanouchi相位，同时确定非第一分支的β
         返回结果是按照soe_vectors对应排序的
+
+        对于abs对应不上的，需要调整到与第一分支对齐的soe_vector
 
         1，将分支律的第一分支首个非零系数调整为正（绝对相位）
         2，非第一分支的，参考第一分支做相对调整（相对相位）
         """
         β_tmp_list = []  # 这个tmp是相对于完全完成的β是没有None的，但它int部分的β就是最终确定的β
-        phase_list = []
+        phase_vector_list = []
 
         if data_sn.bl_yd_list_dict[tuple(ν)][0] == ν_st:  # ν_st击中ν的第一分支
 
@@ -1128,15 +1118,16 @@ class ISFHelper(CalcHelper):
                     return False, err_msg, None
                 β_tmp_list.append(β_tmp)
                 absolute_phase = sp.sign(no_0_element)
-                phase_list.append(absolute_phase)
+                phase_vector_list.append(absolute_phase * soe_vector)
 
-            return True, β_tmp_list, phase_list
+            return True, β_tmp_list, phase_vector_list
 
         else:  # 未击中情况，则相对相位需要参考它的分支律第一分支（ν_st_fbl）的绝对相位
             # 被参考的第一分支被称为fbl: first branching law
             '''
             这里的计算思路是，根据式4-195c，既可以用第一分支，计算其他分支的isf；也可以用其他分支，反向计算第一分支
-            所以，如果仅仅差一个相位的isf已经得到，就可以用它反推第一分支，相同则不改相位；不同则*-1
+            所以，如果仅仅差一个相位的isf已经得到，就可以用它反推第一分支，相同则不改相位；不同则*-1；
+            若不仅是符号不同，则使用正推，调整到符合首分支的相位
             另外，非第一分支的β也可以用此方法确定（也是反推，直到确定属于哪个β）
             '''
             ν_st_fbl = data_sn.bl_yd_list_dict[tuple(ν)][0]  # ν_st_fbl就是ν_st对应ν的第一分支，它们σ、μ虽然不同，但σ'μ'ν相同
@@ -1185,7 +1176,7 @@ class ISFHelper(CalcHelper):
             for 循环所有soe_vectors的行（fbl作为答案，行号和soe_vectors的是一致的）
                 1，判断flag_uncertain_β_num
                 2，把当前未确定β的列 对应的isf_fbl_square提取出来
-                3，计算abs集合，判断是否需要跳过该结果
+                3，计算abs集合，判断是否需要跳过该结果（有自由度情况，遇到一次不相等，则推翻这次的自由度，采用4-195c正算）
                 
                 for 循环soe_vectors的所有列（未完全确定β的列，它们有的有可能已经被缩小范围了）
                     0，跳过已经确定β的列
@@ -1203,6 +1194,7 @@ class ISFHelper(CalcHelper):
             fbl_cols_useful = [ν] if β_max == 1 else list((ν, i) for i in β_fbl_list)  # 指的是fbl中能用于判断β和phase的那部分
             fbl_cols_useful_index = [isf_fbl_col_list.index(col) for col in fbl_cols_useful]
             β_make_sure_set = {None} if β_max == 1 else set()  # 也作为统一旗标，避免指标太多，逻辑混乱
+            flag_soe = True  # 标志本soe是否与首分支相位一致，一致，则使用；否则，要用首分支计算全部phase_vector
 
             for row_index, row in enumerate(isf_fbl_row_list):  # 既是fbl的，也是soe_vectors的
                 if len(β_make_sure_set) == β_max:
@@ -1229,29 +1221,39 @@ class ISFHelper(CalcHelper):
                     if len(single_β_candidate_set) == 1:  # 跳过确定好的β
                         continue
                     # 用当前待定β的列soe_vector，去计算已知的isf_fbl_square
-                    flag, isf_fbl_another = self._calc_isf_fbl_another_way(
-                        ν, m_ν, m_ν_by_m_ν_st_fbl, row, ν_st_fbl,
-                        row_index_tmp_list, soe_vector, ν_st, m_ν_st, data_sn, data_st, data_σ_μ)
+                    flag, isf_fbl_another = \
+                        self._calc_isf_by_known_isf(soe_vector, row_index_tmp_list, ν_st, m_ν_st, m_ν,
+                                                    row, ν_st_fbl, m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
+                                                    ν, data_sn, data_st, data_σ_μ)
                     if not flag:
-                        err_msg = "calc _calc_isf_fbl_another_way meet error with ν={}, m_ν={}, " \
-                                  "m_ν_by_m_ν_st_fbl={}, row={}, ν_st_fbl={}, row_index_tmp_list={}, " \
-                                  "soe_vector={}, ν_st={}, m_ν_st={}, data_sn={}, data_st={}, data_σ_μ={}, " \
-                                  "msg={}".format(ν, m_ν, m_ν_by_m_ν_st_fbl, row,
-                                                  ν_st_fbl, row_index_tmp_list, soe_vector, ν_st, m_ν_st,
-                                                  data_sn, data_st, data_σ_μ, isf_fbl_another)
+                        err_msg = "calc isf_fbl_another meet error " \
+                                  "with soe_vector={}, row_index_tmp_list={}, ν_st={}, m_ν_st={}, m_ν={}, " \
+                                  "row={}, ν_st_fbl={}, m_ν_st_fbl={}, m_ν_by_m_ν_st_fbl={}, " \
+                                  "ν={}, data_sn={}, data_st={}, data_σ_μ={}, " \
+                                  "msg={}".format(soe_vector, row_index_tmp_list, ν_st, m_ν_st, m_ν,
+                                                  row, ν_st_fbl, m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
+                                                  ν, data_sn, data_st, data_σ_μ, isf_fbl_another)
                         logger.error(err_msg)
                         return False, err_msg, None
                     isf_fbl_another_square_abs = isf_fbl_another ** 2
-                    # abs检查，要求必须和某一个已知结果相等
-                    # TODO 暂时关掉检查1，统计一些次数
+                    # abs检查
                     if isf_fbl_another_square_abs not in isf_fbl_square_abs_diff_set:
-                        err_msg = "$$$$ isf_fbl_another_square_abs={} not in isf_fbl_square_abs_diff_set={}, pls check" \
+                        if β_max == 1:  # 无自由度的情况下，要求必须相等，所以此时要报错
+                            err_msg = "isf_fbl_another_square_abs={} not in isf_fbl_square_abs_diff_set={}, pls check" \
+                                      "with isf_fbl_another={}, row={}, soe_vector={}, data_sn={}, data_st={}, " \
+                                      "data_σ_μ={}".format(isf_fbl_another_square_abs, isf_fbl_square_abs_diff_set,
+                                                           isf_fbl_another, row, soe_vector, data_sn, data_st, data_σ_μ)
+                            logger.error(err_msg)
+                            return False, err_msg, None
+                        else:  # 有自由度情况，遇到一次不相等，则推翻这次的自由度，采用4-195c正算
+                            msg = "isf_fbl_another_square_abs={} not in isf_fbl_square_abs_diff_set={}, pls check" \
                                   "with isf_fbl_another={}, row={}, soe_vector={}, data_sn={}, data_st={}, " \
                                   "data_σ_μ={}".format(isf_fbl_another_square_abs, isf_fbl_square_abs_diff_set,
                                                        isf_fbl_another, row, soe_vector, data_sn, data_st, data_σ_μ)
-                        logger.warning(err_msg)
-                        continue
-                        # return False, err_msg, None
+                            logger.debug(msg)
+                            logger.debug("will break and use 4-195c to calc")
+                            flag_soe = False
+                            break
                     # 缩小β范围
                     isf_fbl_square_abs_β_set = isf_fbl_square_abs_β_set_dict[isf_fbl_another_square_abs]
                     single_β_candidate_set &= isf_fbl_square_abs_β_set  # 用旧范围交集新范围
@@ -1280,68 +1282,214 @@ class ISFHelper(CalcHelper):
                 logger.warning("@@@@ phase_candidate={}".format(phase_candidate))
                 logger.warning("@@@@ soe_vectors={}".format(soe_vectors))
 
-            # 到这里，soe_vectors的β已经完全确定，phase部分确定，下面补充未确定的phase就可以了
-            for β_tmp_set, phase_tmp, soe_vector in zip(β_candidate, phase_candidate, soe_vectors):
-                # 检查β
-                if len(β_tmp_set) != 1:
-                    err_msg = "find β_tmp_set={} not union with data_sn={}, data_st={}, data_σ_μ={}".format(
-                        β_tmp_set, data_sn, data_st, data_σ_μ)
-                    logger.error(err_msg)
-                    return False, err_msg, None
-                β_tmp = list(β_tmp_set)[0]
-                β_tmp_list.append(β_tmp)
-                # 补漏phase
-                if phase_tmp is not None:
-                    phase_list.append(phase_tmp)
-                else:
-                    fbl_col = ν if β_max == 1 else (ν, β_tmp)
-                    fbl_col_index = isf_fbl_col_list.index(fbl_col)
-                    isf_fbl_square_same_β = isf_fbl_square[:, fbl_col_index]
-                    first_no_0_isf_fbl_row_index, first_no_0_isf_fbl_square = \
-                        self._get_first_no_0_number_from_vector(isf_fbl_square_same_β)
-
-                    if _debug_condition(data_σ_μ, ν_st):
-                        logger.warning("@@@@ first_no_0_isf_fbl_row_index={}".format(first_no_0_isf_fbl_row_index))
-                        logger.warning("@@@@ first_no_0_isf_fbl_square={}".format(first_no_0_isf_fbl_square))
-
-                    first_no_0_isf_fbl_row = isf_fbl_row_list[first_no_0_isf_fbl_row_index]
-                    flag, isf_fbl_another = self._calc_isf_fbl_another_way(
-                        ν, m_ν, m_ν_by_m_ν_st_fbl, first_no_0_isf_fbl_row, ν_st_fbl,
-                        row_index_tmp_list, soe_vector, ν_st, m_ν_st, data_sn, data_st, data_σ_μ)
-                    if not flag:
-                        err_msg = "calc _calc_isf_fbl_another_way meet error with ν={}, m_ν={}, " \
-                                  "m_ν_by_m_ν_st_fbl={}, first_no_0_isf_fbl_row={}, ν_st_fbl={}, " \
-                                  "row_index_tmp_list={}, soe_vector={}, ν_st={}, m_ν_st={}, " \
-                                  "data_sn={}, data_st={}, data_σ_μ={}, " \
-                                  "msg={}".format(ν, m_ν, m_ν_by_m_ν_st_fbl, first_no_0_isf_fbl_row,
-                                                  ν_st_fbl, row_index_tmp_list, soe_vector, ν_st, m_ν_st,
-                                                  data_sn, data_st, data_σ_μ, isf_fbl_another)
+            if flag_soe:
+                # 到这里，soe_vectors的β已经完全确定，phase部分确定，下面补充未确定的phase就可以了
+                for β_tmp_set, phase_tmp, soe_vector in zip(β_candidate, phase_candidate, soe_vectors):
+                    # 检查β
+                    if len(β_tmp_set) != 1:
+                        err_msg = "find β_tmp_set={} not union with data_sn={}, data_st={}, data_σ_μ={}".format(
+                            β_tmp_set, data_sn, data_st, data_σ_μ)
                         logger.error(err_msg)
                         return False, err_msg, None
-                    isf_fbl_another_square_abs = isf_fbl_another ** 2
-                    # abs检查
-                    # TODO 暂时关掉检查2，统计一些次数
-                    if isf_fbl_another_square_abs != abs(first_no_0_isf_fbl_square):
-                        err_msg = "$$$$ isf_fbl_another_square_abs={} not eq abs(first_no_0_isf_fbl_square)={}, pls check" \
-                                  "with isf_fbl_another={}, first_no_0_isf_fbl_row={}, soe_vector={}, " \
-                                  "data_sn={}, data_st={}, data_σ_μ={}".format(
-                            isf_fbl_another_square_abs, first_no_0_isf_fbl_square,
-                            isf_fbl_another, first_no_0_isf_fbl_row, soe_vector, data_sn, data_st, data_σ_μ)
-                        logger.warning(err_msg)
-                    # if isf_fbl_another_square_abs != abs(first_no_0_isf_fbl_square):
-                    #     err_msg = "isf_fbl_another_square_abs={} not eq abs(first_no_0_isf_fbl_square)={}, pls check" \
-                    #               "with isf_fbl_another={}, first_no_0_isf_fbl_row={}, soe_vector={}, " \
-                    #               "data_sn={}, data_st={}, data_σ_μ={}".format(
-                    #         isf_fbl_another_square_abs, first_no_0_isf_fbl_square,
-                    #         isf_fbl_another, first_no_0_isf_fbl_row, soe_vector, data_sn, data_st, data_σ_μ)
-                    #     logger.error(err_msg)
-                    #     return False, err_msg, None
-                    # TODO 这里应该是拿待定相位的β算出来的isf_fbl_another和确定的isf_fbl_another比较啊
-                    # phase_tmp_new = sp.sign(isf_fbl_another) * sp.sign(soe_vector[first_no_0_isf_fbl_row_index])
-                    phase_tmp_new = sp.sign(isf_fbl_another) * sp.sign(first_no_0_isf_fbl_square)
-                    phase_list.append(phase_tmp_new)
+                    β_tmp = list(β_tmp_set)[0]
+                    β_tmp_list.append(β_tmp)
+                    # 补漏phase
+                    if phase_tmp is not None:
+                        phase_vector_list.append(phase_tmp * soe_vector)
+                    else:
+                        fbl_col = ν if β_max == 1 else (ν, β_tmp)
+                        fbl_col_index = isf_fbl_col_list.index(fbl_col)
+                        isf_fbl_square_same_β = isf_fbl_square[:, fbl_col_index]
+                        first_no_0_isf_fbl_row_index, first_no_0_isf_fbl_square = \
+                            self._get_first_no_0_number_from_vector(isf_fbl_square_same_β)
 
-            return True, β_tmp_list, phase_list
+                        if _debug_condition(data_σ_μ, ν_st):
+                            logger.warning("@@@@ first_no_0_isf_fbl_row_index={}".format(first_no_0_isf_fbl_row_index))
+                            logger.warning("@@@@ first_no_0_isf_fbl_square={}".format(first_no_0_isf_fbl_square))
+
+                        first_no_0_isf_fbl_row = isf_fbl_row_list[first_no_0_isf_fbl_row_index]
+                        # flag, isf_fbl_another = self._calc_isf_fbl_another_way(
+                        #     ν, m_ν, m_ν_by_m_ν_st_fbl, first_no_0_isf_fbl_row, ν_st_fbl,
+                        #     row_index_tmp_list, soe_vector, ν_st, m_ν_st, data_sn, data_st, data_σ_μ)
+                        # if not flag:
+                        #     err_msg = "calc _calc_isf_fbl_another_way meet error with ν={}, m_ν={}, " \
+                        #               "m_ν_by_m_ν_st_fbl={}, first_no_0_isf_fbl_row={}, ν_st_fbl={}, " \
+                        #               "row_index_tmp_list={}, soe_vector={}, ν_st={}, m_ν_st={}, " \
+                        #               "data_sn={}, data_st={}, data_σ_μ={}, " \
+                        #               "msg={}".format(ν, m_ν, m_ν_by_m_ν_st_fbl, first_no_0_isf_fbl_row,
+                        #                               ν_st_fbl, row_index_tmp_list, soe_vector, ν_st, m_ν_st,
+                        #                               data_sn, data_st, data_σ_μ, isf_fbl_another)
+                        #     logger.error(err_msg)
+                        #     return False, err_msg, None
+                        flag, isf_fbl_another = \
+                            self._calc_isf_by_known_isf(soe_vector, row_index_tmp_list, ν_st, m_ν_st, m_ν,
+                                                        first_no_0_isf_fbl_row, ν_st_fbl, m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
+                                                        ν, data_sn, data_st, data_σ_μ)
+                        if not flag:
+                            err_msg = "calc isf_fbl_another meet error " \
+                                      "with soe_vector={}, row_index_tmp_list={}, ν_st={}, m_ν_st={}, m_ν={}, " \
+                                      "first_no_0_isf_fbl_row={}, ν_st_fbl={}, m_ν_st_fbl={}, m_ν_by_m_ν_st_fbl={}, " \
+                                      "ν={}, data_sn={}, data_st={}, data_σ_μ={}, " \
+                                      "msg={}".format(soe_vector, row_index_tmp_list, ν_st, m_ν_st, m_ν,
+                                                      first_no_0_isf_fbl_row, ν_st_fbl, m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
+                                                      ν, data_sn, data_st, data_σ_μ, isf_fbl_another)
+                            logger.error(err_msg)
+                            return False, err_msg, None
+                        isf_fbl_another_square_abs = isf_fbl_another ** 2
+                        # abs检查
+                        if isf_fbl_another_square_abs != abs(first_no_0_isf_fbl_square):
+                            if β_max == 1:  # 无自由度的情况下，要求必须相等，所以此时要报错
+                                err_msg = "isf_fbl_another_square_abs={} not eq abs(first_no_0_isf_fbl_square)={} " \
+                                          "with isf_fbl_another={}, first_no_0_isf_fbl_row={}, soe_vector={}, " \
+                                          "data_sn={}, data_st={}, data_σ_μ={}".format(
+                                    isf_fbl_another_square_abs, first_no_0_isf_fbl_square,
+                                    isf_fbl_another, first_no_0_isf_fbl_row, soe_vector, data_sn, data_st, data_σ_μ)
+                                logger.error(err_msg)
+                                return False, err_msg, None
+                            else:  # 有自由度情况，遇到一次不相等，则推翻这次的自由度，采用4-195c正算
+                                msg = "isf_fbl_another_square_abs={} not eq abs(first_no_0_isf_fbl_square)={}, pls check" \
+                                      "with isf_fbl_another={}, first_no_0_isf_fbl_row={}, soe_vector={}, " \
+                                      "data_sn={}, data_st={}, data_σ_μ={}".format(
+                                    isf_fbl_another_square_abs, first_no_0_isf_fbl_square,
+                                    isf_fbl_another, first_no_0_isf_fbl_row, soe_vector, data_sn, data_st, data_σ_μ)
+                                logger.debug(msg)
+                                logger.debug("will break and use 4-195c to calc")
+                                flag_soe = False
+                                break
+                        # TODO 这里应该是拿待定相位的β算出来的isf_fbl_another和确定的isf_fbl_another比较啊
+                        # phase_tmp_new = sp.sign(isf_fbl_another) * sp.sign(soe_vector[first_no_0_isf_fbl_row_index])
+                        phase_tmp_new = sp.sign(isf_fbl_another) * sp.sign(first_no_0_isf_fbl_square)
+                        phase_vector_list.append(phase_tmp_new * soe_vector)
+
+            if not flag_soe:
+                β_tmp_list = []
+                phase_vector_list = []
+
+                logger.warning("@@@@ renew isf for ν={}, ν_st={}, data_sn={}, data_st={}, data_σ_μ={}".format(
+                    ν, ν_st, data_sn, data_st, data_σ_μ))
+
+                # 使用4-195c重新正算phase_vector，放弃seo_vector
+                for β_tmp in range(1, β_max + 1):  # 此时，列按照fbl的就是正序了，且它必须有非零β
+                    β_tmp_list.append(β_tmp)
+                    col = (ν, β_tmp)
+                    isf_fbl_square_by_col = isf_fbl_square[:, isf_fbl_col_list.index(col)]
+                    isf_fbl_col_vector = sp.Matrix([sp.sign(i) * sp.sqrt(abs(i)) for i in isf_fbl_square_by_col])
+                    phase_vector_tmp = []
+                    for row in row_index_tmp_list:
+                        flag, single_phase_vector_new = \
+                            self._calc_isf_by_known_isf(isf_fbl_col_vector, isf_fbl_row_list, ν_st_fbl,
+                                                        m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
+                                                        row, ν_st, m_ν_st, m_ν,
+                                                        ν, data_sn, data_st, data_σ_μ)
+                        if not flag:
+                            err_msg = "calc single_phase_vector_new meet error " \
+                                      "with isf_fbl_col_vector={}, isf_fbl_row_list={}, ν_st_fbl={}, " \
+                                      "m_ν_st_fbl={}, m_ν_by_m_ν_st_fbl={} " \
+                                      "row={}, ν_st={}, m_ν_st={}, m_ν={}, " \
+                                      "ν={}, data_sn={}, data_st={}, data_σ_μ={}, " \
+                                      "msg={}".format(isf_fbl_col_vector, isf_fbl_row_list, ν_st_fbl,
+                                                      m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
+                                                      row, ν_st, m_ν_st, m_ν,
+                                                      ν, data_sn, data_st, data_σ_μ, single_phase_vector_new)
+                            logger.error(err_msg)
+                            return False, err_msg, None
+                        phase_vector_tmp.append(single_phase_vector_new)
+                    phase_vector_list.append(sp.Matrix(phase_vector_tmp))
+
+                logger.warning("@@@@ renew isf phase_vector_list={}".format(phase_vector_list))
+                logger.warning("@@@@ old soe_vectors={}".format(soe_vectors))
+
+                # TODO delete it
+                # 利用new的，再回推fbl，反正以下自洽
+                for β_tmp in range(1, β_max + 1):
+                    col = (ν, β_tmp)
+                    first_isf_fbl_row = isf_fbl_row_list[0]
+                    first_isf_fbl_square = isf_fbl_square[:, isf_fbl_col_list.index(col)][0]
+                    phase_vector = phase_vector_list[β_tmp - 1]
+                    flag, isf_fbl_another = \
+                        self._calc_isf_by_known_isf(phase_vector, row_index_tmp_list, ν_st, m_ν_st, m_ν,
+                                                    first_isf_fbl_row, ν_st_fbl, m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
+                                                    ν, data_sn, data_st, data_σ_μ)
+                    if sp.sign(isf_fbl_another) * isf_fbl_another**2 != first_isf_fbl_square:
+                        logger.error("$$$$ 回推不成立！")
+                        err_msg = "first_isf_fbl_square={}, isf_fbl_another={}".format(
+                            first_isf_fbl_square, isf_fbl_another)
+                        logger.error(err_msg)
+
+                logger.debug("$$$$ 回推成立！")
+
+            return True, β_tmp_list, phase_vector_list
+
+    def _calc_isf_by_known_isf(self, k_isf_vector, k_isf_rows, k_ν_st, k_m_ν_st, k_m_ν,
+                               u_isf_row, u_ν_st, u_m_ν_st, u_m_ν_by_k_m_ν_st,
+                               ν, data_sn, data_st, data_σ_μ):
+        """
+        根据式4-195c，根据已知ISF计算未知
+
+        其中，正算为：
+        由确定相位的第一分支(k_isf)全部，逐个直接推导准确的其余分支(u_isf)
+        反算为：
+        使用待定的非第一分支(k_isf)全部，逐个回推确定的第一分支(u_isf)，
+        如果abs相等，说明只需要调整整体符号；如果abs不等，则说明需要调整符号和整体旋转
+
+        输入：
+        第一行：known独有参数
+        第二行：u独有参数
+        第三行：公有参数
+        """
+        u_σ_st, u_μ_st, u_β_st = u_isf_row if len(u_isf_row) == 3 else (u_isf_row[0], u_isf_row[1], None)
+        flag, u_cgc_square_st_dict = load_cgc(self.s_t, u_σ_st, u_μ_st, u_ν_st, u_β_st, u_m_ν_st,
+                                              is_flag_true_if_not_s_n=False)
+        if not flag:
+            err_msg = "get u_cgc_square_st_dict with s_t={}, u_σ_st={}, u_μ_st={}, u_ν_st={}, u_β_st={}, " \
+                      "u_m_ν_st={} meet error with " \
+                      "msg={}".format(self.s_t, u_σ_st, u_μ_st, u_ν_st, u_β_st, u_m_ν_st, u_cgc_square_st_dict)
+            logger.error(err_msg)
+            return False, err_msg
+        u_cgc_square_st_n = u_cgc_square_st_dict.pop("N")
+
+        sum_3_loop = 0
+        for k_isf_row, k_vector_element in zip(k_isf_rows, k_isf_vector):
+            k_σ_st, k_μ_st, k_β_st = k_isf_row if len(k_isf_row) == 3 else (k_isf_row[0], k_isf_row[1], None)
+            flag, k_cgc_square_st_dict = load_cgc(self.s_t, k_σ_st, k_μ_st, k_ν_st, k_β_st, k_m_ν_st,
+                                                  is_flag_true_if_not_s_n=False)
+            if not flag:
+                err_msg = "get k_cgc_square_st_dict with s_t={}, k_σ_st={}, k_μ_st={}, k_ν_st={}, k_β_st={}, " \
+                          "k_m_ν_st={} meet error " \
+                          "with msg={}".format(self.s_t, k_σ_st, k_μ_st, k_ν_st, k_β_st, k_m_ν_st, k_cgc_square_st_dict)
+                logger.error(err_msg)
+                return False, err_msg
+            k_cgc_square_st_n = k_cgc_square_st_dict.pop("N")
+            sum_3_loop_part = 0  # 暂时先不优化此处，因为cgc的储存也可能被优化
+            for (u_m_σ_st, u_m_μ_st), u_cgc_square_st_element in u_cgc_square_st_dict.items():
+                u_m_σ = self._calc_m_with_m_st(u_σ_st, u_m_σ_st, data_sn.bl_yd_list_dict[tuple(data_σ_μ.σ)],
+                                               data_st.yt_num_dict)
+                u_m_μ = self._calc_m_with_m_st(u_μ_st, u_m_μ_st, data_sn.bl_yd_list_dict[tuple(data_σ_μ.μ)],
+                                               data_st.yt_num_dict)
+                for (k_m_σ_st, k_m_μ_st), k_cgc_square_st_element in k_cgc_square_st_dict.items():
+                    k_m_σ = self._calc_m_with_m_st(k_σ_st, k_m_σ_st, data_sn.bl_yd_list_dict[tuple(data_σ_μ.σ)],
+                                                   data_st.yt_num_dict)
+                    k_m_μ = self._calc_m_with_m_st(k_μ_st, k_m_μ_st, data_sn.bl_yd_list_dict[tuple(data_σ_μ.μ)],
+                                                   data_st.yt_num_dict)
+                    in_matrix_σ_element = data_σ_μ.in_matrix_σ_dict[(self.s_t, self.s_n)][u_m_σ - 1, k_m_σ - 1]
+                    in_matrix_μ_element = data_σ_μ.in_matrix_μ_dict[(self.s_t, self.s_n)][u_m_μ - 1, k_m_μ - 1]
+                    sum_3_loop_part += in_matrix_σ_element * in_matrix_μ_element \
+                                       * sp.sign(k_cgc_square_st_element) * sp.sign(u_cgc_square_st_element) \
+                                       * sp.sqrt(abs(k_cgc_square_st_element * u_cgc_square_st_element
+                                                     / (u_cgc_square_st_n * k_cgc_square_st_n)))
+            # logger.warning("$$$$ sum_3_loop={}, sum_3_loop_part={} k_vector={}".format(
+            #     sum_3_loop, sum_3_loop_part, k_vector))
+            sum_3_loop += sum_3_loop_part * k_vector_element
+
+        flag, in_matrix_ν = load_yamanouchi_matrix(self.s_n, ν, (self.s_t, self.s_n,), mode="in")  # (Sn-1, Sn)的对换
+        if not flag:
+            err_msg = "get in_matrix_ν with s_n={}, ν={}, in_key={} meet error with " \
+                      "msg={}".format(self.s_n, ν, (self.s_t, self.s_n,), in_matrix_ν)
+            logger.error(err_msg)
+            return False, err_msg
+        in_matrix_ν_m_m_element = in_matrix_ν[k_m_ν - 1, u_m_ν_by_k_m_ν_st - 1]
+        u_isf_element = sum_3_loop / in_matrix_ν_m_m_element
+        return True, u_isf_element
 
     def _calc_isf_fbl_another_way(self, ν, m_ν, m_ν_by_m_ν_st_fbl, isf_fbl_row, ν_st_fbl,
                                   row_index_tmp_list, soe_vector, ν_st, m_ν_st, data_sn, data_st, data_σ_μ):
@@ -1433,8 +1581,10 @@ class ISFHelper(CalcHelper):
     @staticmethod
     def _calc_schmidt_orthogonalization_tricky(multi_vectors):
         """使用GramSchmidt得到正交归一的多重根本征矢量
-        这里，为了使存在自由度的结果对齐《群表示论的新途径》，使用了一个tricky的技巧，就是取分母之和表示复杂度，返回复杂度最小的一组"""
-        soe_1 = sp.GramSchmidt(multi_vectors, True)
+        这里，为了使存在自由度的结果对齐《群表示论的新途径》，使用了一个tricky的技巧，
+        就是取分母之和表示复杂度，返回复杂度最小的一组，并且按照简明性排序，
+        如此就是为了对齐书中给的多重根自由度选择"""
+        soe_1 = sp.GramSchmidt(multi_vectors, True)[::-1]
         soe_2 = sp.GramSchmidt(multi_vectors[::-1], True)
         soe_1_denominator, soe_2_denominator = 0, 0
         for mat_1, mat_2 in zip(soe_1, soe_2):

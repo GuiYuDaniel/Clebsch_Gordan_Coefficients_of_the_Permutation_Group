@@ -383,7 +383,7 @@ def _calc_s_b_to_s_n_part(matrix_div, s_b, s_n, yd_s_n, bl_num, before_yd, yt_al
                 yt_i_after_exchange = copy.deepcopy(yt_i)
                 yt_i_after_exchange[row_i_s_n][col_i_s_n] = s_b
                 yt_i_after_exchange[row_i_s_b][col_i_s_b] = s_n
-                # 可以证明，异行列情况下Sb和Sn交换后必然生成合法杨图/Yamanouchi基!所以下面的判断可以省略
+                # 可以证明，异行列情况下Sb和Sn交换后必然生成合法杨图/Yamanouchi基!
                 # math_another_yt_i_idp_order就是|Yn>的编号
                 flag, math_another_yt_i_idp_order = read_young_table_in_decreasing_page_order(
                     yt_i_after_exchange, yt_all_s_n, is_rst_int=True)

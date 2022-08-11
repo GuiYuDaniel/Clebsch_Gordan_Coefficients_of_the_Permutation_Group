@@ -369,7 +369,7 @@ class YoungTableInfo(CGCLocalDb):
     <CG>/young_tableaux_info/Sn/[ν_i]_num.pkl   ->
     {
     "file_name": "Sn/[ν_i]_num",
-    "data": {"total_num": total_num}
+    "data": total_num
     "flags": {}
     }
 
@@ -379,7 +379,23 @@ class YoungTableInfo(CGCLocalDb):
     total_num就是len({"m_i": young_table})，表示杨盘总数;
 
     例如：
-    S3/[2, 1]_num.pkl: {"total_num": 2}
+    S3/[2, 1]_num.pkl: 2
+
+    另存：杨盘相位因子
+    <CG>/young_tableaux_info/Sn/[ν_i]_Λ.pkl  ->
+    {
+    "file_name": "Sn/[ν_i]_Λ",
+    "data": phase_factor_list
+    "flags": {}
+    }
+
+    其中，
+    Sn表示n阶置换群;
+    [ν_i]表示杨图;
+    phase_factor_list就是Λ按照m从小到大，或者说Yamanouchi序排列的
+
+    例如：
+    S3/[2, 1]_Λ.pkl: [1, -1]
     """
 
     def __init__(self, s_n):
@@ -387,7 +403,7 @@ class YoungTableInfo(CGCLocalDb):
         self.table_type = "young_tableaux_info"
         self.map_id = "file_name"
         self.design_table_type.update({
-            "data": dict,
+            "data": (dict, int, list),
             "flags": dict
         })
         self.s_n = s_n

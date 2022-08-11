@@ -100,6 +100,26 @@ class LocalDb(object):
         table["last_write_time"] = time_now  # 这本质是一个覆盖操作哦
 
     # 按照 查删增改 顺序重构db操作
+    def exist(self, condition):
+        """
+        只判断有无
+        """
+        if not isinstance(condition, dict):
+            err_msg = "condition={} must be dict".format(condition)
+            logger.error(err_msg)
+            return False, err_msg
+        flag, file_path = self._get_file_path_by_condition(condition)
+        if not flag:
+            return flag, file_path
+
+        if os.path.exists(file_path):
+            return True, True
+        else:
+            return True, False
+
+    def exist_by_id(self, table_id):
+        return self.exist({self.map_id: table_id})
+
     def query_by_id(self, table_id):
         return self.query({self.map_id: table_id})
 

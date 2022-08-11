@@ -86,13 +86,17 @@
         txt展示：value of "data"
         #{"1": [[1, 2], [3]], "2": [[1, 3], [2]]}
 
-        另存：杨盘总数
+        另存：杨盘总数/也是不可约表示维度h/也是最大m编号
         <CG>/young_tableaux_info/Sn/[ν_i]_num.pkl #如<CG>/young_tableaux_info/S3/[2,1]_num.pkl #存放S3群[2,1]构型的杨盘总数
-        数据结构：{"data": {"total_num": total_num}}                  #2(int)
+        数据结构：{"data": total_num}                  #2(int)
         txt展示：value of "data"
-        #{"total_num": 2}
-
+        #2
         #len({"m_i": young_table}) = total_num
+
+        另存：杨盘相位因子
+        <CG>/young_tableaux_info/Sn/[ν_i]_Λ.pkl  #如<CG>/young_tableaux_info/S3/[2,1]_Λ.pkl  #存放S3群[2,1]构型的相位因子
+        数据结构：{"data": phase_factor_list}           #如[1, -1]
+        txt展示：value of "data"
 
     分支律存放于：<CG>/branching_laws_info/Sn/[ν_i].pkl   #如<CG>/branching_laws_info/S4/[2,2].pkl  #存放S4群[2,2]构型的分支律
         数据结构：{"data": {"BL_num": bl_num,         #1(int)                     #S4群[2,2]构型分支律的分支数

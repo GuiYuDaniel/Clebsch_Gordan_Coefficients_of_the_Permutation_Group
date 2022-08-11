@@ -8,12 +8,12 @@
 
 import copy
 import os
+import shutil
 import sys
 from conf.cgc_config import (
     top_path, cgc_rst_folder
 )
 from db.local_db import LocalDb
-# from functools import partial
 from utils.io import Save, Load, Delete
 from utils.log import get_logger
 
@@ -53,6 +53,12 @@ class CGCLocalDb(LocalDb):
     def _init_cgc_static_db_folder(self):
         """供类继承者创建静态目录，到xxx_info级别"""
         super(CGCLocalDb, self)._init_db_folder()
+        # 将ResultsNote copy到cgc_rst_folder
+        shutil.copyfile(os.path.join(top_path, "CGCReadMe", "ResultsNote.md"),
+                        os.path.join(top_path, cgc_rst_folder, "ResultsNote.md"))
+
+    def exist_by_file_name(self, file_name):
+        return self.exist_by_id({self.map_id: file_name})
 
     def query_by_file_name(self, file_name):
         return self.query({self.map_id: file_name})
@@ -328,6 +334,20 @@ def get_young_tableaux_num_file_name(s_n: int, yd: list, is_full_path=False):
     """
     from conf.cgc_config import young_tableaux_num_file_name_format
     file_name = young_tableaux_num_file_name_format.format(s_n, yd)  # 检查交给调用者
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "young_tableaux_info", file_name)
+        return True, full_path
+
+
+def get_young_tableaux_phase_factor_file_name(s_n: int, yd: list, is_full_path=False):
+    """
+    Sn/[ν_i]_Λ or <top_path>/cgc_results/young_tableaux_info/Sn/[ν_i]_Λ
+    p.s. S3/[2, 1]_Λ or <top_path>/cgc_results/young_tableaux_info/S3/[2, 1]_Λ
+    """
+    from conf.cgc_config import young_tableaux_phase_factor_file_name_format
+    file_name = young_tableaux_phase_factor_file_name_format.format(s_n, yd)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
