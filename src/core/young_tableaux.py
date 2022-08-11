@@ -97,8 +97,8 @@ def create_young_tableaux(s_n: int=default_s_n):
 
         for yd_i in young_diagrams:  # 循环体为[nu_1, nu_2, ...]
             start_time = time.time()
+            # 计算young_table
             flag, young_table_i = calc_single_young_table(s_i, yd_i)  # young_table_i={"m_j": young_table_j}
-            speed_time = int(time.time() - start_time)
             if not flag:
                 err_msg = "calc young_table_i meet error with s_i={}, yd_i={}, msg={}".format(s_i, yd_i, young_table_i)
                 logger.error(err_msg)
@@ -108,6 +108,15 @@ def create_young_tableaux(s_n: int=default_s_n):
                 logger.error(err_msg)
                 return False, err_msg
 
+            # 计算young_table的phase_factor，按照顺序存列表
+            flag, phase_factor_list = quick_calc_phase_factor_list(s_i, yd_i, young_table_i)
+            if not flag:
+                err_msg = "calc phase_factor_list meet error with s_i={}, yd_i={}, msg={}".format(
+                    s_i, yd_i, young_table_i)
+                logger.error(err_msg)
+                return False, err_msg
+
+            speed_time = int(time.time() - start_time)
             # 既然没问题了，那就存（别忘了也要更新Finish_Sn）
             flag, msg = save_single_young_table(s_i, yd_i, young_table_i, speed_time)
             if not flag:
@@ -124,14 +133,6 @@ def create_young_tableaux(s_n: int=default_s_n):
                 logger.error(err_msg)
                 return False, err_msg
 
-            # 计算young_table的phase_factor，按照顺序存列表
-            flag, phase_factor_list = quick_calc_phase_factor_list(s_i, yd_i, young_table_i)
-            if not flag:
-                err_msg = "calc phase_factor_list meet error with s_i={}, yd_i={}, msg={}".format(
-                    s_i, yd_i, young_table_i)
-                logger.error(err_msg)
-                return False, err_msg
-
             # young_table特别另存一个young_table_Λ
             flag, msg = save_single_young_table_phase_factor(s_i, yd_i, phase_factor_list)
             if not flag:
@@ -139,8 +140,6 @@ def create_young_tableaux(s_n: int=default_s_n):
                     s_i, yd_i, msg)
                 logger.error(err_msg)
                 return False, err_msg
-
-
 
         # 别忘了也要更新Finish_Sn
         s_i_speed_time = int(time.time() - s_i_start_time)
