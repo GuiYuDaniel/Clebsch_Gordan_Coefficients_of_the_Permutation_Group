@@ -400,6 +400,7 @@ def calc_s_n_from_young_diagram(young_diagram):
 
 
 def calc_young_diagram_dagger(young_diagram, is_check_yd=True):
+    # 也称conjugate（共轭）
     if is_check_yd:
         if not is_young_diagram(young_diagram):
             err_msg = "cannot calc dagger with wrong young_diagram={}".format(young_diagram)

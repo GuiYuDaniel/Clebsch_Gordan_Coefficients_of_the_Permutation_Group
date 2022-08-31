@@ -15,7 +15,7 @@ from sympy import Rational as Ra
 from sympy import sqrt
 import pytest
 from itertools import chain, product
-from conf.cgc_config import cgc_rst_folder, isf_0_error_value
+from conf.cgc_config import cgc_rst_folder
 from core.young_diagrams import create_young_diagrams, load_young_diagrams
 from core.branching_laws import create_branching_laws
 from core.young_tableaux import create_young_tableaux
@@ -772,8 +772,6 @@ class TestISFAndCGC(object):
         assert flag
         assert msg == s_n
 
-        self.decimals = len(str(isf_0_error_value))
-
         self.data = Data()
         self.helper = Helper()
 
@@ -888,7 +886,6 @@ class TestISFAndCGC(object):
             assert flag
             cgc_answer_n = cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
-            assert 1 - isf_0_error_value < abs(cgc["N"]) < 1 + isf_0_error_value
             for cgc_k, cgc_v in cgc_answer.items():
                 assert cgc[cgc_k] == Ra(cgc_v)/cgc_answer_n, \
                     "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
@@ -902,7 +899,6 @@ class TestISFAndCGC(object):
             assert flag
             symmetry_cgc_answer_n = symmetry_cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in symmetry_cgc_answer.values()) == symmetry_cgc_answer_n
-            assert 1 - isf_0_error_value < abs(symmetry_cgc["N"]) < 1 + isf_0_error_value
             for cgc_k, cgc_v in symmetry_cgc_answer.items():
                 assert symmetry_cgc[cgc_k] == Ra(cgc_v) / symmetry_cgc_answer_n, \
                     "symmetry_cgc_{}, ={} with {} with key={} and cgc={}".format(
@@ -1015,7 +1011,6 @@ class TestISFAndCGC(object):
             assert flag
             cgc_answer_n = cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
-            assert 1 - isf_0_error_value < abs(cgc["N"]) < 1 + isf_0_error_value
             for cgc_k, cgc_v in cgc_answer.items():
                 assert cgc[cgc_k] == Ra(cgc_v)/cgc_answer_n, \
                     "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
@@ -1029,7 +1024,6 @@ class TestISFAndCGC(object):
             assert flag
             symmetry_cgc_answer_n = symmetry_cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in symmetry_cgc_answer.values()) == symmetry_cgc_answer_n
-            assert 1 - isf_0_error_value < abs(symmetry_cgc["N"]) < 1 + isf_0_error_value
             for cgc_k, cgc_v in symmetry_cgc_answer.items():
                 assert symmetry_cgc[cgc_k] == Ra(cgc_v) / symmetry_cgc_answer_n, \
                     "symmetry_cgc_{}, ={} with {} with key={} and cgc={}".format(
@@ -1158,7 +1152,6 @@ class TestISFAndCGC(object):
             assert flag
             cgc_answer_n = cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
-            assert cgc["N"] == 1
             for cgc_k, cgc_v in cgc_answer.items():
                 assert cgc[cgc_k] == Ra(cgc_v) / cgc_answer_n, \
                     "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
@@ -1172,7 +1165,6 @@ class TestISFAndCGC(object):
             assert flag
             symmetry_cgc_answer_n = symmetry_cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in symmetry_cgc_answer.values()) == symmetry_cgc_answer_n
-            assert 1 - isf_0_error_value < abs(symmetry_cgc["N"]) < 1 + isf_0_error_value
             for cgc_k, cgc_v in symmetry_cgc_answer.items():
                 assert symmetry_cgc[cgc_k] == Ra(cgc_v) / symmetry_cgc_answer_n, \
                     "symmetry_cgc_{}, ={} with {} with key={} and cgc={}".format(
@@ -1303,7 +1295,6 @@ class TestISFAndCGC(object):
             assert flag
             cgc_answer_n = cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
-            assert cgc["N"] == 1
             for cgc_k, cgc_v in cgc_answer.items():
                 assert cgc[cgc_k] == Ra(cgc_v) / cgc_answer_n, \
                     "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
@@ -1317,7 +1308,6 @@ class TestISFAndCGC(object):
             assert flag
             symmetry_cgc_answer_n = symmetry_cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in symmetry_cgc_answer.values()) == symmetry_cgc_answer_n
-            assert 1 - isf_0_error_value < abs(symmetry_cgc["N"]) < 1 + isf_0_error_value
             for cgc_k, cgc_v in symmetry_cgc_answer.items():
                 assert symmetry_cgc[cgc_k] == Ra(cgc_v) / symmetry_cgc_answer_n, \
                     "symmetry_cgc_{}, ={} with {} with key={} and cgc={}".format(

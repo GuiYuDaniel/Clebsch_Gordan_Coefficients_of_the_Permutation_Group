@@ -34,29 +34,67 @@ class CGCInfo(CGCLocalDb):
     """
     这个db用来存CGC
 
-    TODO tmp
-    <CG>/cgc_info/Sn/[σ]_[μ]/[ν]_beta_m.pkl
+    <CG>/cgc_info/Sn/[σ]_[μ]/[ν]_β_m.pkl  # 无多重性，则为[ν]_m.pkl
     {
-    "file_name": Sn/[σ]_[μ]/[ν]_beta_m,
+    "file_name": Sn/[σ]_[μ]/[ν]_β_m,  # 无多重性，则为[ν]_m
     "data": cgc_square_dict,
     "flags": {"speed_time": speed_time}
     }
 
     其中，
-    Sn表示n阶置换群;
-    [σ][μ]表示参与内积的两个置换群构型；[ν]表示内积后的可能构型； (Sn)
-    beta对应[ν]的多重性;
-    m是[ν]的yamanouchi序;
-    cgc_square_dict数值是cgc的平方，符号是平方前cgc的符号;
+    Sn表示n阶置换群；
+    [σ][μ]表示参与内积的两个置换群构型；[ν]表示内积后的可能构型；
+    β对应[ν]的多重性；
+    m是[ν]的yamanouchi序；
+    cgc_square_dict数值是cgc的平方，符号是平方前cgc的符号；
     speed_time表示计算用时（秒）
 
     例如，
-    <CG>/cgc_info/S4/[2,2]_[3,1]/[2,1,1]_1_m2.pkl
-    {(2, 1): 0.4999999999999999, (1, 3): 0.24999999999999994, (2, 2): 0.24999999999999994, 'N': 0.9999999999999998}
+    <CG>/cgc_info/S4/[2, 2]_[3, 1]/[2, 1, 1]_m2.pkl
+    {(2, 1): 1/2, (1, 3): 1/4, (2, 2): 1/4}
+
+    <CG>/cgc_info/S5/[3, 1, 1]_[3, 2]/[1, 1, 1]_β1_m4.pkl
+    {(1, 4): 1/8, (2, 4): -1/16, (3, 5): 1/16, (4, 1): -1/10, (4, 2): -1/5,
+     (4, 4): 3/80, (5, 3): 1/5, (5, 5): -3/80, (6, 3): -1/10, (6, 5): -3/40}
     """
     def __init__(self, s_n):
         super(CGCInfo, self).__init__()
         self.table_type = "cgc_info"
+        self.map_id = "file_name"
+        self.design_table_type.update({
+            "data": (dict, sp.Matrix),
+            "flags": dict
+        })
+        self.s_n = s_n
+        self.txt_limit = default_s_n
+        self._init_cgc_static_db_folder()
+
+
+class EInfo(CGCLocalDb):
+    """
+    这个db用来存ϵ
+
+    注意，为了方便书写，类名用的是英文字母e的大写，而不是希腊字母ϵ的大写
+
+    <CG>/ϵ_info/Sn/[σ]_[μ]/[ν]_β.pkl  # 无多重性，则为[ν].pkl
+    {
+    "file_name": Sn/[σ]_[μ]/[ν]_β,  # 无多重性，则为[ν]
+    "data": ϵ_dict,
+    "flags": {}
+    }
+
+    其中，
+    Sn表示n阶置换群;
+    [σ][μ]表示参与内积的两个置换群构型；[ν]表示内积后的可能构型；
+    β对应[ν]的多重性;
+
+    例如，
+    <CG>/ϵ_info/S5/[3, 2]_[3, 1, 1]/[3, 1, 1]_β2.pkl
+    {"ϵ1": int, "ϵ4": int, "ϵ14": int, "ϵ5": int, "ϵ15": int, "ϵ6": int, "ϵ16": int}
+    """
+    def __init__(self, s_n):
+        super(EInfo, self).__init__()
+        self.table_type = "ϵ_info"
         self.map_id = "file_name"
         self.design_table_type.update({
             "data": dict,
@@ -65,6 +103,23 @@ class CGCInfo(CGCLocalDb):
         self.s_n = s_n
         self.txt_limit = default_s_n
         self._init_cgc_static_db_folder()
+
+    def _init_cgc_static_db_folder(self):
+        super(EInfo, self)._init_db_folder()
+        # 初始化Sn=1时的ϵ_dict
+        from core.cgc_utils.cgc_local_db import get_ϵ_file_name
+
+        _, file_name = get_ϵ_file_name(1, [1], [1], [1], None)
+        ϵ_dict = {"ϵ1": 1, "ϵ4": 1, "ϵ14": 1, "ϵ5": 1, "ϵ15": 1, "ϵ6": 1, "ϵ16": 1}
+        table = {"file_name": file_name,
+                 "data": ϵ_dict,
+                 "flags": {}}
+        flag, msg = self.insert(table)
+        if not flag:
+            raise Exception(msg)
+        flag, msg = self.insert_txt(table)
+        if not flag:
+            raise Exception(msg)
 
 
 class ISFInfo(CGCLocalDb):
@@ -95,10 +150,10 @@ class ISFInfo(CGCLocalDb):
     <CG>/isf_info/S5/[3, 1, 1]_[3, 1, 1]/[3, 1].pkl
     {"rows": [([3,1],[3,1]), ([3,1],[2,1,1]), ([2,1,1],[3,1]), ([2,1,1],[2,1,1])],
      "cols": [[4,1], ([3,2],1), ([3,2],2), [3,1,1]],
-     "isf": np.array([[5/12, 1/2, 1/12, 0],
-                      [-1/12, 0, 5/12, 1/2],
-                      [-1/12, 0, 5/12, -1/2],
-                      [5/12, -1/2, 1/12, 0]])}
+     "isf": sp.Matrix([[5/12, 1/2, 1/12, 0],
+                       [-1/12, 0, 5/12, 1/2],
+                       [-1/12, 0, 5/12, -1/2],
+                       [5/12, -1/2, 1/12, 0]])}
 
     正则ISF索引的全部参数为：σ σ' μ μ' ν β ν' β'
     表示：|σ σ'> * |μ μ'> 的结果中，|νβ ν'β'>，的ISF系数平方

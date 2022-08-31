@@ -34,7 +34,6 @@ top_path = singleton_config.top_path
 # <CGC>/cgc_results = <CGC_rst>
 cgc_rst_folder = "cgc_results"
 calculated_tables_txt_limit = -1  # -1表示永远存txt
-isf_0_error_value = 0.000001  # abs小于它的被认为是0
 
 # db table name
 # young diagrams file name format
@@ -55,8 +54,12 @@ cg_series_file_name_format = os.path.join("S{}", "{}_{}")  # "S{}/{}_{}"
 eigenvalues_file_name_format = "S{}"
 # isf file name format
 isf_file_name_format = os.path.join("S{}", "{}_{}", "{}\'")
+# ϵ file name format
+ϵ_file_name_format_none = os.path.join("S{}", "{}_{}", "{}")
+ϵ_file_name_format = os.path.join("S{}", "{}_{}", "{}_β{}")
 # cgc file name format
-cgc_file_name_format = os.path.join("S{}", "{}_{}", "{}_{}_m{}")
+cgc_file_name_format_none = os.path.join("S{}", "{}_{}", "{}_m{}")
+cgc_file_name_format = os.path.join("S{}", "{}_{}", "{}_β{}_m{}")
 
 # min Sn 各计算单元的最小合法Sn
 min_s_n_of_young_diagram = 1
@@ -67,4 +70,5 @@ min_s_n_of_characters_and_gi = 1
 min_s_n_of_cg_series = 1
 min_s_n_of_eigenvalue = 1  # 理论上是2; 添加1是一种"解析延拓"
 min_s_n_of_isf = 2
+min_s_n_of_ϵ = 1
 min_s_n_of_cgc = 1

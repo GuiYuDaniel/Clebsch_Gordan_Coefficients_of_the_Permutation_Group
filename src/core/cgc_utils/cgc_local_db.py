@@ -474,16 +474,42 @@ def get_isf_finish_s_n_name(is_full_path=False):
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="isf_info")
 
 
-# cgc
-def get_cgc_file_name(s_n: int, sigma: list, mu: list, nu: list, beta: int, m: int, is_full_path=False):
+# ϵ
+def get_ϵ_file_name(s_n: int, sigma: list, mu: list, nu: list, beta: (None, int), is_full_path=False):
     """
-    Sn/[σ]_[μ]/[ν]_beta_m or <top_path>/cgc_results/cgc_info/Sn/[σ]_[μ]/[ν]_beta_m
+    Sn/[σ]_[μ]/[ν]_beta or <top_path>/cgc_results/ϵ_info/Sn/[σ]_[μ]/[ν]_beta  无多重性，则去掉beta
+    p.s. S4/[2, 2]_[3, 1]/[2, 1, 1] or <top_path>/cgc_results/ϵ_info/S4/[2, 2]_[3, 1]/[2, 1, 1]
+    """
+    from conf.cgc_config import ϵ_file_name_format, ϵ_file_name_format_none
+    if beta is None:  # 没有多重性的beta将会被省略
+        file_name = ϵ_file_name_format_none.format(s_n, sigma, mu, nu)  # 检查交给调用者
+    else:
+        file_name = ϵ_file_name_format.format(s_n, sigma, mu, nu, beta)  # 检查交给调用者
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "ϵ_info", file_name)
+        return True, full_path
+
+
+def get_ϵ_finish_s_n_name(is_full_path=False):
+    """
+    Finish_Sn or <top_path>/cgc_results/ϵ_info/Finish_Sn
+    """
+    return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="ϵ_info")
+
+
+# cgc
+def get_cgc_file_name(s_n: int, sigma: list, mu: list, nu: list, beta: (None, int), m: int, is_full_path=False):
+    """
+    Sn/[σ]_[μ]/[ν]_beta_m or <top_path>/cgc_results/cgc_info/Sn/[σ]_[μ]/[ν]_beta_m  无多重性，则去掉beta
     p.s. S4/[2, 2]_[3, 1]/[2, 1, 1]_1_m2 or <top_path>/cgc_results/cgc_info/S4/[2, 2]_[3, 1]/[2, 1, 1]_1_m2
     """
-    from conf.cgc_config import cgc_file_name_format
+    from conf.cgc_config import cgc_file_name_format, cgc_file_name_format_none
     if beta is None:  # 没有多重性的beta将会被省略
-        beta = ""
-    file_name = cgc_file_name_format.format(s_n, sigma, mu, nu, beta, m)  # 检查交给调用者
+        file_name = cgc_file_name_format_none.format(s_n, sigma, mu, nu, m)  # 检查交给调用者
+    else:
+        file_name = cgc_file_name_format.format(s_n, sigma, mu, nu, beta, m)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:

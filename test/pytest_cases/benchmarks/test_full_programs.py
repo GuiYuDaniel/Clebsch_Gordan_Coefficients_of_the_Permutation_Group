@@ -1,8 +1,7 @@
 # -*- coding:utf8 -*-
 """
 测试
-core/isf_and_cgc.py
-下所有功能是否正确执行
+全流程
 """
 
 
