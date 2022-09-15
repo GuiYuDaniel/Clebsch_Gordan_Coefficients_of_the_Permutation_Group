@@ -89,8 +89,16 @@ class EInfo(CGCLocalDb):
     β对应[ν]的多重性;
 
     例如，
-    <CG>/ϵ_info/S5/[3, 2]_[3, 1, 1]/[3, 1, 1]_β2.pkl
-    {"ϵ1": int, "ϵ4": int, "ϵ14": int, "ϵ5": int, "ϵ15": int, "ϵ6": int, "ϵ16": int}
+    <CG>/ϵ_info/S5/[3, 1, 1]_[3, 1, 1]/[3, 2]_2.pkl
+    {"data": {"ϵ0": 1, "ϵ1": 1, "ϵ4": -1, "ϵ14": -1,
+                  "ϵ5": 1, "ϵ15": -1, "ϵ6": -1, "ϵ16": 1},
+     "flags": {"ϵ0": (1, 1), "ϵ1": (1, 1), "ϵ4": (6, 6), "ϵ14": (6, 6),
+               "ϵ5": (6, 4), "ϵ15": (3, 1), "ϵ6": (1, 3), "ϵ16": (4, 6)}}
+    <CG>/ϵ_info/S5/[3, 1, 1]_[3, 1, 1]/[2, 1, 1]_2.pkl
+    {"data": {"ϵ0": 1, "ϵ1": -1, "ϵ4": -1, "ϵ14": 1,
+              "ϵ5": -1, "ϵ15": -1, "ϵ6": 1, "ϵ16": 1},
+     "flags": {"ϵ0": (1, 4), "ϵ1": (4, 1), "ϵ4": (6, 3), "ϵ14": (3, 6),
+               "ϵ5": (6, 1), "ϵ15": (6, 1), "ϵ6": (1, 6), "ϵ16": (1, 6)}}
     """
     def __init__(self, s_n):
         super(EInfo, self).__init__()
@@ -110,16 +118,18 @@ class EInfo(CGCLocalDb):
         from core.cgc_utils.cgc_local_db import get_ϵ_file_name
 
         _, file_name = get_ϵ_file_name(1, [1], [1], [1], None)
-        ϵ_dict = {"ϵ1": 1, "ϵ4": 1, "ϵ14": 1, "ϵ5": 1, "ϵ15": 1, "ϵ6": 1, "ϵ16": 1}
-        table = {"file_name": file_name,
-                 "data": ϵ_dict,
-                 "flags": {}}
-        flag, msg = self.insert(table)
-        if not flag:
-            raise Exception(msg)
-        flag, msg = self.insert_txt(table)
-        if not flag:
-            raise Exception(msg)
+        _, is_exist = self.exist_by_file_name(file_name)
+        if is_exist is False:
+            ϵ_dict = {"ϵ1": 1, "ϵ4": 1, "ϵ14": 1, "ϵ5": 1, "ϵ15": 1, "ϵ6": 1, "ϵ16": 1}
+            table = {"file_name": file_name,
+                     "data": ϵ_dict,
+                     "flags": {}}
+            flag, msg = self.insert(table)
+            if not flag:
+                raise Exception(msg)
+            flag, msg = self.insert_txt(table)
+            if not flag:
+                raise Exception(msg)
 
 
 class ISFInfo(CGCLocalDb):

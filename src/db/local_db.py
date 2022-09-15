@@ -117,8 +117,8 @@ class LocalDb(object):
         else:
             return True, False
 
-    def exist_by_id(self, table_id):
-        return self.exist({self.map_id: table_id})
+    # def exist_by_id(self, table_id):
+    #     return self.exist({self.map_id: table_id})
 
     def query_by_id(self, table_id):
         return self.query({self.map_id: table_id})

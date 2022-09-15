@@ -54,11 +54,23 @@ class CGCLocalDb(LocalDb):
         """供类继承者创建静态目录，到xxx_info级别"""
         super(CGCLocalDb, self)._init_db_folder()
         # 将ResultsNote copy到cgc_rst_folder
-        shutil.copyfile(os.path.join(top_path, "CGCReadMe", "ResultsNote.md"),
-                        os.path.join(top_path, cgc_rst_folder, "ResultsNote.md"))
+        if not os.path.exists(os.path.join(top_path, cgc_rst_folder, "ResultsNote.md")):
+            shutil.copyfile(os.path.join(top_path, "CGCReadMe", "ResultsNote.md"),
+                            os.path.join(top_path, cgc_rst_folder, "ResultsNote.md"))
+
+    def folder_exist(self, folder_name):
+        if not isinstance(folder_name, str):
+            err_msg = "folder_name={} must be str".format(folder_name)
+            logger.error(err_msg)
+            return False, err_msg
+        full_folder_name = self.db_folder.format(self.table_type, folder_name)
+        if os.path.exists(full_folder_name):
+            return True, True
+        else:
+            return True, False
 
     def exist_by_file_name(self, file_name):
-        return self.exist_by_id({self.map_id: file_name})
+        return self.exist({self.map_id: file_name})
 
     def query_by_file_name(self, file_name):
         return self.query({self.map_id: file_name})

@@ -114,7 +114,7 @@ class TestYoungTableaux(object):
         self.create_time_dict = {}
 
     def teardown_class(self):
-        self.protector.protector_teardown()
+        # self.protector.protector_teardown()
         pass
 
     def test_001_create_young_tableaux_s_n_1_to_2(self):
@@ -368,6 +368,15 @@ class TestYoungTableaux(object):
         flag, data = create_young_tableaux(6)
         assert flag
         assert msg == 6
+        # flag, msg = create_young_diagrams(9)
+        # assert flag
+        # assert msg == 9
+        # flag, msg = create_branching_laws(9)
+        # assert flag
+        # assert msg == 9
+        # flag, data = create_young_tableaux(9)
+        # assert flag
+        # assert msg == 9
 
         for yt_str, idp_order in self.regular_young_table_and_idp_order_dict.items():
             yt = eval(yt_str)
@@ -450,7 +459,7 @@ class TestYoungTableaux(object):
             for yd in young_diagrams:
                 # 拿quick_calc_phase_factor_list的结果
                 flag, phase_factor_list_quick = load_young_table_phase_factor(s_i, yd, is_flag_true_if_not_s_n=False)
-                assert flag
+                assert flag, "msg={}".format(phase_factor_list_quick)
                 # 按照normal_calc_phase_factor_list算
                 _, yt = load_young_table(s_i, yd, is_flag_true_if_not_s_n=False)
                 assert flag

@@ -832,6 +832,8 @@ def _calc_single_phase_factor(y_target, y_start, is_output_exchange_list=False):
 
     对于is_output_exchange_list开关，常规是关闭的，但如果有需要，可以通过传入True，得到形如[(4,5),(3,4),(2,3),(5,6)]这样的具体交换细节
     注意：is_output_exchange_list会改变输出个数
+
+    除了直接使用定义，还可以用Butler的方法，用(-1)^nb，乘以对应分支的Λ_st，得到Λ
     """
     exchange_times = 0
     exchange_list = []  # 具体的交换顺序

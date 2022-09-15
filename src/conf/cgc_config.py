@@ -70,5 +70,5 @@ min_s_n_of_characters_and_gi = 1
 min_s_n_of_cg_series = 1
 min_s_n_of_eigenvalue = 1  # 理论上是2; 添加1是一种"解析延拓"
 min_s_n_of_isf = 2
-min_s_n_of_ϵ = 1
+min_s_n_of_ϵ = 2  # 尽管有1，但它是预置的，不是计算得来的
 min_s_n_of_cgc = 1
