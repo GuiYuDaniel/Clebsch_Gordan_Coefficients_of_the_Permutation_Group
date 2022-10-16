@@ -34,9 +34,9 @@ class CGCInfo(CGCLocalDb):
     """
     这个db用来存CGC
 
-    <CG>/cgc_info/Sn/[σ]_[μ]/[ν]_β_m.pkl  # 无多重性，则为[ν]_m.pkl
+    <CG>/cgc_info/Sn/[σ]_[μ]/[ν]_τ_m.pkl  # 无多重性，则为[ν]_m.pkl
     {
-    "file_name": Sn/[σ]_[μ]/[ν]_β_m,  # 无多重性，则为[ν]_m
+    "file_name": Sn/[σ]_[μ]/[ν]_τ_m,  # 无多重性，则为[ν]_m
     "data": cgc_square_dict,
     "flags": {"speed_time": speed_time}
     }
@@ -44,7 +44,7 @@ class CGCInfo(CGCLocalDb):
     其中，
     Sn表示n阶置换群；
     [σ][μ]表示参与内积的两个置换群构型；[ν]表示内积后的可能构型；
-    β对应[ν]的多重性；
+    τ对应[ν]的多重性；
     m是[ν]的yamanouchi序；
     cgc_square_dict数值是cgc的平方，符号是平方前cgc的符号；
     speed_time表示计算用时（秒）
@@ -53,7 +53,7 @@ class CGCInfo(CGCLocalDb):
     <CG>/cgc_info/S4/[2, 2]_[3, 1]/[2, 1, 1]_m2.pkl
     {(2, 1): 1/2, (1, 3): 1/4, (2, 2): 1/4}
 
-    <CG>/cgc_info/S5/[3, 1, 1]_[3, 2]/[1, 1, 1]_β1_m4.pkl
+    <CG>/cgc_info/S5/[3, 1, 1]_[3, 2]/[1, 1, 1]_τ1_m4.pkl
     {(1, 4): 1/8, (2, 4): -1/16, (3, 5): 1/16, (4, 1): -1/10, (4, 2): -1/5,
      (4, 4): 3/80, (5, 3): 1/5, (5, 5): -3/80, (6, 3): -1/10, (6, 5): -3/40}
     """
@@ -76,9 +76,9 @@ class EInfo(CGCLocalDb):
 
     注意，为了方便书写，类名用的是英文字母e的大写，而不是希腊字母ϵ的大写
 
-    <CG>/ϵ_info/Sn/[σ]_[μ]/[ν]_β.pkl  # 无多重性，则为[ν].pkl
+    <CG>/ϵ_info/Sn/[σ]_[μ]/[ν]_τ.pkl  # 无多重性，则为[ν].pkl
     {
-    "file_name": Sn/[σ]_[μ]/[ν]_β,  # 无多重性，则为[ν]
+    "file_name": Sn/[σ]_[μ]/[ν]_τ,  # 无多重性，则为[ν]
     "data": ϵ_dict,
     "flags": {}
     }
@@ -86,7 +86,7 @@ class EInfo(CGCLocalDb):
     其中，
     Sn表示n阶置换群;
     [σ][μ]表示参与内积的两个置换群构型；[ν]表示内积后的可能构型；
-    β对应[ν]的多重性;
+    τ对应[ν]的多重性;
 
     例如，
     <CG>/ϵ_info/S5/[3, 1, 1]_[3, 1, 1]/[3, 2]_2.pkl
@@ -143,8 +143,8 @@ class ISFInfo(CGCLocalDb):
     "flags": {"speed_time": speed_time}
     }
 
-    isf_square_dict = {"rows": [([σ'], [μ'], β'), ([σ'], [μ']), ...],  # 有自由度len3，无自由度len2
-                       "cols": [[ν], ([ν], β), ...],                   # 有自由度tuple，无自由度list
+    isf_square_dict = {"rows": [([σ'], [μ'], τ'), ([σ'], [μ']), ...],  # 有自由度len3，无自由度len2
+                       "cols": [[ν], ([ν], τ), ...],                   # 有自由度tuple，无自由度list
                        "isf": isf_square_matrix}                       # np.array([len(rows), len(cols)], dtype=float)
 
     其中，
@@ -165,8 +165,8 @@ class ISFInfo(CGCLocalDb):
                        [-1/12, 0, 5/12, -1/2],
                        [5/12, -1/2, 1/12, 0]])}
 
-    正则ISF索引的全部参数为：σ σ' μ μ' ν β ν' β'
-    表示：|σ σ'> * |μ μ'> 的结果中，|νβ ν'β'>，的ISF系数平方
+    正则ISF索引的全部参数为：σ σ' μ μ' ν τ ν' τ'
+    表示：|σ σ'> * |μ μ'> 的结果中，|ντ ν'τ'>，的ISF系数平方
     """
     def __init__(self, s_n):
         super(ISFInfo, self).__init__()

@@ -15,7 +15,7 @@ from core.cgc_utils.cgc_local_db import get_young_diagrams_file_name, get_young_
 from core.young_diagrams import calc_single_young_diagrams, create_young_diagrams
 from core.young_diagrams import load_young_diagrams, get_young_diagrams_finish_s_n
 from core.young_diagrams import is_young_diagram, calc_s_n_from_young_diagram
-from core.young_diagrams import calc_young_diagram_dagger
+from core.young_diagrams import calc_young_diagram_tilde
 from db.local_db_protector import DBProtector
 from utils.log import get_logger
 
@@ -214,25 +214,25 @@ class TestYoungDiagrams(object):
                 assert flag
                 assert s_n_calc == s_n
 
-    def test_calc_young_diagram_dagger(self):
+    def test_calc_young_diagram_tilde(self):
         yd_list_1, yd_list_2 = self.young_diagrams_dict["+"], self.young_diagrams_dict["-"]
         for yd_1, yd_2 in zip(yd_list_1, yd_list_2):
-            flag, yd_1_dagger = calc_young_diagram_dagger(yd_1)
+            flag, yd_1_tilde = calc_young_diagram_tilde(yd_1)
             assert flag
-            assert yd_1_dagger == yd_2
-            flag, yd_1_dagger_dagger = calc_young_diagram_dagger(yd_1_dagger)
+            assert yd_1_tilde == yd_2
+            flag, yd_1_tilde_tilde = calc_young_diagram_tilde(yd_1_tilde)
             assert flag
-            assert yd_1 == yd_1_dagger_dagger
+            assert yd_1 == yd_1_tilde_tilde
 
         head_s_n = 1
         tail_s_n = 7
         for s_n in range(head_s_n, tail_s_n + 1):
             young_diagrams = eval("self.young_diagrams_s_{}".format(s_n))
             for yd in young_diagrams:
-                flag, yd_dagger = calc_young_diagram_dagger(yd)
+                flag, yd_tilde = calc_young_diagram_tilde(yd)
                 assert flag
-                assert is_young_diagram(yd_dagger)
-                flag, yd_dagger_dagger = calc_young_diagram_dagger(yd_dagger)
+                assert is_young_diagram(yd_tilde)
+                flag, yd_tilde_tilde = calc_young_diagram_tilde(yd_tilde)
                 assert flag
-                assert yd == yd_dagger_dagger
+                assert yd == yd_tilde_tilde
 

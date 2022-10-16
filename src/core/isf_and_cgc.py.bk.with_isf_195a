@@ -17,7 +17,7 @@ import time
 import sympy as sp
 from functools import lru_cache, partial
 from itertools import product, combinations
-from conf.cgc_config import default_s_n, isf_0_error_value
+from conf.cgc_config import default_s_n
 from conf.cgc_config import min_s_n_of_isf, min_s_n_of_cgc, min_s_n_of_branching_law
 from core.young_diagrams import load_young_diagrams
 from core.young_tableaux import load_young_table_num

@@ -399,16 +399,16 @@ def calc_s_n_from_young_diagram(young_diagram):
     return calc_s_n_from_young_diagram_without_check(young_diagram)
 
 
-def calc_young_diagram_dagger(young_diagram, is_check_yd=True):
+def calc_young_diagram_tilde(young_diagram, is_check_yd=True):
     # 也称conjugate（共轭）
     if is_check_yd:
         if not is_young_diagram(young_diagram):
-            err_msg = "cannot calc dagger with wrong young_diagram={}".format(young_diagram)
+            err_msg = "cannot calc tilde with wrong young_diagram={}".format(young_diagram)
             logger.error(err_msg)
             return False, err_msg
     else:
         if not isinstance(young_diagram, list):
-            err_msg = "cannot calc dagger with wrong young_diagram={}".format(young_diagram)
+            err_msg = "cannot calc tilde with wrong young_diagram={}".format(young_diagram)
             logger.error(err_msg)
             return False, err_msg
 
@@ -418,10 +418,10 @@ def calc_young_diagram_dagger(young_diagram, is_check_yd=True):
         col_i = young_diagram[row_i]
         yd_matrix_np[row_i, :col_i] = 1
     # young_diagram_np = np.sum(yd_matrix_np, axis=1)
-    young_diagram_dagger_np = np.sum(yd_matrix_np, axis=0)
-    young_diagram_dagger = young_diagram_dagger_np.tolist()
+    young_diagram_tilde_np = np.sum(yd_matrix_np, axis=0)
+    young_diagram_tilde = young_diagram_tilde_np.tolist()
 
-    return True, young_diagram_dagger
+    return True, young_diagram_tilde
 
 
 """

@@ -467,7 +467,7 @@ def get_eigenvalues_finish_s_n_name(is_full_path=False):
 # isf
 def get_isf_file_name(s_n: int, sigma, mu, nu_st, is_full_path=False):
     """
-    Sn/[σ]_[μ]/[ν]_beta__[ν’]_beta’ or <top_path>/cgc_results/isf_info/Sn/[σ]_[μ]/[ν]_beta__[ν’]_beta’
+    Sn/[σ]_[μ]/[ν]_τ__[ν’]_τ’ or <top_path>/cgc_results/isf_info/Sn/[σ]_[μ]/[ν]_τ__[ν’]_τ’
     p.s. S4/[2, 1]_[2, 1]/[2, 1]_1__[1, 1]'_1' or <top_path>/cgc_results/isf_info/S4/[2, 1]_[2, 1]/[2, 1]_1__[1, 1]'_1'
     """
     from conf.cgc_config import isf_file_name_format
@@ -487,16 +487,16 @@ def get_isf_finish_s_n_name(is_full_path=False):
 
 
 # ϵ
-def get_ϵ_file_name(s_n: int, sigma: list, mu: list, nu: list, beta: (None, int), is_full_path=False):
+def get_ϵ_file_name(s_n: int, sigma: list, mu: list, nu: list, τ: (None, int), is_full_path=False):
     """
-    Sn/[σ]_[μ]/[ν]_beta or <top_path>/cgc_results/ϵ_info/Sn/[σ]_[μ]/[ν]_beta  无多重性，则去掉beta
+    Sn/[σ]_[μ]/[ν]_τ or <top_path>/cgc_results/ϵ_info/Sn/[σ]_[μ]/[ν]_τ  无多重性，则去掉τ
     p.s. S4/[2, 2]_[3, 1]/[2, 1, 1] or <top_path>/cgc_results/ϵ_info/S4/[2, 2]_[3, 1]/[2, 1, 1]
     """
     from conf.cgc_config import ϵ_file_name_format, ϵ_file_name_format_none
-    if beta is None:  # 没有多重性的beta将会被省略
+    if τ is None:  # 没有多重性的τ将会被省略
         file_name = ϵ_file_name_format_none.format(s_n, sigma, mu, nu)  # 检查交给调用者
     else:
-        file_name = ϵ_file_name_format.format(s_n, sigma, mu, nu, beta)  # 检查交给调用者
+        file_name = ϵ_file_name_format.format(s_n, sigma, mu, nu, τ)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
@@ -512,16 +512,16 @@ def get_ϵ_finish_s_n_name(is_full_path=False):
 
 
 # cgc
-def get_cgc_file_name(s_n: int, sigma: list, mu: list, nu: list, beta: (None, int), m: int, is_full_path=False):
+def get_cgc_file_name(s_n: int, sigma: list, mu: list, nu: list, τ: (None, int), m: int, is_full_path=False):
     """
-    Sn/[σ]_[μ]/[ν]_beta_m or <top_path>/cgc_results/cgc_info/Sn/[σ]_[μ]/[ν]_beta_m  无多重性，则去掉beta
+    Sn/[σ]_[μ]/[ν]_τ_m or <top_path>/cgc_results/cgc_info/Sn/[σ]_[μ]/[ν]_τ_m  无多重性，则去掉τ
     p.s. S4/[2, 2]_[3, 1]/[2, 1, 1]_1_m2 or <top_path>/cgc_results/cgc_info/S4/[2, 2]_[3, 1]/[2, 1, 1]_1_m2
     """
     from conf.cgc_config import cgc_file_name_format, cgc_file_name_format_none
-    if beta is None:  # 没有多重性的beta将会被省略
+    if τ is None:  # 没有多重性的τ将会被省略
         file_name = cgc_file_name_format_none.format(s_n, sigma, mu, nu, m)  # 检查交给调用者
     else:
-        file_name = cgc_file_name_format.format(s_n, sigma, mu, nu, beta, m)  # 检查交给调用者
+        file_name = cgc_file_name_format.format(s_n, sigma, mu, nu, τ, m)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:

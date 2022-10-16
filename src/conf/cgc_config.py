@@ -56,10 +56,10 @@ eigenvalues_file_name_format = "S{}"
 isf_file_name_format = os.path.join("S{}", "{}_{}", "{}\'")
 # ϵ file name format
 ϵ_file_name_format_none = os.path.join("S{}", "{}_{}", "{}")
-ϵ_file_name_format = os.path.join("S{}", "{}_{}", "{}_β{}")
+ϵ_file_name_format = os.path.join("S{}", "{}_{}", "{}_τ{}")
 # cgc file name format
 cgc_file_name_format_none = os.path.join("S{}", "{}_{}", "{}_m{}")
-cgc_file_name_format = os.path.join("S{}", "{}_{}", "{}_β{}_m{}")
+cgc_file_name_format = os.path.join("S{}", "{}_{}", "{}_τ{}_m{}")
 
 # min Sn 各计算单元的最小合法Sn
 min_s_n_of_young_diagram = 1
@@ -72,3 +72,34 @@ min_s_n_of_eigenvalue = 1  # 理论上是2; 添加1是一种"解析延拓"
 min_s_n_of_isf = 2
 min_s_n_of_ϵ = 2  # 尽管有1，但它是预置的，不是计算得来的
 min_s_n_of_cgc = 1
+
+# 2*2*2*6/2=24个ϵ的四分量映射
+'''
+其中， 
+行将按照D3对称群命名[e, d, f , a, b, c](abc也对应了书中的123)
+列保持书中的命名方式[0, 4, 5, 6]
+以b4为例，就是先按照b的方式将σμν调整为νμσ，再按4的方式将νμσ前两个杨图取共轭得到ν~μ~σ
+四元tuple为其可操作表示，
+tuple[0]为σμν次序，后面的三个01数字表示按照当前顺序下，每个杨盘是自身0，还是共轭1
+特别标记ϵ的是为了与书中记法对应
+
+(e,0,0,0)    (a,0,0,0)    (b,0,0,0)    (c,0,0,0)    (d,0,0,0)    (f,0,0,0)  
+ σμν: e0      μσν: a0      νμσ: b0      σνμ: c0      νσμ: d0      μνσ: f0
+              ϵ1           ϵ2           ϵ3
+ 
+(e,1,1,0)    (a,1,1,0)    (b,1,1,0)    (c,1,1,0)    (d,1,1,0)    (f,1,1,0)  
+ σ~μ~ν:e4     μ~σ~ν:a4     ν~μ~σ:b4     σ~ν~μ:c4     ν~σ~μ:d4     μ~ν~σ:f4
+ ϵ4
+ 
+(e,1,0,1)    (a,1,0,1)    (b,1,0,1)    (c,1,0,1)    (d,1,0,1)    (f,1,0,1)  
+ σ~μν~:e5     μ~σν~:a5     ν~μσ~:b5     σ~νμ~:c5     ν~σμ~:d5     μ~νσ~:f5
+ ϵ5
+ 
+(e,0,1,1)    (a,0,1,1)    (b,0,1,1)    (c,0,1,1)    (d,0,1,1)    (f,0,1,1)  
+ σμ~ν~:e6     μσ~ν~:a6     νμ~σ~:b6     σν~μ~:c6     νσ~μ~:d6     μν~σ~:f6
+ ϵ6
+'''
+# group_d3 = ("σμν", "μσν", "νμσ", "σνμ", "νσμ", "μνσ")
+group_d3 = ((0, 1, 2), (1, 0, 2), (2, 1, 0), (0, 2, 1), (2, 0, 1), (1, 2, 0))  # 0表示σ；1表示μ；2表示ν
+group_k4 = ((False, False, False), (True, True, False), (True, False, True), (False, True, True))
+# group_d3 * group_k4就可以造下面的24种ϵ了

@@ -19,7 +19,7 @@ import math
 import numpy as np
 from conf.cgc_config import cgc_rst_folder
 from core.branching_laws import create_branching_laws
-from core.young_diagrams import create_young_diagrams, load_young_diagrams, calc_young_diagram_dagger
+from core.young_diagrams import create_young_diagrams, load_young_diagrams, calc_young_diagram_tilde
 from core.characters_and_gi import CharacterData, GiData
 from core.characters_and_gi import load_characters_and_gi, get_characters_and_gi_finish_s_n
 from core.characters_and_gi import create_characters_and_gi, calc_single_characters_and_gi
@@ -109,14 +109,14 @@ class TestCharacterData(object):
                 yd = yd_list[i]
                 if yd[0] <= middle_s_i:
                     i_array = new_ch_matrix[i, :]
-                    _, yd_dagger = calc_young_diagram_dagger(yd)
-                    if yd_dagger == yd:
+                    _, yd_tilde = calc_young_diagram_tilde(yd)
+                    if yd_tilde == yd:
                         continue
                     # 剩下的都是 首行 <= Sn/2 又不自共轭的，它们都可以用（-1^n检查）
-                    yd_dagger_index = yd_list.index(yd_dagger)
-                    i_dagger_array = new_ch_matrix[yd_dagger_index, :]
-                    assert (i_dagger_array == i_array * last_array).all(), \
-                        "with yd={}, yd_dagger={}".format(yd, yd_dagger)
+                    yd_tilde_index = yd_list.index(yd_tilde)
+                    i_tilde_array = new_ch_matrix[yd_tilde_index, :]
+                    assert (i_tilde_array == i_array * last_array).all(), \
+                        "with yd={}, yd_tilde={}".format(yd, yd_tilde)
 
             # 用sum(gi) == n!检查
             big_g = sum(new_gi_list)
@@ -126,8 +126,8 @@ class TestCharacterData(object):
             # logger.warning("@@@@ new_ch_matrix={}".format(new_ch_matrix))
             for i in range(matrix_div):
                 # yd = yd_list[i]
-                # _, yd_dagger = calc_young_diagram_dagger(yd)
-                # yd_dagger_index = yd_list.index(yd_dagger)
+                # _, yd_tilde = calc_young_diagram_tilde(yd)
+                # yd_tilde_index = yd_list.index(yd_tilde)
                 for j in range(i, matrix_div):
 
                     # 列正交
