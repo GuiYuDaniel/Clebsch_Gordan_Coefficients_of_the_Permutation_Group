@@ -3518,6 +3518,7 @@ class EHelper(CalcHelper):
 
     def calc_meta_ϵ_dict(self, data_σ_μ, ν, τ, data_sn):
         """根据定义计算6组24个ϵ
+        ϵ的意义最重要的就是说明对称后的CGC同元CGC，是否整体差一个负号
 
         1，一些可以简化处理的情况可以走快速通道
 
@@ -3531,6 +3532,9 @@ class EHelper(CalcHelper):
 
         6个矩阵指的是参数σ、μ、ν、τ下所有CGC，以m_σ、m_μ、m_ν为轴，构成一个三维tensor的6个表面
         它们分别代表固定m_σ=1、m_μ=1、m_ν=1、m_σ=h_σ、m_μ=h_μ、m_ν=h_ν下观察另外两个剩余参数
+
+        注意：它所计算出的是书中所描述的ϵ。在多数情况下，ϵ(σμν)为正，它是适用的。但，当ϵ(σμν)为负时，就不适用了。
+        所以，在实际使用中（指计算ISF和CGC的时候），我们给所有的ϵ再乘上一个ϵ(σμν)去使用，就没有问题了！
         """
         ϵ_dict = {}
         ϵ_flags = {}
@@ -3740,12 +3744,24 @@ class EHelper(CalcHelper):
 
     def calc_symmetry_ϵ_by_meta_include_save(self, meta_ϵ_dict, meta_ϵ_flags, meta_data_σ_μ, meta_ν, τ, meta_data_sn):
         """
-        根据元ϵ计算对称的ϵ
+        根据元ϵ计算对称的ϵ（坐标系的原点变换）
 
-        注意，下面的代码中将出现三套σμν，分别表示：
-        meta_key：形如μ~σ~ν：表示meta(σμν)有24个ϵ，每个ϵ的具体对称形式和键就是meta_key
-        sym_mode：形如μ~σ~ν：表示meta(σμν)有24种对称，当前把meta变换成sym_mode，以sym_mode为原点，sym_mode也将有24个自己的ϵ
-        sym_key：形如μσν：表示sym_mode也将有24个自己的ϵ，每个ϵ的具体对称形式和键就是sym_key
+        注意，下面的代码中将出现五套四个σμν，分别表示：
+        meta_mode：就是meta(σμν)！
+        meta_key：形如ν~σμ~：表示meta(σμν)有24个ϵ，每个ϵ的具体对称形式和键就是meta_key
+        sym_mode：形如ν~μσ~(=σ'μ'ν')：表示meta(σμν)有24种对称，当前把meta变换成sym_mode，以sym_mode为原点，sym_mode也将有24个自己的ϵ
+        sym_mode'：形如σ'μ'ν'(=ν~μσ~)：以sym_mode作为原点的记法
+        sym_key：形如σ'ν'~μ'~：表示sym_mode也将有24个自己的ϵ，每个ϵ的具体对称形式和键就是sym_key
+        上面举例中，meta的ν~σμ~和sym的σ'ν'~μ'~对应的是同一个实体
+
+        ΛΛ^xxx(m|yyy)：表示按照xxx取Λ函数，按照m取函数的值。代码中出现三种：
+        形如ΛΛ_d^σ'ν'~μ'~(m'| sym_key cond)：表示定义式Λ^μ'(h_μ') * Λ^ν'(max(m_ν')|min(m_σ'))
+        形如ΛΛ_u^ν~μσ~(m｜ν~σμ~ cond)：表示使用式Λ^ν(max(m_ν)) * Λ^σ(min(m_σ))
+
+        请注意定义式与使用式关于角标的不同，特别是ΛΛ部分
+        定义式：ϵ(meta_key) = sign(CGC^meta_mode[m｜meta_key cond]) * ΛΛ_d^meta_key(m｜meta_key cond)
+        使用式：CGC^sym_mode(m|meta_key cond)
+            = ϵ(σμν) * h_σ/h_ν * ϵ(sym_mode) * ΛΛ_u^sym_mode(m｜meta_key cond) * CGC^meta_mode[m｜meta_key cond]
         """
         meta_yd_σμν = (meta_data_σ_μ.σ, meta_data_σ_μ.μ, meta_ν)
         for sym_mode, sym_mode_d3, sym_mode_k4 in \
@@ -3759,11 +3775,86 @@ class EHelper(CalcHelper):
             sym_ϵ_dict = {}
             sym_ϵ_flags = {}
             '''
-            从结果上看，这里所求的是一种确定的对称组合sym_mode下，它的24个ϵ
-            （当然，我们这里的目标是使用meta_key而不是按照定义来计算它）
-            其单独的一个ϵ的组合是sym_key，那么按照定义，其ϵ可表示为两部分
-            sign * ΛΛ
-            其中，sign
+            从结果上看，这里所求的是一种确定的对称组合sym_mode'(σ'μ'ν')下，它的24个ϵ
+            其单独的一个ϵ的组合是sym_key(σ'ν'~μ'~)，那么按照定义，其ϵ可表示为两部分
+            sign(sym_mode'经过sym_key对称后，是sym_key原点的坐标的sym_mode'的CGC) * ΛΛ_d^sym_key(sym_key相对于sym_mode的～关系)
+            记为：sign(CGC^σ'μ'ν'[m'| sym_key cond]) * ΛΛ_d^σ'ν'~μ'~(m'| sym_key cond)
+            首先是m'| sym_key cond
+            此m'是sym_key相对于sym_mode'的
+            因为sym_mode也是可以被meta_mode+meta_key表示的
+            我们也可以根据meta_key将它与meta_mode对应起来，既：m｜meta_key(m'| sym_key cond)
+            注意，这里不需要知道m'的具体值，只需要知道其规则，就可以反推了
+            
+            例如：
+            meta_mode(σμν) = [4, 1] [3, 2] [3, 1, 1]
+            存在ϵ(ν~μσ~)
+            则有
+            sym_mode'(σ'μ'ν') = [3, 1, 1] [3, 2] [2, 1, 1, 1] (对于meta，它可以通过ϵ(ν~μσ~)得到)
+            现在求sym_key=ϵ'(σ'ν'~μ'~)的m'（既[3, 1, 1], [4, 1], [2, 2, 1]）
+            按照定义，h_μ'=h(m_[3, 2]')=5；min(m_σ')=min(m_[3, 1, 1]')=;max(m_ν')=max(m_[2, 1, 1, 1]')=
+            上述m'不能通过未知的当前CGC确定！
+            但是，可以通过sym_mode(ϵ(ν~μσ~))将m'对σ'μ'ν'的关系转化为m对σμν的关系
+            既，(μ'=μ)(h_μ')=h_μ=h(m_[3, 2])=5;(σ'=ν~)(min(m_σ'))=max(m_ν)=;(ν'=σ~)(max(m_ν'))=min(m_σ)=
+            这里，同样也不需要真正去查表得到m，只需要看24个meta_key谁与之对应即可
+            得到meta_key(ν~σμ~)满足条件，
+            并且，它是完全已知的(m_μ=5;m_ν=6;m_σ=3;CGC^σμν(m|ν~σμ~)=-3/8;h_ν=6;h_μ=5;h_σ=4)  # ϵ(ν~σμ~)=sign(-3/8*-*+)=1;
+            为了验证，我们正向再走一遍：
+            将上述m(m_σ=3;m_μ=5;m_ν=6)按照sym_mode=ϵ(ν~μσ~)变换(m_ν~=1;m_μ=5;m_σ~=2)，得到CGC^ν~μσ~，它也是CGC^σ'μ'ν'，
+            有：
+            CGC^ν~μσ~(m|ν~σμ~)  
+            # 注意，这里不是 定义式 而是 使用式，所以h/h和ϵ用sym_mode 而CGC用meta_key condition
+            # 但是ΛΛ最特殊，在σμν的选取上，它使用sym_mode；而在m的取值上，它使用meta_key !!!!
+            = ϵ(σμν) * h_σ/h_ν * ϵ(sym_mode) * ΛΛ_u^sym_mode(m｜meta_key cond) * CGC^meta_mode[m｜meta_key cond]
+            = ϵ(σμν) * h_σ/h_ν * ϵ(ν~μσ~) * ΛΛ_u^ν~μσ~(m｜ν~σμ~ cond) * CGC^σμν[m｜ν~σμ~ cond]
+            = ϵ(σμν) * h_σ/h_ν * ϵ(ν~μσ~) * ΛσΛν(m_σ=3;m_ν=6) * CGC^σμν[m_σ=3;m_μ=5;m_ν=6]
+            # ϵ(ν~μσ~)=ϵ(m_σ=4;m_ν=6;m_μ=2)=sign(CGC^σμν(m|ν~μσ~)*Λ_σ(4)*Λ_ν(6))=sign(1/8*-*+)=-1
+            # Λ_σ(3)=+;Λ_ν(6)=+
+            = + * 4/6 * -1 * +*+ * -3/8 = 1/4
+            它就是正向使用meta_mode+meta_key得到sym_mode'的对称公式结果，查表验证确实等于：
+            因为对应关系m_σ'=(h_ν+1-m_ν)=6+1-6=1; m_μ'=m_μ=5; m_ν'=(h_σ+1-m_σ)=4+1-3=2
+            CGC^σ'μ'ν'[m_σ'=1; m_μ'=5; m_ν'=2] = 1/4  
+            以(σ'μ'ν')为原点，把当前m'，经过sym_key(σ'=[3, 1, 1];ν'~=[4, 1];μ'~=[2, 2, 1])对称后，变为(m_σ'=1;m_ν'~=3;m_μ'~=1)
+            查表可知，它就是σ'=[3, 1, 1];ν'~=[4, 1];μ'~=[2, 2, 1]的首项。正向是正确的！
+            通过上述方式，我们可以确定m'| sym_key condition，同时，还找到了这个CGC在meta_mode中的对应
+            到此为止，ΛΛ_d^sym_key(m'| sym_key cond)已经完全确定。
+            
+            下面仍以此例子，展示sign(CGC^sym_mode'[m'| sym_key cond])的推导过程：
+            首先，根据m'副产品可知，
+            CGC^σ'μ'ν'[m'| sym_key cond] 
+            = ϵ(σμν) * h_σ/h_ν * ϵ(sym_mode) * ΛΛ_u^ν~μσ~(m｜ν~σμ~ cond) * CGC^σμν[m｜meta_key cond]
+            注意：此处比书中公式多了一个ϵ(σμν)，是为了满足τ>1时，出现的首项为负的情况。如果首项为正，则可以省略
+            套上sign后，可简化为：ϵ(σμν) * ϵ(sym_mode) * ΛΛ_u^sym_mode(m｜meta_key cond) * sign(CGC^σμν[m｜meta_key cond])
+            这里，前三项都是易知的，问题就简化为求sign(CGC^σμν[m｜meta_key cond])
+            在例子中，就是求sign(CGC^σμν[m_σ=3;m_μ=5;m_ν=6])
+            我们这里不希望使用真正的CGC，因为只需求sign，使用ϵ的定义式就足够了
+            由ϵ的定义式：ϵ(meta_key) = sign(CGC^meta_mode[m｜meta_key cond]) * ΛΛ_d^meta_key(m｜meta_key cond)
+            有：ϵ(ν~σμ~) = sign(CGC^σμν[m｜ν~σμ~]) * ΛΛ_d^ν~σμ~(m｜ν~σμ~)
+            所以，sign(CGC^σμν[m｜ν~σμ~]) = ϵ(ν~σμ~) / ΛΛ_d^ν~σμ~(m｜ν~σμ~) = ϵ(ν~σμ~) * ΛΛ_d^ν~σμ~(m｜ν~σμ~)
+            例如，
+            sign(CGC^σμν[m_σ=3;m_μ=5;m_ν=6]) 
+            = ϵ(ν~σμ~) * ΛΛ_d^ν~σμ~(m_σ=3;m_μ=5;m_ν=6)
+            = ϵ(ν~σμ~) * Λ_ν(m_ν=6) * Λ_μ(m_μ=5)
+            
+            至此，sym_mode的ϵ(sym_key)，已经可以由已知meta_mode+计算出的对应ϵ(meta_key)表示，记为：  
+            ϵ(sym_key)
+            = sign(CGC^sym_mode'[m'| sym_key cond]) * ΛΛ_d^sym_key(m'| sym_key cond)
+            = ϵ(meta_mode) * ϵ(sym_mode) * sign(CGC^meta_mode[m｜meta_key cond]) * ΛΛ_u^sym_mode(m｜meta_key cond)
+              * ΛΛ_d^sym_key(m'| sym_key cond)
+            = ϵ(meta_mode) * ϵ(sym_mode) 
+              * ϵ(meta_key) * ΛΛ_d^meta_key(m｜meta_key cond) 
+              * ΛΛ_u^sym_mode(m｜meta_key cond) * ΛΛ_d^sym_key(m'| sym_key cond)
+            = ϵ(meta_mode) * ϵ(sym_mode) * ϵ(meta_key) * ΛΛ_d^meta_key(m｜meta_key cond) 
+                                                       * ΛΛ_u^sym_mode(m｜meta_key cond) 
+                                                       * ΛΛ_d^sym_key(m'| sym_key cond)
+            例如：
+            ϵ(σ'ν'~μ'~)  # sym_mode=ν~μσ~
+            首先计算出meta_key=ν~σμ~
+            = ϵ(σμν) * ϵ(ν~μσ~) * ϵ(ν~σμ~) * ΛΛ_d^ν~σμ~(m_σ=3;m_μ=5;m_ν=6) 
+                                           * ΛΛ_u^ν~μσ~(m_σ=3;m_μ=5;m_ν=6; m_σ'=1;m_μ'=5;m_ν'=2) 
+                                           * ΛΛ_d^σ'ν'~μ'~(m_σ'=1;m_μ'=5;m_ν'=2)
+            = ϵ(σμν) * ϵ(ν~μσ~) * ϵ(ν~σμ~) * Λ_ν(m_ν=6) * Λ_μ(m_μ=5)
+                                           * Λ_ν(m_ν=6) * Λ_σ(m_σ=3)
+                                           * Λ_ν'(m_ν'=2) * Λ_μ'(m_μ'=5)
             '''
         pass
 
