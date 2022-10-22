@@ -286,7 +286,7 @@ def create_isf_and_cgc(s_n: int=default_s_n):
                 meta_cgc_speed_time = int(time.time() - meta_cgc_start_time)
                 cgc_speed_time_s_i += meta_cgc_speed_time
 
-            meta_ϵ_start_time = time.time()
+            ϵ_start_time = time.time()
             meta_ϵ_ν_τ_list = data_σ_μ.get_meta_cgc_ν_τ_list()  # 这里借用cgc的就行
             for (ν, τ) in meta_ϵ_ν_τ_list:
                 # 3，计算当前σμ组合全部ν的24个元ϵ
@@ -303,16 +303,17 @@ def create_isf_and_cgc(s_n: int=default_s_n):
                     logger.error(err_msg)
                     return False, err_msg
                 # 4，计算剩余23组非元对称组合的自身的24个ϵ
-
-                flag, msg = cgc_func.calc_symmetry_ϵ_by_meta_include_save(ν, τ, data_si, data_σ_μ)
+                flag, msg = ϵ_func.calc_symmetry_ϵ_by_meta_include_save(ϵ_dict, ϵ_flags, data_σ_μ, ν, τ, data_si)
                 if not flag:
-                    err_msg = "calc_symmetry_ϵ_by_meta_include_save fail by ν={}, τ={}, data_si={}, data_σ_μ={} " \
-                              "with msg={}".format(ν, τ, data_si, data_σ_μ, msg)
+                    err_msg = "calc_symmetry_ϵ_by_meta_include_save fail by ϵ_dict={}, ϵ_flags={}, " \
+                              "data_σ_μ={}, ν={}, τ={}, data_si={} " \
+                              "with msg={}".format(ϵ_dict, ϵ_flags, data_σ_μ, ν, τ, data_si, msg)
                     logger.error(err_msg)
                     return False, err_msg
+            ϵ_speed_time = int(time.time() - ϵ_start_time)
+            ϵ_speed_time_s_i += ϵ_speed_time
 
-            meta_ϵ_speed_time = int(time.time() - meta_ϵ_start_time)
-            ϵ_speed_time_s_i += meta_ϵ_speed_time
+            # TODO
 
             # 4，计算剩余23组非元对称组合的自身的24个ϵ
 
@@ -3084,410 +3085,6 @@ class CGCHelper(CalcHelper):
             cgc16_square_dict[(h_μ_add_1 - m_μ, m_σ)] = ϵ16 * Λ_m_μ * Λ_m_ν * v
         return cgc16_square_dict
 
-    def calc_symmetry_ϵ_by_meta_include_save(self, meta_ν, τ, data_sn, data_σ_μ):
-        """
-        4，计算σμ外对称ϵ
-
-        从排列组合来看，元ϵ对应的分别是：
-        ϵ0    ϵ1    ϵ4    ϵ14   ϵ5    ϵ15   ϵ6    ϵ16
-                    _ _   _ _   _       _     _   _
-        m1m2  m2m1  m1m2  m2m1  m1m2  m2m1  m1m2  m2m1
-        - -   - -                 -   -     -       -
-                    Λ1Λ2  Λ2Λ1  Λ1Λν  ΛνΛ1  ΛνΛ2  Λ2Λν
-        其中，
-        -在下指的是按顺序取小，-在上指的是按顺序取大，Λ对应m的大小和顺序。
-        在计算对称的ϵ_dict时，按照公式，实际上拿的也是它们，只不过换了顺序。
-        所以，我们只需按照对称性，调整元ϵ_dict中的次序，就可以得到对称ϵ_dict
-
-        4.0，数据准备
-        4.1，算【[μ][σ][ν]τ】ϵ1_dict
-        4.2，算【[σ~][μ~][ν]τ】ϵ4_dict
-        4.3，算【[μ~][σ~][ν]τ】ϵ14_dict
-        4.4，算【[σ~][μ][ν~]τ】ϵ5_dict
-        4.5，算【[μ][σ~][ν~]τ】ϵ15_dict
-        4.6，算【[σ][μ~][ν~]τ】ϵ6_dict
-        4.7，算【[μ~][σ][ν~]τ】ϵ16_dict
-        """
-        # 4.0，数据准备
-        h_σ = data_sn.get_yt_num(data_σ_μ.σ)
-        h_μ = data_sn.get_yt_num(data_σ_μ.μ)
-        Λ_σ_list = data_sn.get_phase_factor_list(data_σ_μ.σ)
-        Λ_tilde_σ_list = data_sn.get_phase_factor_list(data_sn.get_tilde(data_σ_μ.σ))
-        Λ_μ_list = data_sn.get_phase_factor_list(data_σ_μ.μ)
-        Λ_tilde_μ_list = data_sn.get_phase_factor_list(data_sn.get_tilde(data_σ_μ.μ))
-        Λ_ν_list = data_sn.get_phase_factor_list(meta_ν)
-        Λ_tilde_ν_list = data_sn.get_phase_factor_list(data_sn.get_tilde(meta_ν))
-
-        # 【[σ][μ][ν]τ】
-        meta_ϵ_dict = data_σ_μ.get_ϵ_dict(meta_ν, τ)
-        meta_ϵ_flags = data_σ_μ.get_ϵ_flags(meta_ν, τ)
-
-        if len(meta_ϵ_dict) != 8 or len(meta_ϵ_flags) != 8:
-            err_msg = "meta_ϵ_dict={} and meta_ϵ_flags={} must len8 " \
-                      "with meta_ν={}, τ={}".format(meta_ϵ_dict, meta_ϵ_flags, meta_ν, τ)
-            logger.error(err_msg)
-            return False, err_msg
-        # 拿【[σ][μ][ν]τ】验证一下
-        sym_ϵ = "ϵ0"
-        sym_ϵ_flags = meta_ϵ_flags
-        ϵ_map = {"ϵ0": sym_ϵ,
-                 "ϵ1": "ϵ1",
-                 "ϵ4": "ϵ4",
-                 "ϵ14": "ϵ14",
-                 "ϵ5": "ϵ5",
-                 "ϵ15": "ϵ15",
-                 "ϵ6": "ϵ6",
-                 "ϵ16": "ϵ16"}
-        ϵ_dict = self._calc_symmetry_ϵ_dict(sym_ϵ, ϵ_map, meta_ϵ_dict, meta_ϵ_flags, sym_ϵ_flags,
-                                            Λ_σ_list, Λ_tilde_σ_list, Λ_μ_list, Λ_tilde_μ_list,
-                                            Λ_ν_list, Λ_tilde_ν_list)
-        if meta_ϵ_dict != ϵ_dict:
-            err_msg = "ϵ0 must get same dict again but not, pls check, " \
-                      "with meta_ν={}, τ={}, meta_ϵ_dict={}, ϵ_dict={}".format(meta_ν, τ, meta_ϵ_dict, ϵ_dict)
-            logger.error(err_msg)
-            return False, err_msg
-
-        # 4.1，算【[μ][σ][ν]τ】ϵ1_dict
-        ϵ_tuple = (self.s_n, data_σ_μ.μ, data_σ_μ.σ, meta_ν, τ)
-        _, is_calc_ed = is_ϵ_exist(*ϵ_tuple)
-        if is_calc_ed is False:
-            sym_ϵ = "ϵ1"
-            ϵ_map = {"ϵ0": sym_ϵ,
-                     "ϵ1": "ϵ0",
-                     "ϵ4": "ϵ14",
-                     "ϵ14": "ϵ4",
-                     "ϵ5": "ϵ16",
-                     "ϵ15": "ϵ6",
-                     "ϵ6": "ϵ15",
-                     "ϵ16": "ϵ5"}
-            sym_ϵ_flags = {k: (meta_ϵ_flags[v][1], meta_ϵ_flags[v][0]) for k, v in ϵ_map.items()}
-
-            if _debug_condition(data_σ_μ, meta_ν):
-                logger.warning("@@@@ sym_ϵ={}, ϵ_tuple={}, ϵ_map={}, \n"
-                               "meta_ϵ_flags={} \n"
-                               "sym_ϵ_flags={}".format(sym_ϵ, ϵ_tuple, ϵ_map, meta_ϵ_flags, sym_ϵ_flags))
-
-            ϵ_dict = self._calc_symmetry_ϵ_dict(sym_ϵ, ϵ_map, meta_ϵ_dict, meta_ϵ_flags, sym_ϵ_flags,
-                                                Λ_σ_list, Λ_tilde_σ_list, Λ_μ_list, Λ_tilde_μ_list,
-                                                Λ_ν_list, Λ_tilde_ν_list)
-            flag, msg = save_ϵ(*(*ϵ_tuple, ϵ_dict, sym_ϵ_flags))
-            if not flag:
-                err_msg = "save_ϵ fail by ϵ_tuple={}, ϵ_dict={}, sym_ϵ_flags={} with msg={}".format(
-                    ϵ_tuple, ϵ_dict, sym_ϵ_flags, msg)
-                logger.error(err_msg)
-                return False, err_msg
-
-        # 4.2，算【[σ~][μ~][ν]τ】ϵ4_dict
-        ϵ_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.σ), data_sn.get_tilde(data_σ_μ.μ), meta_ν, τ)
-        _, is_calc_ed = is_ϵ_exist(*ϵ_tuple)
-        if is_calc_ed is False:
-            sym_ϵ = "ϵ4"
-            ϵ_map = {"ϵ0": sym_ϵ,
-                     "ϵ1": "ϵ14",
-                     "ϵ4": "ϵ0",
-                     "ϵ14": "ϵ1",
-                     "ϵ5": "ϵ6",
-                     "ϵ15": "ϵ16",
-                     "ϵ6": "ϵ5",
-                     "ϵ16": "ϵ15"}
-            sym_ϵ_flags = {k: (h_σ + 1 - meta_ϵ_flags[v][0], h_μ + 1 - meta_ϵ_flags[v][1]) for k, v in ϵ_map.items()}
-            ϵ_dict = self._calc_symmetry_ϵ_dict(sym_ϵ, ϵ_map, meta_ϵ_dict, meta_ϵ_flags, sym_ϵ_flags,
-                                                Λ_σ_list, Λ_tilde_σ_list, Λ_μ_list, Λ_tilde_μ_list,
-                                                Λ_ν_list, Λ_tilde_ν_list)
-            flag, msg = save_ϵ(*(*ϵ_tuple, ϵ_dict, sym_ϵ_flags))
-            if not flag:
-                err_msg = "save_ϵ fail by ϵ_tuple={}, ϵ_dict={} with msg={}".format(ϵ_tuple, ϵ_dict, msg)
-                logger.error(err_msg)
-                return False, err_msg
-
-        # 4.3，算【[μ~][σ~][ν]τ】ϵ14_dict
-        ϵ_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.μ), data_sn.get_tilde(data_σ_μ.σ), meta_ν, τ)
-        _, is_calc_ed = is_ϵ_exist(*ϵ_tuple)
-        if is_calc_ed is False:
-            sym_ϵ = "ϵ14"
-            ϵ_map = {"ϵ0": sym_ϵ,
-                     "ϵ1": "ϵ4",
-                     "ϵ4": "ϵ1",
-                     "ϵ14": "ϵ0",
-                     "ϵ5": "ϵ15",
-                     "ϵ15": "ϵ5",
-                     "ϵ6": "ϵ16",
-                     "ϵ16": "ϵ6"}
-            sym_ϵ_flags = {k: (h_μ + 1 - meta_ϵ_flags[v][1], h_σ + 1 - meta_ϵ_flags[v][0]) for k, v in ϵ_map.items()}
-            ϵ_dict = self._calc_symmetry_ϵ_dict(sym_ϵ, ϵ_map, meta_ϵ_dict, meta_ϵ_flags, sym_ϵ_flags,
-                                                Λ_σ_list, Λ_tilde_σ_list, Λ_μ_list, Λ_tilde_μ_list,
-                                                Λ_ν_list, Λ_tilde_ν_list)
-            flag, msg = save_ϵ(*(*ϵ_tuple, ϵ_dict, sym_ϵ_flags))
-            if not flag:
-                err_msg = "save_ϵ fail by ϵ_tuple={}, ϵ_dict={}, sym_ϵ_flags={} with msg={}".format(
-                    ϵ_tuple, ϵ_dict, sym_ϵ_flags, msg)
-                logger.error(err_msg)
-                return False, err_msg
-
-        # 4.4，算【[σ~][μ][ν~]τ】ϵ5_dict
-        ϵ_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.σ), data_σ_μ.μ, data_sn.get_tilde(meta_ν), τ)
-        _, is_calc_ed = is_ϵ_exist(*ϵ_tuple)
-        if is_calc_ed is False:
-            sym_ϵ = "ϵ5"
-            ϵ_map = {"ϵ0": sym_ϵ,
-                     "ϵ1": "ϵ15",
-                     "ϵ4": "ϵ6",
-                     "ϵ14": "ϵ16",
-                     "ϵ5": "ϵ0",
-                     "ϵ15": "ϵ1",
-                     "ϵ6": "ϵ4",
-                     "ϵ16": "ϵ14"}
-            sym_ϵ_flags = {k: (h_σ + 1 - meta_ϵ_flags[v][0], meta_ϵ_flags[v][1]) for k, v in ϵ_map.items()}
-            ϵ_dict = self._calc_symmetry_ϵ_dict(sym_ϵ, ϵ_map, meta_ϵ_dict, meta_ϵ_flags, sym_ϵ_flags,
-                                                Λ_σ_list, Λ_tilde_σ_list, Λ_μ_list, Λ_tilde_μ_list,
-                                                Λ_ν_list, Λ_tilde_ν_list)
-            flag, msg = save_ϵ(*(*ϵ_tuple, ϵ_dict, sym_ϵ_flags))
-            if not flag:
-                err_msg = "save_ϵ fail by ϵ_tuple={}, ϵ_dict={}, sym_ϵ_flags={} with msg={}".format(
-                    ϵ_tuple, ϵ_dict, sym_ϵ_flags, msg)
-                logger.error(err_msg)
-                return False, err_msg
-
-        # 4.5，算【[μ][σ~][ν~]τ】ϵ15_dict
-        ϵ_tuple = (self.s_n, data_σ_μ.μ, data_sn.get_tilde(data_σ_μ.σ), data_sn.get_tilde(meta_ν), τ)
-        _, is_calc_ed = is_ϵ_exist(*ϵ_tuple)
-        if is_calc_ed is False:
-            sym_ϵ = "ϵ15"
-            ϵ_map = {"ϵ0": sym_ϵ,
-                     "ϵ1": "ϵ5",
-                     "ϵ4": "ϵ16",
-                     "ϵ14": "ϵ6",
-                     "ϵ5": "ϵ1",
-                     "ϵ15": "ϵ0",
-                     "ϵ6": "ϵ14",
-                     "ϵ16": "ϵ4"}
-            sym_ϵ_flags = {k: (meta_ϵ_flags[v][1], h_σ + 1 - meta_ϵ_flags[v][0]) for k, v in ϵ_map.items()}
-            ϵ_dict = self._calc_symmetry_ϵ_dict(sym_ϵ, ϵ_map, meta_ϵ_dict, meta_ϵ_flags, sym_ϵ_flags,
-                                                Λ_σ_list, Λ_tilde_σ_list, Λ_μ_list, Λ_tilde_μ_list,
-                                                Λ_ν_list, Λ_tilde_ν_list)
-            flag, msg = save_ϵ(*(*ϵ_tuple, ϵ_dict, sym_ϵ_flags))
-            if not flag:
-                err_msg = "save_ϵ fail by ϵ_tuple={}, ϵ_dict={}, sym_ϵ_flags={} with msg={}".format(
-                    ϵ_tuple, ϵ_dict, sym_ϵ_flags, msg)
-                logger.error(err_msg)
-                return False, err_msg
-
-        # 4.6，算【[σ][μ~][ν~]τ】ϵ6_dict
-        ϵ_tuple = (self.s_n, data_σ_μ.σ, data_sn.get_tilde(data_σ_μ.μ), data_sn.get_tilde(meta_ν), τ)
-        _, is_calc_ed = is_ϵ_exist(*ϵ_tuple)
-        if is_calc_ed is False:
-            sym_ϵ = "ϵ6"
-            ϵ_map = {"ϵ0": sym_ϵ,
-                     "ϵ1": "ϵ16",
-                     "ϵ4": "ϵ5",
-                     "ϵ14": "ϵ15",
-                     "ϵ5": "ϵ4",
-                     "ϵ15": "ϵ14",
-                     "ϵ6": "ϵ0",
-                     "ϵ16": "ϵ1"}
-            sym_ϵ_flags = {k: (meta_ϵ_flags[v][0], h_μ + 1 - meta_ϵ_flags[v][1]) for k, v in ϵ_map.items()}
-            ϵ_dict = self._calc_symmetry_ϵ_dict(sym_ϵ, ϵ_map, meta_ϵ_dict, meta_ϵ_flags, sym_ϵ_flags,
-                                                Λ_σ_list, Λ_tilde_σ_list, Λ_μ_list, Λ_tilde_μ_list,
-                                                Λ_ν_list, Λ_tilde_ν_list)
-            flag, msg = save_ϵ(*(*ϵ_tuple, ϵ_dict, sym_ϵ_flags))
-            if not flag:
-                err_msg = "save_ϵ fail by ϵ_tuple={}, ϵ_dict={}, sym_ϵ_flags={} with msg={}".format(
-                    ϵ_tuple, ϵ_dict, sym_ϵ_flags, msg)
-                logger.error(err_msg)
-                return False, err_msg
-
-        # 4.7，算【[μ~][σ][ν~]τ】ϵ16_dict
-        ϵ_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.μ), data_σ_μ.σ, data_sn.get_tilde(meta_ν), τ)
-        _, is_calc_ed = is_ϵ_exist(*ϵ_tuple)
-        if is_calc_ed is False:
-            sym_ϵ = "ϵ16"
-            ϵ_map = {"ϵ0": sym_ϵ,
-                     "ϵ1": "ϵ6",
-                     "ϵ4": "ϵ15",
-                     "ϵ14": "ϵ5",
-                     "ϵ5": "ϵ14",
-                     "ϵ15": "ϵ4",
-                     "ϵ6": "ϵ1",
-                     "ϵ16": "ϵ0"}
-            sym_ϵ_flags = {k: (h_μ + 1 - meta_ϵ_flags[v][1], meta_ϵ_flags[v][0]) for k, v in ϵ_map.items()}
-            ϵ_dict = self._calc_symmetry_ϵ_dict(sym_ϵ, ϵ_map, meta_ϵ_dict, meta_ϵ_flags, sym_ϵ_flags,
-                                                Λ_σ_list, Λ_tilde_σ_list, Λ_μ_list, Λ_tilde_μ_list,
-                                                Λ_ν_list, Λ_tilde_ν_list)
-            flag, msg = save_ϵ(*(*ϵ_tuple, ϵ_dict, sym_ϵ_flags))
-            if not flag:
-                err_msg = "save_ϵ fail by ϵ_tuple={}, ϵ_dict={}, sym_ϵ_flags={} with msg={}".format(
-                    ϵ_tuple, ϵ_dict, sym_ϵ_flags, msg)
-                logger.error(err_msg)
-                return False, err_msg
-
-        return True, None
-
-    @staticmethod
-    def _calc_symmetry_ϵ_dict(sym_ϵ, ϵ_map, meta_ϵ_dict, meta_ϵ_flags, sym_ϵ_flags,
-                              Λ_σ_list, Λ_tilde_σ_list, Λ_μ_list, Λ_tilde_μ_list, Λ_ν_list, Λ_tilde_ν_list):
-        """
-        求ϵ_dict通用的计算部分
-
-        思路：
-        ϵ^s{k}  # 求由ϵ{s}造的CGC^s的各种ϵ可以写作ϵ^s{k}
-        = sign(CGC^s{k}) * ΛΛ^s{m^s|k}  # 把CGC^s看作元，按照4-122定义给出CGC^s的ϵ0～ϵ16，其中k是对称性种类，也是条件
-        = sign(ϵ^0{s} * CGC^0{v} * ΛΛ^0{m^v||s}) * ΛΛ^s{m^s|k}  # CGC^s{k}用CGC^0展开，其中，k^-s=v，s(m^v)=m^k
-        = ϵ^0{s} * sign(CGC^0{v}) * ΛΛ^0{m^v||s} * ΛΛ^s{m^s|k}  # 打开sign的括号
-        = ϵ^0{s} * (ϵ^0{v} / ΛΛ^0{m^v|v}) * ΛΛ^0{m^v||s} * ΛΛ^s{m^s|k}  # 再按定义用v还原CGC^0{v}
-        = ϵ^0{s} * (ϵ^0{v} * ΛΛ^0{m^v|v}) * ΛΛ^0{m^v||s} * ΛΛ^s{m^s|k}  # 对于Λ，*就是/
-        = ϵ^0{s} * ϵ^0{v} * ΛΛ^0{m^v|v} * ΛΛ^0{m^v||s} * ΛΛ^s{m^s|k}  # 展开所有的括号
-        其中，m的^是序号，｜是定义条件，||是使用条件
-        """
-        # logger.warning("$$$$ sym_ϵ={}".format(sym_ϵ))
-        if sym_ϵ in ["ϵ0", "ϵ6"]:
-            Λs_σ = Λ_σ_list
-        elif sym_ϵ in ["ϵ1", "ϵ15"]:
-            Λs_σ = Λ_μ_list
-        elif sym_ϵ in ["ϵ4", "ϵ5"]:
-            Λs_σ = Λ_tilde_σ_list
-        elif sym_ϵ in ["ϵ14", "ϵ16"]:
-            Λs_σ = Λ_tilde_μ_list
-        else:
-            Λs_σ = None
-        if sym_ϵ in ["ϵ0", "ϵ5"]:
-            Λs_μ = Λ_μ_list
-        elif sym_ϵ in ["ϵ1", "ϵ16"]:
-            Λs_μ = Λ_σ_list
-        elif sym_ϵ in ["ϵ4", "ϵ6"]:
-            Λs_μ = Λ_tilde_μ_list
-        elif sym_ϵ in ["ϵ14", "ϵ15"]:
-            Λs_μ = Λ_tilde_σ_list
-        else:
-            Λs_μ = None
-        if sym_ϵ in ["ϵ0", "ϵ1", "ϵ4", "ϵ14"]:
-            Λs_ν = Λ_ν_list
-        elif sym_ϵ in ["ϵ5", "ϵ15", "ϵ6", "ϵ16"]:
-            Λs_ν = Λ_tilde_ν_list
-        else:
-            Λs_ν = None
-        # logger.warning("$$$$ Λs_σ={}, Λs_μ={}, Λs_ν={}".format(Λs_σ, Λs_μ, Λs_ν))
-        ϵ_dict = {}
-        for k, v in ϵ_map.items():
-            # ϵ^0{s} 简记为ϵ0s
-            ϵ0s = meta_ϵ_dict[sym_ϵ]
-            # ϵ^0{v} 简记为ϵ0v
-            ϵ0v = meta_ϵ_dict[v]
-            # ΛΛ^0{m^v|v} 简记为ΛΛ0_v  # v是0的定义条件，所以用元的Λ；v是0的标号，所以用元的m
-            if v in ["ϵ0", "ϵ1"]:
-                ΛΛ0_v = 1
-            elif v in ["ϵ4", "ϵ14"]:
-                ΛΛ0_v = Λ_σ_list[meta_ϵ_flags[v][0] - 1] * Λ_μ_list[meta_ϵ_flags[v][1] - 1]
-            elif v in ["ϵ5", "ϵ15"]:
-                ΛΛ0_v = Λ_σ_list[meta_ϵ_flags[v][0] - 1] * Λ_ν_list[-1]
-            elif v in ["ϵ6", "ϵ16"]:
-                ΛΛ0_v = Λ_μ_list[meta_ϵ_flags[v][1] - 1] * Λ_ν_list[-1]
-            else:
-                ΛΛ0_v = None
-            # ΛΛ^0{m^v||s} 简记为ΛΛ0_s  # s是0的使用条件，所以用元的Λ；v是0的标号，所以用元的m
-            if sym_ϵ in ["ϵ0", "ϵ1"]:
-                ΛΛ0_s = 1
-            elif sym_ϵ in ["ϵ4", "ϵ14"]:
-                ΛΛ0_s = Λ_σ_list[meta_ϵ_flags[v][0] - 1] * Λ_μ_list[meta_ϵ_flags[v][1] - 1]
-            elif sym_ϵ in ["ϵ5", "ϵ15"]:
-                ΛΛ0_s = Λ_σ_list[meta_ϵ_flags[v][0] - 1] * Λ_ν_list[-1]
-            elif sym_ϵ in ["ϵ6", "ϵ16"]:
-                ΛΛ0_s = Λ_μ_list[meta_ϵ_flags[v][1] - 1] * Λ_ν_list[-1]
-            else:
-                ΛΛ0_s = None
-            # ΛΛ^s{m^s|k} 简记为ΛΛs_k  # k是s的定义条件，所以用s的Λ；s是s的标号，所以用s的m，但前面sym_ϵ_flags已经把标号转化为了k
-            if k in ["ϵ0", "ϵ1"]:
-                ΛΛs_k = 1
-            elif k in ["ϵ4", "ϵ14"]:
-                ΛΛs_k = Λs_σ[sym_ϵ_flags[k][0] - 1] * Λs_μ[sym_ϵ_flags[k][1] - 1]
-            elif k in ["ϵ5", "ϵ15"]:
-                ΛΛs_k = Λs_σ[sym_ϵ_flags[k][0] - 1] * Λs_ν[-1]
-            elif k in ["ϵ6", "ϵ16"]:
-                ΛΛs_k = Λs_μ[sym_ϵ_flags[k][1] - 1] * Λs_ν[-1]
-            else:
-                ΛΛs_k = None
-            ϵ_dict[k] = ϵ0s * ϵ0v * ΛΛ0_v * ΛΛ0_s * ΛΛs_k
-
-        return ϵ_dict
-
-    # def calc_ϵ_and_cgc_dict_by_isf_include_save(self, isf_square_dict, ν_st, data_sn, data_st, data_σ_μ):
-    #     """
-    #     凭借ISF计算CGC，并且，
-    #     根据对称性，尽可能多地计算ϵ和对应的CGC；
-    #     ϵ_dict和cgc_dict都要储存
-    #     """
-    #     # 拆解isf_square_dict，准备数据
-    #     σ_μ_τ_all_st_tuple_list = isf_square_dict["rows"]
-    #     ν_τ_list = isf_square_dict["cols"]
-    #     isf_square_matrix = isf_square_dict["isf"]
-    #
-    #     # TODO 所以一种可能的优化思路是，把m_ν_st循环放在最外面。这样，这个ISF的行和列都可以先一步提取做成字典，空间换时间
-    #
-    #     for i, ν_τ in enumerate(ν_τ_list):  # 按照列，也就是ν+τ开启循环
-    #         isf_square_vector = isf_square_matrix.col(i)
-    #         ν, τ = ν_τ if isinstance(ν_τ, tuple) else (ν_τ, None)
-    #         h_ν_st = data_st.yt_num_dict[tuple(ν_st)]
-    #         offset_of_m_ν = self._calc_m_with_m_st(ν_st, 0, data_sn.bl_yd_list_dict[tuple(ν)], data_st.yt_num_dict)
-    #
-    #         for m_ν_st in range(1, h_ν_st + 1):
-    #             single_cgc_part_start_time = time.time()
-    #             m_ν = offset_of_m_ν + m_ν_st
-    #
-    #             cgc_square_dict = {}
-    #             for σ_μ_τ_all_st, isf_square in zip(σ_μ_τ_all_st_tuple_list, isf_square_vector):
-    #                 # TODO 这个循环里的load_cgc肯定重复了，它和ν_τ无关；但是，按m全取的话，内存压力太大了
-    #                 σ_st, μ_st, τ_st = σ_μ_τ_all_st if len(σ_μ_τ_all_st) == 3 else (*σ_μ_τ_all_st, None)
-    #                 flag, cgc_st_square_dict = load_cgc(self.s_t, σ_st, μ_st, ν_st, τ_st, m_ν_st,
-    #                                                     is_flag_true_if_not_s_n=False)
-    #                 if not flag:
-    #                     err_msg = "get cgc_st_square_dict fail by self.s_t={}, σ_st={}, μ_st={}, ν_st={}, τ_st={}, " \
-    #                               "m_ν_st={}, msg={}".format(self.s_t, σ_st, μ_st, ν_st, τ_st, m_ν_st,
-    #                                                          cgc_st_square_dict)
-    #                     logger.error(err_msg)
-    #                     return False, err_msg
-    #                 offset_of_m_σ = self._calc_m_with_m_st(σ_st, 0, data_sn.bl_yd_list_dict[tuple(data_σ_μ.σ)],
-    #                                                        data_st.yt_num_dict)
-    #                 offset_of_m_μ = self._calc_m_with_m_st(μ_st, 0, data_sn.bl_yd_list_dict[tuple(data_σ_μ.μ)],
-    #                                                        data_st.yt_num_dict)
-    #                 for (m_σ_st, m_μ_st), cgc_st_square in cgc_st_square_dict.items():
-    #                     cgc_key = (offset_of_m_σ + m_σ_st, offset_of_m_μ + m_μ_st)
-    #
-    #                     if cgc_key not in cgc_square_dict:
-    #                         single_cgc_square = isf_square * cgc_st_square
-    #                         if single_cgc_square != 0:
-    #                             cgc_square_dict[cgc_key] = isf_square * cgc_st_square
-    #                     else:
-    #                         cgc_new_part = sp.sign(isf_square) * sp.sign(cgc_st_square) \
-    #                                        * sp.sqrt(abs(isf_square * cgc_st_square))
-    #                         cgc_old_part = sp.sign(cgc_square_dict[cgc_key]) \
-    #                                        * sp.sqrt(abs(cgc_square_dict[cgc_key]))
-    #                         update_cgc_square = sp.sign(cgc_new_part + cgc_old_part) \
-    #                                             * (cgc_new_part + cgc_old_part)**2
-    #                         if update_cgc_square != 0:
-    #                             cgc_square_dict[cgc_key] = update_cgc_square  # 覆盖
-    #                         else:
-    #                             cgc_square_dict.pop(cgc_key)
-    #
-    #             cgc_square_n = sum(abs(i) for i in cgc_square_dict.values())
-    #             if cgc_square_n != 1:
-    #                 err_msg = "calc cgc fail by self.s_n={}, data_σ_μ.σ={}, data_σ_μ.μ={}, " \
-    #                           "ν={}, τ={}, m_ν={}, cgc_square_dict={} with " \
-    #                           "meet cgc_square_n={} not eq 1".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, m_ν,
-    #                                                                  cgc_square_dict, cgc_square_n)
-    #                 logger.error(err_msg)
-    #                 return False, err_msg
-    #
-    #             single_cgc_part_speed_time = int(time.time() - single_cgc_part_start_time)
-    #             flag, msg = save_cgc(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, m_ν, cgc_square_dict,
-    #                                  single_cgc_part_speed_time)
-    #             if not flag:
-    #                 err_msg = "save_cgc fail by self.s_n={}, data_σ_μ.σ={}, data_σ_μ.μ={}, " \
-    #                           "ν={}, τ={}, m_ν={}, cgc_square_dict={} with " \
-    #                           "msg={}".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, m_ν, cgc_square_dict, msg)
-    #                 logger.error(err_msg)
-    #                 return False, err_msg
-    #
-    #     return True, None
-
 
 class EHelper(CalcHelper):
     """这里定义了一些供模块内部使用的函数，并省略入参检查"""
@@ -3726,7 +3323,7 @@ class EHelper(CalcHelper):
             # 根据前面计算Λ * Λ
             ΛΛ = 1
             for d, k in zip(d3, k4):
-                if k == 1:
+                if k is True:
                     ΛΛ *= Λ_list_list[d][m_tuple[d] - 1]
 
             square_dict_key = m_tuple[:-1:] if d3[-1] == default_σμν[-1] else m_tuple  # 真CGC是len2key，拼装的len3key
@@ -3742,9 +3339,10 @@ class EHelper(CalcHelper):
 
         return adding_ϵ_dict, adding_ϵ_flags
 
-    def calc_symmetry_ϵ_by_meta_include_save(self, meta_ϵ_dict, meta_ϵ_flags, meta_data_σ_μ, meta_ν, τ, meta_data_sn):
+    def _calc_single_sym_mode_by_meta(self, sym_mode, sym_mode_d3, sym_mode_k4, meta_ϵ_dict, meta_ϵ_flags,
+                                      meta_Λ_list_list, sym_Λ_list_list, meta_h_list):
         """
-        根据元ϵ计算对称的ϵ（坐标系的原点变换）
+        根据指定的sym_mode求其24个sym_key
 
         注意，下面的代码中将出现五套四个σμν，分别表示：
         meta_mode：就是meta(σμν)！
@@ -3762,164 +3360,157 @@ class EHelper(CalcHelper):
         定义式：ϵ(meta_key) = sign(CGC^meta_mode[m｜meta_key cond]) * ΛΛ_d^meta_key(m｜meta_key cond)
         使用式：CGC^sym_mode(m|meta_key cond)
             = ϵ(σμν) * h_σ/h_ν * ϵ(sym_mode) * ΛΛ_u^sym_mode(m｜meta_key cond) * CGC^meta_mode[m｜meta_key cond]
+
+        从结果上看，这里所求的是一种确定的对称组合sym_mode'(σ'μ'ν')下，它的24个ϵ
+        其单独的一个ϵ的组合是sym_key(σ'ν'~μ'~)，那么按照定义，其ϵ可表示为两部分
+        sign(sym_mode'经过sym_key对称后，是sym_key原点的坐标的sym_mode'的CGC) * ΛΛ_d^sym_key(sym_key相对于sym_mode的～关系)
+        记为：sign(CGC^σ'μ'ν'[m'| sym_key cond]) * ΛΛ_d^σ'ν'~μ'~(m'| sym_key cond)
+        首先是m'| sym_key cond
+        此m'是sym_key相对于sym_mode'的
+        因为sym_mode也是可以被meta_mode+meta_key表示的
+        我们也可以根据meta_key将它与meta_mode对应起来，既：m｜meta_key(m'| sym_key cond)
+        注意，这里不需要知道m'的具体值，只需要知道其规则，就可以反推了
+
+        例如：
+        meta_mode(σμν) = [4, 1] [3, 2] [3, 1, 1]
+        存在ϵ(ν~μσ~)
+        则有
+        sym_mode'(σ'μ'ν') = [3, 1, 1] [3, 2] [2, 1, 1, 1] (对于meta，它可以通过ϵ(ν~μσ~)得到)
+        现在求sym_key=ϵ'(σ'ν'~μ'~)的m'（既[3, 1, 1], [4, 1], [2, 2, 1]）
+        按照定义，h_μ'=h(m_[3, 2]')=5；min(m_σ')=min(m_[3, 1, 1]')=;max(m_ν')=max(m_[2, 1, 1, 1]')=
+        上述m'不能通过未知的当前CGC确定！
+        但是，可以通过sym_mode(ϵ(ν~μσ~))将m'对σ'μ'ν'的关系转化为m对σμν的关系
+        既，(μ'=μ)(h_μ')=h_μ=h(m_[3, 2])=5;(σ'=ν~)(min(m_σ'))=max(m_ν)=;(ν'=σ~)(max(m_ν'))=min(m_σ)=
+        这里，同样也不需要真正去查表得到m，只需要看24个meta_key谁与之对应即可
+        得到meta_key(ν~σμ~)满足条件，
+        并且，它是完全已知的(m_μ=5;m_ν=6;m_σ=3;CGC^σμν(m|ν~σμ~)=-3/8;h_ν=6;h_μ=5;h_σ=4)  # ϵ(ν~σμ~)=sign(-3/8*-*+)=1;
+        为了验证，我们正向再走一遍：
+        将上述m(m_σ=3;m_μ=5;m_ν=6)按照sym_mode=ϵ(ν~μσ~)变换(m_ν~=1;m_μ=5;m_σ~=2)，得到CGC^ν~μσ~，它也是CGC^σ'μ'ν'，
+        有：
+        CGC^ν~μσ~(m|ν~σμ~)
+        # 注意，这里不是 定义式 而是 使用式，所以h/h和ϵ用sym_mode 而CGC用meta_key condition
+        # 但是ΛΛ最特殊，在σμν的选取上，它使用sym_mode；而在m的取值上，它使用meta_key !!!!
+        = ϵ(σμν) * h_σ/h_ν * ϵ(sym_mode) * ΛΛ_u^sym_mode(m｜meta_key cond) * CGC^meta_mode[m｜meta_key cond]
+        = ϵ(σμν) * h_σ/h_ν * ϵ(ν~μσ~) * ΛΛ_u^ν~μσ~(m｜ν~σμ~ cond) * CGC^σμν[m｜ν~σμ~ cond]
+        = ϵ(σμν) * h_σ/h_ν * ϵ(ν~μσ~) * ΛσΛν(m_σ=3;m_ν=6) * CGC^σμν[m_σ=3;m_μ=5;m_ν=6]
+        # ϵ(ν~μσ~)=ϵ(m_σ=4;m_ν=6;m_μ=2)=sign(CGC^σμν(m|ν~μσ~)*Λ_σ(4)*Λ_ν(6))=sign(1/8*-*+)=-1
+        # Λ_σ(3)=+;Λ_ν(6)=+
+        = + * 4/6 * -1 * +*+ * -3/8 = 1/4
+        它就是正向使用meta_mode+meta_key得到sym_mode'的对称公式结果，查表验证确实等于：
+        因为对应关系m_σ'=(h_ν+1-m_ν)=6+1-6=1; m_μ'=m_μ=5; m_ν'=(h_σ+1-m_σ)=4+1-3=2
+        CGC^σ'μ'ν'[m_σ'=1; m_μ'=5; m_ν'=2] = 1/4
+        以(σ'μ'ν')为原点，把当前m'，经过sym_key(σ'=[3, 1, 1];ν'~=[4, 1];μ'~=[2, 2, 1])对称后，变为(m_σ'=1;m_ν'~=3;m_μ'~=1)
+        查表可知，它就是σ'=[3, 1, 1];ν'~=[4, 1];μ'~=[2, 2, 1]的首项。正向是正确的！
+        通过上述方式，我们可以确定m'| sym_key condition，同时，还找到了这个CGC在meta_mode中的对应
+        到此为止，ΛΛ_d^sym_key(m'| sym_key cond)已经完全确定。
+
+        下面仍以此例子，展示sign(CGC^sym_mode'[m'| sym_key cond])的推导过程：
+        首先，根据m'副产品可知，
+        CGC^σ'μ'ν'[m'| sym_key cond]
+        = ϵ(σμν) * h_σ/h_ν * ϵ(sym_mode) * ΛΛ_u^ν~μσ~(m｜ν~σμ~ cond) * CGC^σμν[m｜meta_key cond]
+        注意：此处比书中公式多了一个ϵ(σμν)，是为了满足τ>1时，出现的首项为负的情况。如果首项为正，则可以省略
+        套上sign后，可简化为：ϵ(σμν) * ϵ(sym_mode) * ΛΛ_u^sym_mode(m｜meta_key cond) * sign(CGC^σμν[m｜meta_key cond])
+        这里，前三项都是易知的，问题就简化为求sign(CGC^σμν[m｜meta_key cond])
+        在例子中，就是求sign(CGC^σμν[m_σ=3;m_μ=5;m_ν=6])
+        我们这里不希望使用真正的CGC，因为只需求sign，使用ϵ的定义式就足够了
+        由ϵ的定义式：ϵ(meta_key) = sign(CGC^meta_mode[m｜meta_key cond]) * ΛΛ_d^meta_key(m｜meta_key cond)
+        有：ϵ(ν~σμ~) = sign(CGC^σμν[m｜ν~σμ~]) * ΛΛ_d^ν~σμ~(m｜ν~σμ~)
+        所以，sign(CGC^σμν[m｜ν~σμ~]) = ϵ(ν~σμ~) / ΛΛ_d^ν~σμ~(m｜ν~σμ~) = ϵ(ν~σμ~) * ΛΛ_d^ν~σμ~(m｜ν~σμ~)
+        例如，
+        sign(CGC^σμν[m_σ=3;m_μ=5;m_ν=6])
+        = ϵ(ν~σμ~) * ΛΛ_d^ν~σμ~(m_σ=3;m_μ=5;m_ν=6)
+        = ϵ(ν~σμ~) * Λ_ν(m_ν=6) * Λ_μ(m_μ=5)
+
+        至此，sym_mode的ϵ(sym_key)，已经可以由已知meta_mode+计算出的对应ϵ(meta_key)表示，记为：
+        ϵ(sym_key)
+        = sign(CGC^sym_mode'[m'| sym_key cond]) * ΛΛ_d^sym_key(m'| sym_key cond)
+        = ϵ(meta_mode) * ϵ(sym_mode) * sign(CGC^meta_mode[m｜meta_key cond]) * ΛΛ_u^sym_mode(m｜meta_key cond)
+          * ΛΛ_d^sym_key(m'| sym_key cond)
+        = ϵ(meta_mode) * ϵ(sym_mode)
+          * ϵ(meta_key) * ΛΛ_d^meta_key(m｜meta_key cond)
+          * ΛΛ_u^sym_mode(m｜meta_key cond) * ΛΛ_d^sym_key(m'| sym_key cond)
+        = ϵ(meta_mode) * ϵ(sym_mode) * ϵ(meta_key) * ΛΛ_d^meta_key(m｜meta_key cond)
+                                                   * ΛΛ_u^sym_mode(m｜meta_key cond)
+                                                   * ΛΛ_d^sym_key(m'| sym_key cond)
+        例如：
+        ϵ(σ'ν'~μ'~)  # sym_mode=ν~μσ~
+        首先计算出meta_key=ν~σμ~
+        = ϵ(σμν) * ϵ(ν~μσ~) * ϵ(ν~σμ~) * ΛΛ_d^ν~σμ~(m_σ=3;m_μ=5;m_ν=6)
+                                       * ΛΛ_u^ν~μσ~(m_σ=3;m_μ=5;m_ν=6; m_σ'=1;m_μ'=5;m_ν'=2)
+                                       * ΛΛ_d^σ'ν'~μ'~(m_σ'=1;m_μ'=5;m_ν'=2)
+        = ϵ(σμν) * ϵ(ν~μσ~) * ϵ(ν~σμ~) * Λ_ν(m_ν=6) * Λ_μ(m_μ=5)
+                                       * Λ_ν(m_ν=6) * Λ_σ(m_σ=3)
+                                       * Λ_ν'(m_ν'=2) * Λ_μ'(m_μ'=5)
+        """
+        sym_ϵ_dict = {}
+        sym_ϵ_flags = {}
+        default_meta_mode = "σμν"
+        # 1, ϵ(meta_mode)
+        ϵ_meta_mode = meta_ϵ_dict.get(default_meta_mode)
+        # 2, ϵ(sym_mode)
+        ϵ_sym_mode = meta_ϵ_dict.get(sym_mode)
+        for sym_key, sym_key_d3, sym_key_k4 in \
+                chain(self.σμν_0, self.σμν_1, self.σμν_2, self.σμν_3, self.σμν_4, self.σμν_5):
+            # 求meta_key
+            meta_key_d3 = tuple(sym_mode_d3[i] for i in sym_key_d3)
+            meta_key_k4 = tuple(sym_mode_k4[i] is not k for i, k in zip(sym_key_d3, sym_key_k4))
+            meta_key = self._spell_ϵ_key(meta_key_d3, meta_key_k4)
+            # 3, ϵ(meta_key)
+            ϵ_meta_key = meta_ϵ_dict.get(meta_key)
+            # 4, ΛΛ_d^meta_key(m｜meta_key cond)
+            m_meta_key_cond = meta_ϵ_flags.get(meta_key)  # σμν顺序
+            ΛΛ_d_meta_key = 1
+            for d, k in zip(meta_key_d3, meta_key_k4):
+                if k is True:
+                    ΛΛ_d_meta_key *= meta_Λ_list_list[d][m_meta_key_cond[d] - 1]
+            # 5, ΛΛ_u^sym_mode(m｜meta_key cond)
+            ΛΛ_u_sym_mode = 1
+            for d, k in zip(sym_mode_d3, sym_mode_k4):
+                if k is True:
+                    ΛΛ_u_sym_mode *= meta_Λ_list_list[d][m_meta_key_cond[d] - 1]
+            # 6, ΛΛ_d^sym_key(m'| sym_key cond)
+            m_sym_key_cond = tuple(m_meta_key_cond[i] if j is False else meta_h_list[i] + 1 - m_meta_key_cond[i]
+                                   for i, j in zip(sym_mode_d3, sym_mode_k4))  # σ'μ'ν'顺序
+            ΛΛ_d_sym_key = 1
+            for d, k in zip(sym_key_d3, sym_key_k4):
+                if k is True:
+                    ΛΛ_d_sym_key *= sym_Λ_list_list[d][m_sym_key_cond[d] - 1]
+            # 总结
+            sym_ϵ_dict[sym_key] = ϵ_meta_mode * ϵ_sym_mode * ϵ_meta_key * ΛΛ_d_meta_key * ΛΛ_u_sym_mode * ΛΛ_d_sym_key
+            sym_ϵ_flags[sym_key] = m_sym_key_cond
+
+        return sym_ϵ_dict, sym_ϵ_flags
+
+    def calc_symmetry_ϵ_by_meta_include_save(self, meta_ϵ_dict, meta_ϵ_flags, meta_data_σ_μ, meta_ν, τ, data_sn):
+        """
+        根据元ϵ计算对称的ϵ（坐标系的原点变换）
         """
         meta_yd_σμν = (meta_data_σ_μ.σ, meta_data_σ_μ.μ, meta_ν)
+        meta_Λ_list_list = [data_sn.get_phase_factor_list(yd) for yd in meta_yd_σμν]
+        meta_h_list = [data_sn.get_yt_num(yd) for yd in meta_yd_σμν]
         for sym_mode, sym_mode_d3, sym_mode_k4 in \
                 chain(self.σμν_0, self.σμν_1, self.σμν_2, self.σμν_3, self.σμν_4, self.σμν_5):
             sym_yd_σμν = (meta_yd_σμν[sym_mode_d3[i]] if sym_mode_k4[i] is False else
-                          meta_data_sn.get_tilde(meta_yd_σμν[sym_mode_d3[i]]) for i in range(3))
+                          data_sn.get_tilde(meta_yd_σμν[sym_mode_d3[i]]) for i in range(3))
             sym_ϵ_tuple = (self.s_n, *sym_yd_σμν, τ)
             _, is_calc_ed = is_ϵ_exist(*sym_ϵ_tuple)
             if is_calc_ed is True:
                 continue
-            sym_ϵ_dict = {}
-            sym_ϵ_flags = {}
-            '''
-            从结果上看，这里所求的是一种确定的对称组合sym_mode'(σ'μ'ν')下，它的24个ϵ
-            其单独的一个ϵ的组合是sym_key(σ'ν'~μ'~)，那么按照定义，其ϵ可表示为两部分
-            sign(sym_mode'经过sym_key对称后，是sym_key原点的坐标的sym_mode'的CGC) * ΛΛ_d^sym_key(sym_key相对于sym_mode的～关系)
-            记为：sign(CGC^σ'μ'ν'[m'| sym_key cond]) * ΛΛ_d^σ'ν'~μ'~(m'| sym_key cond)
-            首先是m'| sym_key cond
-            此m'是sym_key相对于sym_mode'的
-            因为sym_mode也是可以被meta_mode+meta_key表示的
-            我们也可以根据meta_key将它与meta_mode对应起来，既：m｜meta_key(m'| sym_key cond)
-            注意，这里不需要知道m'的具体值，只需要知道其规则，就可以反推了
-            
-            例如：
-            meta_mode(σμν) = [4, 1] [3, 2] [3, 1, 1]
-            存在ϵ(ν~μσ~)
-            则有
-            sym_mode'(σ'μ'ν') = [3, 1, 1] [3, 2] [2, 1, 1, 1] (对于meta，它可以通过ϵ(ν~μσ~)得到)
-            现在求sym_key=ϵ'(σ'ν'~μ'~)的m'（既[3, 1, 1], [4, 1], [2, 2, 1]）
-            按照定义，h_μ'=h(m_[3, 2]')=5；min(m_σ')=min(m_[3, 1, 1]')=;max(m_ν')=max(m_[2, 1, 1, 1]')=
-            上述m'不能通过未知的当前CGC确定！
-            但是，可以通过sym_mode(ϵ(ν~μσ~))将m'对σ'μ'ν'的关系转化为m对σμν的关系
-            既，(μ'=μ)(h_μ')=h_μ=h(m_[3, 2])=5;(σ'=ν~)(min(m_σ'))=max(m_ν)=;(ν'=σ~)(max(m_ν'))=min(m_σ)=
-            这里，同样也不需要真正去查表得到m，只需要看24个meta_key谁与之对应即可
-            得到meta_key(ν~σμ~)满足条件，
-            并且，它是完全已知的(m_μ=5;m_ν=6;m_σ=3;CGC^σμν(m|ν~σμ~)=-3/8;h_ν=6;h_μ=5;h_σ=4)  # ϵ(ν~σμ~)=sign(-3/8*-*+)=1;
-            为了验证，我们正向再走一遍：
-            将上述m(m_σ=3;m_μ=5;m_ν=6)按照sym_mode=ϵ(ν~μσ~)变换(m_ν~=1;m_μ=5;m_σ~=2)，得到CGC^ν~μσ~，它也是CGC^σ'μ'ν'，
-            有：
-            CGC^ν~μσ~(m|ν~σμ~)  
-            # 注意，这里不是 定义式 而是 使用式，所以h/h和ϵ用sym_mode 而CGC用meta_key condition
-            # 但是ΛΛ最特殊，在σμν的选取上，它使用sym_mode；而在m的取值上，它使用meta_key !!!!
-            = ϵ(σμν) * h_σ/h_ν * ϵ(sym_mode) * ΛΛ_u^sym_mode(m｜meta_key cond) * CGC^meta_mode[m｜meta_key cond]
-            = ϵ(σμν) * h_σ/h_ν * ϵ(ν~μσ~) * ΛΛ_u^ν~μσ~(m｜ν~σμ~ cond) * CGC^σμν[m｜ν~σμ~ cond]
-            = ϵ(σμν) * h_σ/h_ν * ϵ(ν~μσ~) * ΛσΛν(m_σ=3;m_ν=6) * CGC^σμν[m_σ=3;m_μ=5;m_ν=6]
-            # ϵ(ν~μσ~)=ϵ(m_σ=4;m_ν=6;m_μ=2)=sign(CGC^σμν(m|ν~μσ~)*Λ_σ(4)*Λ_ν(6))=sign(1/8*-*+)=-1
-            # Λ_σ(3)=+;Λ_ν(6)=+
-            = + * 4/6 * -1 * +*+ * -3/8 = 1/4
-            它就是正向使用meta_mode+meta_key得到sym_mode'的对称公式结果，查表验证确实等于：
-            因为对应关系m_σ'=(h_ν+1-m_ν)=6+1-6=1; m_μ'=m_μ=5; m_ν'=(h_σ+1-m_σ)=4+1-3=2
-            CGC^σ'μ'ν'[m_σ'=1; m_μ'=5; m_ν'=2] = 1/4  
-            以(σ'μ'ν')为原点，把当前m'，经过sym_key(σ'=[3, 1, 1];ν'~=[4, 1];μ'~=[2, 2, 1])对称后，变为(m_σ'=1;m_ν'~=3;m_μ'~=1)
-            查表可知，它就是σ'=[3, 1, 1];ν'~=[4, 1];μ'~=[2, 2, 1]的首项。正向是正确的！
-            通过上述方式，我们可以确定m'| sym_key condition，同时，还找到了这个CGC在meta_mode中的对应
-            到此为止，ΛΛ_d^sym_key(m'| sym_key cond)已经完全确定。
-            
-            下面仍以此例子，展示sign(CGC^sym_mode'[m'| sym_key cond])的推导过程：
-            首先，根据m'副产品可知，
-            CGC^σ'μ'ν'[m'| sym_key cond] 
-            = ϵ(σμν) * h_σ/h_ν * ϵ(sym_mode) * ΛΛ_u^ν~μσ~(m｜ν~σμ~ cond) * CGC^σμν[m｜meta_key cond]
-            注意：此处比书中公式多了一个ϵ(σμν)，是为了满足τ>1时，出现的首项为负的情况。如果首项为正，则可以省略
-            套上sign后，可简化为：ϵ(σμν) * ϵ(sym_mode) * ΛΛ_u^sym_mode(m｜meta_key cond) * sign(CGC^σμν[m｜meta_key cond])
-            这里，前三项都是易知的，问题就简化为求sign(CGC^σμν[m｜meta_key cond])
-            在例子中，就是求sign(CGC^σμν[m_σ=3;m_μ=5;m_ν=6])
-            我们这里不希望使用真正的CGC，因为只需求sign，使用ϵ的定义式就足够了
-            由ϵ的定义式：ϵ(meta_key) = sign(CGC^meta_mode[m｜meta_key cond]) * ΛΛ_d^meta_key(m｜meta_key cond)
-            有：ϵ(ν~σμ~) = sign(CGC^σμν[m｜ν~σμ~]) * ΛΛ_d^ν~σμ~(m｜ν~σμ~)
-            所以，sign(CGC^σμν[m｜ν~σμ~]) = ϵ(ν~σμ~) / ΛΛ_d^ν~σμ~(m｜ν~σμ~) = ϵ(ν~σμ~) * ΛΛ_d^ν~σμ~(m｜ν~σμ~)
-            例如，
-            sign(CGC^σμν[m_σ=3;m_μ=5;m_ν=6]) 
-            = ϵ(ν~σμ~) * ΛΛ_d^ν~σμ~(m_σ=3;m_μ=5;m_ν=6)
-            = ϵ(ν~σμ~) * Λ_ν(m_ν=6) * Λ_μ(m_μ=5)
-            
-            至此，sym_mode的ϵ(sym_key)，已经可以由已知meta_mode+计算出的对应ϵ(meta_key)表示，记为：  
-            ϵ(sym_key)
-            = sign(CGC^sym_mode'[m'| sym_key cond]) * ΛΛ_d^sym_key(m'| sym_key cond)
-            = ϵ(meta_mode) * ϵ(sym_mode) * sign(CGC^meta_mode[m｜meta_key cond]) * ΛΛ_u^sym_mode(m｜meta_key cond)
-              * ΛΛ_d^sym_key(m'| sym_key cond)
-            = ϵ(meta_mode) * ϵ(sym_mode) 
-              * ϵ(meta_key) * ΛΛ_d^meta_key(m｜meta_key cond) 
-              * ΛΛ_u^sym_mode(m｜meta_key cond) * ΛΛ_d^sym_key(m'| sym_key cond)
-            = ϵ(meta_mode) * ϵ(sym_mode) * ϵ(meta_key) * ΛΛ_d^meta_key(m｜meta_key cond) 
-                                                       * ΛΛ_u^sym_mode(m｜meta_key cond) 
-                                                       * ΛΛ_d^sym_key(m'| sym_key cond)
-            例如：
-            ϵ(σ'ν'~μ'~)  # sym_mode=ν~μσ~
-            首先计算出meta_key=ν~σμ~
-            = ϵ(σμν) * ϵ(ν~μσ~) * ϵ(ν~σμ~) * ΛΛ_d^ν~σμ~(m_σ=3;m_μ=5;m_ν=6) 
-                                           * ΛΛ_u^ν~μσ~(m_σ=3;m_μ=5;m_ν=6; m_σ'=1;m_μ'=5;m_ν'=2) 
-                                           * ΛΛ_d^σ'ν'~μ'~(m_σ'=1;m_μ'=5;m_ν'=2)
-            = ϵ(σμν) * ϵ(ν~μσ~) * ϵ(ν~σμ~) * Λ_ν(m_ν=6) * Λ_μ(m_μ=5)
-                                           * Λ_ν(m_ν=6) * Λ_σ(m_σ=3)
-                                           * Λ_ν'(m_ν'=2) * Λ_μ'(m_μ'=5)
-            '''
-        pass
+            sym_Λ_list_list = [data_sn.get_phase_factor_list(yd) for yd in sym_yd_σμν]
+            sym_ϵ_dict, sym_ϵ_flags = \
+                self._calc_single_sym_mode_by_meta(sym_mode, sym_mode_d3, sym_mode_k4, meta_ϵ_dict, meta_ϵ_flags,
+                                                   meta_Λ_list_list, sym_Λ_list_list, meta_h_list)
+            if len(sym_ϵ_dict) == len(sym_ϵ_flags) == 24:
+                flag, msg = save_ϵ(*(*sym_ϵ_tuple, sym_ϵ_dict, sym_ϵ_flags))
+                if not flag:
+                    err_msg = "save_ϵ fail by sym_ϵ_tuple={}, sym_ϵ_dict={}, sym_ϵ_flags={} with " \
+                              "msg={}".format(sym_ϵ_tuple, sym_ϵ_dict, sym_ϵ_flags, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
+            else:
+                err_msg = "_calc_single_sym_mode_by_meta return wrong sym_ϵ_dict={}, sym_ϵ_flags={}".format(
+                    sym_ϵ_tuple, sym_ϵ_dict, sym_ϵ_flags)
+                logger.error(err_msg)
+                return False, err_msg
 
-    # @staticmethod
-    # def calc_ϵ_by_m_h(cgc_square_dict, ν, data_sn, data_σ_μ):
-    #     """根据元CGC的m_h计算ϵ
-    #
-    #     注意：输入的cgc_square_dict的m应该等于h_ν，它需要在外部确认
-    #     注意：书《群表示论的新途径》这段是错的，应该使用英文版《Group Representation Theory for Physicists》中的对应公式
-    #     ϵ5：公式4-122b
-    #     ϵ6：公式4-122c
-    #     ϵ15：自行推导，使ϵ1作用在经过ϵ5对称后的CGC上
-    #     ϵ16：自行推导，使ϵ1作用在经过ϵ6对称后的CGC上
-    #     """
-    #     ϵ_dict = {}
-    #     ϵ_flags = {}
-    #
-    #     # 公共条件
-    #     phase_vector_list_σ = data_sn.get_phase_factor_list(data_σ_μ.σ)
-    #     phase_vector_list_μ = data_sn.get_phase_factor_list(data_σ_μ.μ)
-    #     phase_vector_list_ν = data_sn.get_phase_factor_list(ν)
-    #     Λ_h_ν = phase_vector_list_ν[-1]
-    #     m_σ_set = set(i[0] for i in cgc_square_dict.keys())
-    #     m_μ_set = set(i[1] for i in cgc_square_dict.keys())
-    #
-    #     # ϵ5条件【[σ~][μ][ν~]τ】：m_ν=h_ν，(m_σ max, m_μ min)，m取（m_σ, m_μ, h_ν）
-    #     max_m_σ = max(m_σ_set)
-    #     m_μ_second_set = set(i[1] for i in cgc_square_dict.keys() if i[0] == max_m_σ)
-    #     min_m_μ = min(m_μ_second_set)
-    #     Λ_max_m_σ = phase_vector_list_σ[max_m_σ - 1]  # 物理序要转换成py序
-    #     ϵ5_key = (max_m_σ, min_m_μ,)
-    #     ϵ5 = sp.sign(cgc_square_dict[ϵ5_key] * Λ_max_m_σ * Λ_h_ν)
-    #     ϵ_dict["ϵ5"] = ϵ5
-    #     ϵ_flags["ϵ5"] = ϵ5_key
-    #
-    #     # ϵ15条件【[μ][σ~][ν~]τ】：m_ν=h_ν，(m_μ min, m_σ max)，m取（m_σ, m_μ, h_ν）
-    #     min_m_μ = min(m_μ_set)
-    #     m_σ_second_set = set(i[0] for i in cgc_square_dict.keys() if i[1] == min_m_μ)
-    #     max_m_σ = max(m_σ_second_set)
-    #     Λ_max_m_σ = phase_vector_list_σ[max_m_σ - 1]  # 物理序要转换成py序
-    #     Λ_h_ν = phase_vector_list_ν[-1]
-    #     ϵ15_key = (max_m_σ, min_m_μ,)
-    #     ϵ15 = sp.sign(cgc_square_dict[ϵ15_key] * Λ_max_m_σ * Λ_h_ν)
-    #     ϵ_dict["ϵ15"] = ϵ15
-    #     ϵ_flags["ϵ15"] = ϵ15_key
-    #
-    #     # ϵ6条件【[σ][μ~][ν~]τ】：m_ν=h_ν，(m_σ min, m_μ max)，m取（m_σ, m_μ, h_ν）
-    #     min_m_σ = min(m_σ_set)
-    #     m_μ_second_set = set(i[1] for i in cgc_square_dict.keys() if i[0] == min_m_σ)
-    #     max_m_μ = max(m_μ_second_set)
-    #     Λ_max_m_μ = phase_vector_list_μ[max_m_μ - 1]  # 物理序要转换成py序
-    #     ϵ6_key = (min_m_σ, max_m_μ,)
-    #     ϵ6 = sp.sign(cgc_square_dict[ϵ6_key] * Λ_max_m_μ * Λ_h_ν)
-    #     ϵ_dict["ϵ6"] = ϵ6
-    #     ϵ_flags["ϵ6"] = ϵ6_key
-    #
-    #     # ϵ16条件【[μ~][σ][ν~]τ】：m_ν=h_ν，(m_μ max, m_σ min)，m取（m_σ, m_μ, h_ν）
-    #     max_m_μ = max(m_μ_set)
-    #     m_σ_second_set = set(i[0] for i in cgc_square_dict.keys() if i[1] == max_m_μ)
-    #     min_m_σ = min(m_σ_second_set)
-    #     Λ_max_m_μ = phase_vector_list_μ[max_m_μ - 1]  # 物理序要转换成py序
-    #     ϵ16_key = (min_m_σ, max_m_μ,)
-    #     ϵ16 = sp.sign(cgc_square_dict[ϵ16_key] * Λ_max_m_μ * Λ_h_ν)
-    #     ϵ_dict["ϵ16"] = ϵ16
-    #     ϵ_flags["ϵ16"] = ϵ16_key
-    #
-    #     return ϵ_dict, ϵ_flags
-
+        return True, None
