@@ -6,6 +6,7 @@ using these config as global params by python import
 
 
 import os
+from itertools import product
 from utils.config import singleton_config
 
 
@@ -60,6 +61,9 @@ isf_file_name_format = os.path.join("S{}", "{}_{}", "{}\'")
 # cgc file name format
 cgc_file_name_format_none = os.path.join("S{}", "{}_{}", "{}_m{}")
 cgc_file_name_format = os.path.join("S{}", "{}_{}", "{}_τ{}_m{}")
+# symmetry combination file name format
+meta_σμν_file_name_format = os.path.join("S{}", "meta_σμν")
+sym_σμν_file_name_format = os.path.join("S{}", "{}{}{}_symmetries")
 
 # min Sn 各计算单元的最小合法Sn
 min_s_n_of_young_diagram = 1
@@ -72,6 +76,7 @@ min_s_n_of_eigenvalue = 1  # 理论上是2; 添加1是一种"解析延拓"
 min_s_n_of_isf = 2
 min_s_n_of_ϵ = 2  # 尽管有1，但它是预置的，不是计算得来的
 min_s_n_of_cgc = 1
+min_s_n_of_sym = 1
 
 # 2*2*2*6/2=24个ϵ的四分量映射
 '''
@@ -100,6 +105,6 @@ tuple[0]为σμν次序，后面的三个01数字表示按照当前顺序下，�
  ϵ6
 '''
 # group_d3 = ("σμν", "μσν", "νμσ", "σνμ", "νσμ", "μνσ")
+# group_d3 * group_k4就可以造24种ϵ了
 group_d3 = ((0, 1, 2), (1, 0, 2), (2, 1, 0), (0, 2, 1), (2, 0, 1), (1, 2, 0))  # 0表示σ；1表示μ；2表示ν
 group_k4 = ((False, False, False), (True, True, False), (True, False, True), (False, True, True))
-# group_d3 * group_k4就可以造下面的24种ϵ了

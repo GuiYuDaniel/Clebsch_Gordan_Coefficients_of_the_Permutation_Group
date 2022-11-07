@@ -534,3 +534,39 @@ def get_cgc_finish_s_n_name(is_full_path=False):
     Finish_Sn or <top_path>/cgc_results/cgc_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="cgc_info")
+
+
+# symmetry_info
+def get_meta_σμν_file_name(s_n: int, is_full_path=False):
+    """
+    Sn/meta_σμν or <top_path>/cgc_results/symmetry_info/Sn/meta_σμν
+    p.s. S3/meta_σμν or <top_path>/cgc_results/symmetry_info/S3/meta_σμν
+    """
+    from conf.cgc_config import meta_σμν_file_name_format
+    file_name = meta_σμν_file_name_format.format(s_n)  # 检查交给调用者
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "symmetry_info", file_name)
+        return True, full_path
+
+
+def get_sym_σμν_file_name(s_n: int, sigma: list, mu: list, nu: list, is_full_path=False):
+    """
+    Sn/[σ][μ][ν]_symmetries or <top_path>/cgc_results/symmetry_info/Sn/[σ][μ][ν]_symmetries
+    p.s. S3/[2, 1][2, 1][2, 1]_symmetries or <top_path>/cgc_results/symmetry_info/S3/[2, 1][2, 1][2, 1]_symmetries
+    """
+    from conf.cgc_config import sym_σμν_file_name_format
+    file_name = sym_σμν_file_name_format.format(s_n, sigma, mu, nu)  # 检查交给调用者
+    if not is_full_path:
+        return True, file_name
+    else:
+        full_path = os.path.join(top_path, cgc_rst_folder, "symmetry_info", file_name)
+        return True, full_path
+
+
+def get_symmetry_combination_finish_s_n_name(is_full_path=False):
+    """
+    Finish_Sn or <top_path>/cgc_results/symmetry_info/Finish_Sn
+    """
+    return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="symmetry_info")

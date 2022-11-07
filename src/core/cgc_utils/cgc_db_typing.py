@@ -30,6 +30,37 @@ from conf.cgc_config import default_s_n
 #         self.txt_limit = calculated_tables_txt_limit
 #         self._init_cgc_static_db_folder()
 
+class SYMInfo(CGCLocalDb):
+    """
+    这个db用来存symmetry_info
+
+    <CG>/symmetry_info/Sn/meta_σμν.pkl
+    数据结构{"data": meta_σμν_tuple_list}
+    meta_σμν_tuple_list = [(meta_σ, meta_μ, meta_ν), ...]
+    例如：
+    # <CG>/symmetry_info/S3/meta_σμν.pkl
+    # {"data": [([3], [3], [3]), ([3], [2, 1], [2, 1]), ([2, 1], [2, 1], [2, 1])]}
+
+    <CG>/symmetry_info/Sn/[σ][μ][ν]_symmetries.pkl
+    数据结构{"data": sym_σμν_dict}
+    sym_σμν_dict = {(j_σ_s, j_μ_s, j_ν_s): [meta_key]}  # 来源可以不唯一
+    例如：
+    # <CG>/symmetry_info/S3/[2, 1][2, 1][2, 1]_symmetries.pkl
+    # {"data": {('[2, 1]', '[2, 1]', '[2, 1]'): ["σμν", "μσν", ...]}}  # 这个例子里，24个meta_key都是
+    """
+    def __init__(self, s_n):
+        super(SYMInfo, self).__init__()
+        self.table_type = "symmetry_info"
+        self.map_id = "file_name"
+        self.design_table_type.update({
+            "data": (dict, list),
+            "flags": dict
+        })
+        self.s_n = s_n
+        self.txt_limit = default_s_n
+        self._init_cgc_static_db_folder()
+
+
 class CGCInfo(CGCLocalDb):
     """
     这个db用来存CGC

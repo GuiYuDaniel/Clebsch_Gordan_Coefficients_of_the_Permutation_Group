@@ -161,7 +161,7 @@ def save_single_young_table(s_n: int, yd: list, young_table: dict, speed_time: i
     <CG>/young_tableaux_info/Sn/[ν_i].pkl  ->
     {
     "file_name": "Sn/[ν_i]",
-    "data": {"m_i": young_table}
+    "data": {"m_i": young_table},
     "flags": {"speed_time": speed_time
               "total_num": total_num}
     }

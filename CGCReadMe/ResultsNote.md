@@ -57,6 +57,21 @@
          "flags": {"ϵ0": (1, 4), "ϵ1": (4, 1), "ϵ4": (6, 3), "ϵ14": (3, 6),
                    "ϵ5": (6, 1), "ϵ15": (6, 1), "ϵ6": (1, 6), "ϵ16": (1, 6)}}
 
+    元组合与对称组合存放于：
+        <CG>/symmetry_info/Sn/meta_σμν.pkl
+        数据结构{"data": meta_σμν_tuple_list}
+        meta_σμν_tuple_list = [(meta_σ, meta_μ, meta_ν), ...]
+        例如：
+        # <CG>/symmetry_info/S3/meta_σμν.pkl
+        # {"data": [([3], [3], [3]), ([3], [2, 1], [2, 1]), ([2, 1], [2, 1], [2, 1])]}
+
+        <CG>/symmetry_info/Sn/[σ][μ][ν]_symmetries.pkl
+        数据结构{"data": sym_σμν_dict}
+        sym_σμν_dict = {(j_σ_s, j_μ_s, j_ν_s): [meta_key]}  # 来源可以不唯一
+        例如：
+        # <CG>/symmetry_info/S3/[2, 1][2, 1][2, 1]_symmetries.pkl
+        # {"data": {('[2, 1]', '[2, 1]', '[2, 1]'): ["σμν", "μσν", ...]}}  # 这个例子里，24个meta_key都是
+
     二循环类算符本征值存放于：(本征值to构型不存了，使用函数计算)
         <CG>/eigenvalues_info/Sn.pkl                #<CG>/eigenvalues_info/S6.pkl
         数据结构：{"data": eigenvalues}               #list(int)
