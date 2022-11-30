@@ -23,6 +23,7 @@ from core.yamanouchi_matrix import create_yamanouchi_matrix
 from core.characters_and_gi import create_characters_and_gi
 from core.cg_series import create_cg_series
 from core.eigenvalues import create_eigenvalues, load_eigenvalues
+from core.symmetry_combination import create_symmetry_combination
 from core.cgc_utils.cgc_db_typing import ISFInfo, CGCInfo, EInfo
 from core.cgc_utils.cgc_local_db import get_isf_file_name, get_isf_finish_s_n_name
 from core.cgc_utils.cgc_local_db import get_cgc_file_name, get_cgc_finish_s_n_name
@@ -78,33 +79,45 @@ class EData(object):
 
     def __init__(self):
         # ϵ data
-        # 格式 Sn, σ, μ, ν, τ, ϵ_dict
+        # 格式 Sn, σ, μ, ν, τ, ϵ_dict, ϵ_flags(不一定有)
         # 书中4-123例子
-        self.ϵ_1 = (5, [3, 1, 1], [3, 1, 1], [3, 2], 1, {"ϵ6": 1})
-        self.ϵ_2 = (5, [3, 1, 1], [3, 1, 1], [3, 2], 2, {"ϵ6": -1})
-        # Gao & Chen 1985中的明确例子
-        self.ϵ_3 = (5, [4, 1], [3, 2], [2, 2, 1], None, {"ϵ1": -1, "ϵ4": -1, "ϵ5": -1, "ϵ6": -1})
-        self.ϵ_4 = (4, [2, 2], [2, 2], [2, 2], None, {"ϵ4": -1, "ϵ5": -1})
-        self.ϵ_5 = (5, [3, 1, 1], [4, 1], [3, 1, 1], None, {"ϵ5": -1})
-        self.ϵ_6 = (5, [3, 1, 1], [3, 2], [3, 1, 1], 1, {"ϵ5": 1})
-        self.ϵ_7 = (5, [3, 1, 1], [3, 2], [3, 1, 1], 2, {"ϵ5": -1})
-        self.ϵ_8 = (5, [3, 1, 1], [3, 1, 1], [3, 1, 1], None, {"ϵ4": 1, "ϵ5": 1})
-        self.ϵ_9 = (6, [5, 1], [3, 2, 1], [3, 2, 1], 1, {"ϵ6": 1})
-        self.ϵ_10 = (6, [5, 1], [3, 2, 1], [3, 2, 1], 2, {"ϵ6": -1})
-        self.ϵ_11 = (6, [3, 3], [3, 2, 1], [3, 2, 1], 1, {"ϵ6": -1})
-        self.ϵ_12 = (6, [3, 3], [3, 2, 1], [3, 2, 1], 2, {"ϵ6": 1})
-        self.ϵ_13 = (6, [4, 2], [3, 2, 1], [3, 2, 1], 1, {"ϵ6": -1})
-        self.ϵ_14 = (6, [4, 2], [3, 2, 1], [3, 2, 1], 2, {"ϵ6": 1})
-        self.ϵ_15 = (6, [4, 2], [3, 2, 1], [3, 2, 1], 3, {"ϵ6": -1})
-        self.ϵ_16 = (6, [4, 1, 1], [3, 2, 1], [3, 2, 1], 1, {"ϵ6": -1})
-        self.ϵ_17 = (6, [4, 1, 1], [3, 2, 1], [3, 2, 1], 2, {"ϵ6": 1})
-        self.ϵ_18 = (6, [4, 1, 1], [3, 2, 1], [3, 2, 1], 3, {"ϵ6": -1})
-        self.ϵ_19 = (6, [4, 1, 1], [3, 2, 1], [3, 2, 1], 4, {"ϵ6": 1})
-        self.ϵ_20 = (6, [3, 2, 1], [3, 2, 1], [3, 2, 1], 1, {"ϵ4": -1})
-        self.ϵ_21 = (6, [3, 2, 1], [3, 2, 1], [3, 2, 1], 2, {"ϵ4": 1})
-        self.ϵ_22 = (6, [3, 2, 1], [3, 2, 1], [3, 2, 1], 3, {"ϵ4": -1})
-        self.ϵ_23 = (6, [3, 2, 1], [3, 2, 1], [3, 2, 1], 4, {"ϵ4": 1})
-        self.ϵ_24 = (6, [3, 2, 1], [3, 2, 1], [3, 2, 1], 5, {"ϵ4": -1})
+        self.ϵ_1 = (5, [3, 1, 1], [3, 1, 1], [3, 2], 1, {"σμ~ν~": 1})
+        self.ϵ_2 = (5, [3, 1, 1], [3, 1, 1], [3, 2], 2, {"σμ~ν~": -1})
+        self.ϵ_24 = (5, [3, 1, 1], [3, 2], [3, 1, 1], 1, {"σνμ": 1})
+        self.ϵ_25 = (5, [3, 1, 1], [3, 2], [3, 1, 1], 2, {"σνμ": 1})
+
+        # The Clebsch-Gordan coefficients of permutation groups S(2)-S(6) 中的明确例子(式4.1~4.8)
+        self.ϵ_3 = (5, [4, 1], [3, 2], [2, 2, 1], None,
+                    {"σ~μ~ν": -1, "σ~μν~": -1, "σμ~ν~": -1, "μσν": -1, "νμσ": 1, "σνμ": -1},
+                    {"σ~μ~ν": (4, 3, 1), "σ~μν~": (4, 2, 5), "σμ~ν~": (3, 5, 5),
+                     "μσν": (3, 1, 1), "νμσ": (1, 4, 1), "σνμ": (3, 1, 1)}
+                    )
+        self.ϵ_4 = (4, [2, 2], [2, 2], [2, 2], None, {"σ~μν~": -1, "σ~μ~ν": -1})
+        self.ϵ_5 = (5, [3, 1, 1], [4, 1], [3, 1, 1], None, {"σ~μν~": -1})
+        self.ϵ_6 = (5, [3, 1, 1], [3, 2], [3, 1, 1], 1, {"σ~μν~": 1})
+        self.ϵ_7 = (5, [3, 1, 1], [3, 2], [3, 1, 1], 2, {"σ~μν~": -1})
+        self.ϵ_8 = (6, [5, 1], [3, 2, 1], [3, 2, 1], 1, {"σνμ": 1, "σμ~ν~": -1})
+        self.ϵ_9 = (6, [5, 1], [3, 2, 1], [3, 2, 1], 2, {"σνμ": 1, "σμ~ν~": 1})
+        self.ϵ_10 = (6, [3, 3], [3, 2, 1], [3, 2, 1], 1, {"σνμ": 1, "σμ~ν~": 1})
+        self.ϵ_11 = (6, [3, 3], [3, 2, 1], [3, 2, 1], 2, {"σνμ": -1, "σμ~ν~": -1})
+        self.ϵ_12 = (6, [4, 2], [3, 2, 1], [3, 2, 1], 1, {"σνμ": 1, "σμ~ν~": -1})
+        self.ϵ_13 = (6, [4, 2], [3, 2, 1], [3, 2, 1], 2, {"σνμ": 1, "σμ~ν~": 1})
+        self.ϵ_14 = (6, [4, 2], [3, 2, 1], [3, 2, 1], 3, {"σνμ": 1, "σμ~ν~": -1})
+        self.ϵ_15 = (6, [4, 1, 1], [3, 2, 1], [3, 2, 1], 1, {"σνμ": 1, "σμ~ν~": -1})
+        self.ϵ_16 = (6, [4, 1, 1], [3, 2, 1], [3, 2, 1], 2, {"σνμ": -1, "σμ~ν~": 1})
+        self.ϵ_17 = (6, [4, 1, 1], [3, 2, 1], [3, 2, 1], 3, {"σνμ": -1, "σμ~ν~": -1})
+        self.ϵ_18 = (6, [4, 1, 1], [3, 2, 1], [3, 2, 1], 4, {"σνμ": -1, "σμ~ν~": 1})
+        self.ϵ_19 = (6, [3, 2, 1], [3, 2, 1], [3, 2, 1], 1, {"σνμ": 1, "σ~μ~ν": -1})
+        self.ϵ_20 = (6, [3, 2, 1], [3, 2, 1], [3, 2, 1], 2, {"σνμ": -1, "σ~μ~ν": 1})
+        self.ϵ_21 = (6, [3, 2, 1], [3, 2, 1], [3, 2, 1], 3, {"σνμ": -1, "σ~μ~ν": -1})
+        self.ϵ_22 = (6, [3, 2, 1], [3, 2, 1], [3, 2, 1], 4, {"σνμ": 1, "σ~μ~ν": 1})
+        self.ϵ_23 = (6, [3, 2, 1], [3, 2, 1], [3, 2, 1], 5, {"σνμ": 1, "σ~μ~ν": 1})
+
+        # 待定
+        # self.ϵ_ = (5, [3, 1, 1], [3, 1, 1], [3, 1, 1], None, {"σ~μ~ν": 1, "σ~μν~": 1})
+
+        self.ϵ_ban_set = set()
+        self.ϵ_num_list = list(set(range(1, 25 + 1)) - self.ϵ_ban_set)
 
 
 class ISFData(object):
@@ -339,15 +352,14 @@ class ISFData(object):
                                              [Ra(1) / 2, Ra(1) / 4, Ra(1) / 4, 0]])}
         self.isf_40 = (5, [3, 1, 1], [3, 2], [3, 1], isf_square_dict)
 
-        isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 2])],
-                           "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
-                           "isf": sp.Matrix([[0, Ra(1) / 2, -Ra(1) / 3, Ra(1) / 6],
-                                             [Ra(1) / 4, 0, -Ra(1) / 4, -Ra(1) / 2],
-                                             [-Ra(3) / 5, Ra(1) / 10, 0, -Ra(3) / 10],
-                                             [Ra(3) / 20, Ra(2) / 5, Ra(5) / 12, -Ra(1) / 30]])}
-        self.isf_41 = (5, [3, 1, 1], [3, 2], [2, 1, 1], isf_square_dict)
+        # isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 2])],
+        #                    "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
+        #                    "isf": sp.Matrix([[0, Ra(1) / 2, -Ra(1) / 3, Ra(1) / 6],
+        #                                      [Ra(1) / 4, 0, -Ra(1) / 4, -Ra(1) / 2],
+        #                                      [-Ra(3) / 5, Ra(1) / 10, 0, -Ra(3) / 10],
+        #                                      [Ra(3) / 20, Ra(2) / 5, Ra(5) / 12, -Ra(1) / 30]])}
+        # self.isf_41 = (5, [3, 1, 1], [3, 2], [2, 1, 1], isf_square_dict)
 
-        # TODO 错误原因待定，目前看是因为isf_matrix顺序变了导致高斯消元法在计算有自由度的基失时，会有'旋转'，不再对称
         # 但，它依然是自正交归一的！
         # 它不是错了，只是不符合我们约定的对称性
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 2])],
@@ -357,6 +369,13 @@ class ISFData(object):
                                              [Ra(7) / 10, 0, 0, Ra(3) / 10],
                                              [-Ra(1) / 70, Ra(15) / 28, Ra(5) / 12, Ra(1) / 30]])}
         self.isf_41_wrong = (5, [3, 1, 1], [3, 2], [2, 1, 1], isf_square_dict)
+
+        # self.isf_ban_set = {21, 23, 27, 28, 29, 30, 32}
+        # self.isf_ban_set = {30, 32}
+        # self.isf_ban_set = {7}
+        # self.isf_ban_set = set(range(2, 39 + 1))
+        self.isf_ban_set = set()
+        self.isf_num_list = list(set(range(1, 40 + 1)) - self.isf_ban_set)
 
 
 class CGCData(object):
@@ -678,6 +697,50 @@ class CGCData(object):
                            (4, 5): 15, (5, 2): 1, (5, 4): -15, (6, 1): 4, "N": 72}
         self.cgc_88 = (5, [3, 1, 1], [3, 1, 1], [2, 2, 1], 2, 5, cgc_square_dict)
 
+        # 手算
+
+        cgc_square_dict = {(1, 1): 1, "N": 1}
+        self.cgc_89 = (3, [2, 1], [3], [2, 1], None, 1, cgc_square_dict)
+
+        cgc_square_dict = {(2, 1): 1, "N": 1}
+        self.cgc_90 = (3, [2, 1], [3], [2, 1], None, 2, cgc_square_dict)
+
+        cgc_square_dict = {(1, 1): 1, "N": 1}
+        self.cgc_91 = (3, [3], [2, 1], [2, 1], None, 1, cgc_square_dict)
+
+        cgc_square_dict = {(1, 2): 1, "N": 1}
+        self.cgc_92 = (3, [3], [2, 1], [2, 1], None, 2, cgc_square_dict)
+
+        cgc_square_dict = {(1, 2): 2, (2, 1): 2, (2, 2): 1, (3, 3): -1, "N": 6}
+        self.cgc_93 = (4, [3, 1], [3, 1], [2, 2], None, 1, cgc_square_dict)
+
+        cgc_square_dict = {(1, 3): 2, (2, 3): -1, (3, 1): 2, (3, 2): -1, "N": 6}
+        self.cgc_94 = (4, [3, 1], [3, 1], [2, 2], None, 2, cgc_square_dict)
+
+        cgc_square_dict = {(1, 1): 2, (2, 1): -1, (3, 2): 1, "N": 4}
+        self.cgc_95 = (4, [3, 1], [2, 2], [2, 1, 1], None, 1, cgc_square_dict)
+
+        cgc_square_dict = {(1, 2): 2, (2, 2): 1, (3, 1): 1, "N": 4}
+        self.cgc_96 = (4, [3, 1], [2, 2], [2, 1, 1], None, 2, cgc_square_dict)
+
+        cgc_square_dict = {(2, 2): -1, (3, 1): 1, "N": 2}
+        self.cgc_97 = (4, [3, 1], [2, 2], [2, 1, 1], None, 3, cgc_square_dict)
+
+        cgc_square_dict = {(2, 1): 1, (3, 2): 1, "N": 2}
+        self.cgc_98 = (4, [3, 1], [2, 2], [3, 1], None, 1, cgc_square_dict)
+
+        cgc_square_dict = {(1, 1): 2, (2, 1): 1, (3, 2): -1, "N": 4}
+        self.cgc_99 = (4, [3, 1], [2, 2], [3, 1], None, 2, cgc_square_dict)
+
+        cgc_square_dict = {(1, 2): 2, (2, 2): -1, (3, 1): -1, "N": 4}
+        self.cgc_100 = (4, [3, 1], [2, 2], [3, 1], None, 3, cgc_square_dict)
+
+        cgc_square_dict = {(1, 1): 2, (1, 2): -1, (2, 3): 1, (3, 3): 2, "N": 6}
+        self.cgc_101 = (4, [2, 1, 1], [3, 1], [2, 2], None, 1, cgc_square_dict)
+
+        cgc_square_dict = {(1, 3): 1, (2, 1): 2, (2, 2): 1, (3, 2): -2, "N": 6}
+        self.cgc_102 = (4, [2, 1, 1], [3, 1], [2, 2], None, 2, cgc_square_dict)
+
         # isf matrix
         # 格式 Sn, σ, μ, ν_st, row_index_tmp_list, isf_matrix
         row_index_tmp_list = [([2], [2], None), ([1, 1], [1, 1], None)]
@@ -688,6 +751,11 @@ class CGCData(object):
         isf_matrix = sp.Matrix([[0, 2], [2, 0]])
         self.isf_matrix_2 = (4, [3, 1], [2, 2], [2, 1], row_index_tmp_list, isf_matrix)  # 4-19 例2
 
+        # self.cgc_ban_set = set(chain(range(51, 56 + 1), range(60, 65 + 1), range(69, 102 + 1)))
+        self.cgc_ban_set = set()
+        self.cgc_num_list = list(set(range(1, 102 + 1)) - self.cgc_ban_set)
+        self.isf_matrix_num_list = list(range(1, 2 + 1))
+
 
 class Data(EData, ISFData, CGCData):
 
@@ -697,6 +765,7 @@ class Data(EData, ISFData, CGCData):
         CGCData.__init__(self)
 
 
+@pytest.mark.skip("pass")
 class TestISFAndCGC(object):
 
     def setup_class(self):
@@ -704,7 +773,7 @@ class TestISFAndCGC(object):
         self.protector.protector_setup()
 
         # 准备前文
-        s_n = 5
+        s_n = 6
         self.test_sn = s_n
         flag, msg = create_young_diagrams(s_n)
         assert flag
@@ -730,6 +799,10 @@ class TestISFAndCGC(object):
         assert flag
         assert msg == s_n
 
+        flag, msg = create_symmetry_combination(s_n)
+        assert flag
+        assert msg == s_n
+
         flag, msg = create_eigenvalues(s_n)
         assert flag
         assert msg == s_n
@@ -737,18 +810,10 @@ class TestISFAndCGC(object):
         self.data = Data()
         self.helper = Helper()
 
-        self.ϵ_ban_set = {1, 2}
-        self.ϵ_num_list = list(set(range(1, 24 + 1)) - self.ϵ_ban_set)
-
-        # self.isf_ban_set = {21, 23, 27, 28, 29, 30, 32}
-        # self.isf_ban_set = {30, 32}
-        self.isf_ban_set = set()
-        self.isf_num_list = list(set(range(1, 39 + 1)) - self.isf_ban_set)
-
-        # self.cgc_ban_set = set(chain(range(51, 56 + 1), range(60, 65 + 1), range(69, 88 + 1)))
-        self.cgc_ban_set = set()
-        self.cgc_num_list = list(set(range(1, 88 + 1)) - self.cgc_ban_set)
-        # self.cgc_num_list = list(range(1, 88 + 1))
+        self.ϵ_num_list = self.data.ϵ_num_list
+        self.isf_num_list = self.data.isf_num_list
+        self.cgc_num_list = self.data.cgc_num_list
+        self.isf_matrix_num_list = self.data.isf_matrix_num_list
 
         _, self.isf_s_n_finish_file_name = get_isf_finish_s_n_name()
         _, self.isf_s_n_finish_full_file_name = get_isf_finish_s_n_name(is_full_path=True)
@@ -757,8 +822,6 @@ class TestISFAndCGC(object):
         _, self.cgc_s_n_finish_file_name = get_cgc_finish_s_n_name()
         _, self.cgc_s_n_finish_full_file_name = get_cgc_finish_s_n_name(is_full_path=True)
         self.cgc_create_time_dict = {}  # 用于检查计算好的部分不会重复计算
-
-        self.isf_matrix_num_list = list(range(1, 2 + 1))
 
     def teardown_class(self):
         # self.protector.protector_teardown()
@@ -842,6 +905,8 @@ class TestISFAndCGC(object):
             cgc_answer_n = cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
             for cgc_k, cgc_v in cgc_answer.items():
+                assert cgc_k in cgc, \
+                    "key={} in self.data.cgc_{} = {} not in cgc={}".format(cgc_k, nb, cgc_param, cgc_answer)
                 assert cgc[cgc_k] == Ra(cgc_v)/cgc_answer_n, \
                     "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
@@ -946,6 +1011,8 @@ class TestISFAndCGC(object):
             cgc_answer_n = cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
             for cgc_k, cgc_v in cgc_answer.items():
+                assert cgc_k in cgc, \
+                    "key={} in self.data.cgc_{} = {} not in cgc={}".format(cgc_k, nb, cgc_param, cgc_answer)
                 assert cgc[cgc_k] == Ra(cgc_v)/cgc_answer_n, \
                     "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
@@ -1024,26 +1091,26 @@ class TestISFAndCGC(object):
         assert self.cgc_create_time_dict["S1"] == data.get("create_time")
 
         # check answers
-        for nb in self.ϵ_num_list:
-            ϵ_tuple = eval("self.data.ϵ_{}".format(nb))
-            ϵ_param = ϵ_tuple[: -1]
-            ϵ_answer = ϵ_tuple[-1]
-            if ϵ_param[0] > finish_s_n:
-                continue
-            _, file_name = get_ϵ_file_name(*ϵ_param)
-            flag, data = EInfo(ϵ_param[0]).query_by_file_name(file_name)
-            assert flag
-            assert isinstance(data.get("create_time"), str)
-            _, full_file_name = get_ϵ_file_name(*ϵ_param, is_full_path=True)
-            _, full_finish_file_name = get_ϵ_finish_s_n_name(is_full_path=True)
-            for ex in [".pkl", ".txt"]:
-                assert os.path.exists(full_file_name + ex)
-                assert os.path.exists(full_finish_file_name + ex)
-            flag, ϵ_dict = load_ϵ(*ϵ_param, is_flag_true_if_not_s_n=True)
-            assert flag
-            for ϵ_k, ϵ_v in ϵ_answer.items():
-                assert ϵ_dict[ϵ_k] == ϵ_v, \
-                    "self.data.ϵ_{}, ={} with {} with key={} and ϵ_dict={}".format(nb, ϵ_param, ϵ_answer, ϵ_k, ϵ_dict)
+        # for nb in self.ϵ_num_list:
+        #     ϵ_tuple = eval("self.data.ϵ_{}".format(nb))
+        #     ϵ_param = ϵ_tuple[: -1]
+        #     ϵ_answer = ϵ_tuple[-1]
+        #     if ϵ_param[0] > finish_s_n:
+        #         continue
+        #     _, file_name = get_ϵ_file_name(*ϵ_param)
+        #     flag, data = EInfo(ϵ_param[0]).query_by_file_name(file_name)
+        #     assert flag
+        #     assert isinstance(data.get("create_time"), str)
+        #     _, full_file_name = get_ϵ_file_name(*ϵ_param, is_full_path=True)
+        #     _, full_finish_file_name = get_ϵ_finish_s_n_name(is_full_path=True)
+        #     for ex in [".pkl", ".txt"]:
+        #         assert os.path.exists(full_file_name + ex)
+        #         assert os.path.exists(full_finish_file_name + ex)
+        #     flag, ϵ_dict = load_ϵ(*ϵ_param, is_flag_true_if_not_s_n=True)
+        #     assert flag
+        #     for ϵ_k, ϵ_v in ϵ_answer.items():
+        #         assert ϵ_dict[ϵ_k] == ϵ_v, \
+        #             "self.data.ϵ_{}, ={} with {} with key={} and ϵ_dict={}".format(nb, ϵ_param, ϵ_answer, ϵ_k, ϵ_dict)
 
         for nb in self.isf_num_list:
             isf_tuple = eval("self.data.isf_{}".format(nb))
@@ -1084,6 +1151,8 @@ class TestISFAndCGC(object):
             cgc_answer_n = cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
             for cgc_k, cgc_v in cgc_answer.items():
+                assert cgc_k in cgc, \
+                    "key={} in self.data.cgc_{} = {} not in cgc={}".format(cgc_k, nb, cgc_param, cgc_answer)
                 assert cgc[cgc_k] == Ra(cgc_v) / cgc_answer_n, \
                     "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
@@ -1135,7 +1204,7 @@ class TestISFAndCGC(object):
     # @pytest.mark.skip("pass")
     def test_004_create_isf_and_cgc_s_n_5_to_6(self):  # beta  # 005就该优化7～9了 放在benchmark里
         start_sn = 5
-        end_sn = 5
+        end_sn = 6
         flag, isf_finish_s_n = get_isf_finish_s_n()
         assert flag
         assert isf_finish_s_n == start_sn - 1
@@ -1162,26 +1231,26 @@ class TestISFAndCGC(object):
         assert self.cgc_create_time_dict["S1"] == data.get("create_time")
 
         # check answer
-        for nb in self.ϵ_num_list:
-            ϵ_tuple = eval("self.data.ϵ_{}".format(nb))
-            ϵ_param = ϵ_tuple[: -1]
-            ϵ_answer = ϵ_tuple[-1]
-            if ϵ_param[0] > finish_s_n:
-                continue
-            _, file_name = get_ϵ_file_name(*ϵ_param)
-            flag, data = EInfo(ϵ_param[0]).query_by_file_name(file_name)
-            assert flag
-            assert isinstance(data.get("create_time"), str)
-            _, full_file_name = get_ϵ_file_name(*ϵ_param, is_full_path=True)
-            _, full_finish_file_name = get_ϵ_finish_s_n_name(is_full_path=True)
-            for ex in [".pkl", ".txt"]:
-                assert os.path.exists(full_file_name + ex)
-                assert os.path.exists(full_finish_file_name + ex)
-            flag, ϵ_dict = load_ϵ(*ϵ_param, is_flag_true_if_not_s_n=True)
-            assert flag
-            for ϵ_k, ϵ_v in ϵ_answer.items():
-                assert ϵ_dict[ϵ_k] == ϵ_v, \
-                    "self.data.ϵ_{}, ={} with {} with key={} and ϵ_dict={}".format(nb, ϵ_param, ϵ_answer, ϵ_k, ϵ_dict)
+        # for nb in self.ϵ_num_list:
+        #     ϵ_tuple = eval("self.data.ϵ_{}".format(nb))
+        #     ϵ_param = ϵ_tuple[: -1]
+        #     ϵ_answer = ϵ_tuple[-1]
+        #     if ϵ_param[0] > finish_s_n:
+        #         continue
+        #     _, file_name = get_ϵ_file_name(*ϵ_param)
+        #     flag, data = EInfo(ϵ_param[0]).query_by_file_name(file_name)
+        #     assert flag
+        #     assert isinstance(data.get("create_time"), str)
+        #     _, full_file_name = get_ϵ_file_name(*ϵ_param, is_full_path=True)
+        #     _, full_finish_file_name = get_ϵ_finish_s_n_name(is_full_path=True)
+        #     for ex in [".pkl", ".txt"]:
+        #         assert os.path.exists(full_file_name + ex)
+        #         assert os.path.exists(full_finish_file_name + ex)
+        #     flag, ϵ_dict = load_ϵ(*ϵ_param, is_flag_true_if_not_s_n=True)
+        #     assert flag
+        #     for ϵ_k, ϵ_v in ϵ_answer.items():
+        #         assert ϵ_dict[ϵ_k] == ϵ_v, \
+        #             "self.data.ϵ_{}, ={} with {} with key={} and ϵ_dict={}".format(nb, ϵ_param, ϵ_answer, ϵ_k, ϵ_dict)
 
         for nb in self.isf_num_list:
             isf_tuple = eval("self.data.isf_{}".format(nb))
@@ -1224,6 +1293,8 @@ class TestISFAndCGC(object):
             cgc_answer_n = cgc_answer.pop("N")
             assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
             for cgc_k, cgc_v in cgc_answer.items():
+                assert cgc_k in cgc, \
+                    "key={} in self.data.cgc_{} = {} not in cgc={}".format(cgc_k, nb, cgc_param, cgc_answer)
                 assert cgc[cgc_k] == Ra(cgc_v) / cgc_answer_n, \
                     "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
             cgc_answer["N"] = cgc_answer_n
@@ -1554,4 +1625,176 @@ class TestISFAndCGC(object):
         cgc_func.enable_now_s_n(1)
         assert callable(cgc_func.calc_cgc_dict_part_and_save_by_isf)
         
+    def print_ϵ_details(five_tuple):
+        meta_σμν = (five_tuple[1], five_tuple[2], five_tuple[3])
+        phs = tuple(get_ph_v(yd) for yd in meta_σμν)
+        print("\nprint all ϵ details of meta_σμν={}:".format(five_tuple))
+        print("ph_v{}={},\nph_v{}={},\nph_v{}={}\n"
+              "".format(meta_σμν[0], phs[0], meta_σμν[1], phs[1], meta_σμν[2], phs[2]))
+        _, rst_st_dict = load_ϵ(*five_tuple, is_with_flags=True)
+        e_dict, e_flags = rst_st_dict["data"], rst_st_dict["flags"]
+        num = 0
+        for e_key, ϵ in e_dict.items():
+            if ϵ == 1:
+                num += 1
+            e_d3, e_k4 = ϵ_key2groups_dict[e_key]
+            sym_σμν = tuple(meta_σμν[d] if k is False else get_tilde(meta_σμν[d]) for d, k in zip(e_d3, e_k4))
+            print("{}: {}, ϵ={}, flags={}".format(e_key, sym_σμν, ϵ, e_flags[e_key]))
+        print("all len={} done: len(+)={}, len(-)={}".format(len(e_dict), num, len(e_dict) - num))
+        
     '''
+
+
+# @pytest.mark.skip("pass")
+class TestResultsWithoutCalc(object):
+
+    def setup_class(self):
+        # 它不改变数据库，所以不需要保护
+
+        # 检查范围
+        self.test_sn = 6  # 需要匹配现有数据和answer数据
+
+        # answer数据
+        self.data = Data()
+        self.helper = Helper()
+
+        self.ϵ_num_list = self.data.ϵ_num_list
+        self.isf_num_list = self.data.isf_num_list
+        self.cgc_num_list = self.data.cgc_num_list
+
+    def teardown_class(self):
+        pass
+
+    # @pytest.mark.skip("pass")
+    def test_ϵ_results(self):
+        # 首先验证test_sn是否在finish_sn范围内
+        flag, ϵ_finish_s_n = get_ϵ_finish_s_n()
+        assert flag
+        assert ϵ_finish_s_n >= self.test_sn
+
+        # 收集不一致的结果
+        error_number_list = []  # 负责记录不一致的nb和摘要
+        error_detail_list = []  # 符合记录不一致的具体信息
+
+        for nb in self.ϵ_num_list:
+            ϵ_tuple = eval("self.data.ϵ_{}".format(nb))
+            if len(ϵ_tuple) == 6:
+                ϵ_param = ϵ_tuple[: -1]
+                ϵ_dict_answer = ϵ_tuple[-1]
+                ϵ_flags_answer = None
+            else:
+                ϵ_param = ϵ_tuple[: -2]
+                ϵ_dict_answer = ϵ_tuple[-2]
+                ϵ_flags_answer = ϵ_tuple[-1]
+            if ϵ_param[0] > self.test_sn:
+                continue
+            flag, ϵ_rst = load_ϵ(*ϵ_param, is_flag_true_if_not_s_n=True, is_with_flags=True)
+            assert flag
+
+            sub_error_number = None
+            sub_answer_dict = {}
+            sub_rst_dict = {}
+            sub_dict_rst_dict = {}
+            sub_dict_answer_dict = {}
+            sub_flags_rst_dict = {}
+            sub_flags_answer_dict = {}
+            for ϵ_k, ϵ_v in ϵ_dict_answer.items():
+                if ϵ_rst["data"][ϵ_k] != ϵ_v:
+                    sub_error_number = nb
+                    sub_dict_answer_dict[ϵ_k] = ϵ_v
+                    sub_dict_rst_dict[ϵ_k] = ϵ_rst["data"][ϵ_k]
+                    sub_flags_rst_dict[ϵ_k] = ϵ_rst["flags"][ϵ_k]
+            if ϵ_flags_answer is not None:
+                for ϵ_k, ϵ_f in ϵ_flags_answer.items():
+                    if ϵ_rst["flags"][ϵ_k] != ϵ_f:
+                        sub_error_number = nb
+                        sub_flags_rst_dict[ϵ_k] = ϵ_rst["flags"][ϵ_k]
+                        sub_flags_answer_dict[ϵ_k] = ϵ_f
+
+            if sub_error_number is not None:
+                sub_answer_dict["data"] = sub_dict_answer_dict
+                sub_rst_dict["data"] = sub_dict_rst_dict
+            if sub_flags_rst_dict:
+                sub_answer_dict["flags"] = sub_flags_answer_dict
+                sub_rst_dict["flags"] = sub_flags_rst_dict
+
+            if sub_error_number is not None:
+                error_number_list.append(nb)
+                error_detail_list.append({"nb": nb, "param": ϵ_param, "answer": sub_answer_dict, "rst": sub_rst_dict})
+
+        assert len(error_number_list) == 0, "ϵ check {} error {}, with \nerror_number_list={}, \nerror_detail_list={}" \
+                                            "".format(len(self.ϵ_num_list), len(error_number_list),
+                                                      error_number_list, error_detail_list)
+
+    def test_isf_results(self):
+        # 首先验证test_sn是否在finish_sn范围内
+        flag, isf_finish_s_n = get_isf_finish_s_n()
+        assert flag
+        assert isf_finish_s_n >= self.test_sn
+
+        # 收集不一致的结果
+        error_number_list = []  # 负责记录不一致的nb和摘要
+        error_detail_list = []  # 符合记录不一致的具体信息
+
+        for nb in self.isf_num_list:
+            isf_tuple = eval("self.data.isf_{}".format(nb))
+            isf_param = isf_tuple[: -1]
+            isf_answer = isf_tuple[-1]
+            if isf_param[0] > self.test_sn:
+                continue
+            flag, isf = load_isf(*isf_param, is_flag_true_if_not_s_n=True)
+            assert flag
+
+            if isf != isf_answer:
+                error_number_list.append(nb)
+                error_detail_list.append({"nb": nb, "param": isf_param, "answer": isf_answer, "rst": isf})
+
+        assert len(error_number_list) == 0, "isf check {} error {}, " \
+                                            "with \nerror_number_list={}, \nerror_detail_list={}" \
+                                            "".format(len(self.isf_num_list), len(error_number_list),
+                                                      error_number_list, error_detail_list)
+
+    def test_cgc_results(self):
+        # 首先验证test_sn是否在finish_sn范围内
+        flag, cgc_finish_s_n = get_cgc_finish_s_n()
+        assert flag
+        assert cgc_finish_s_n >= self.test_sn
+
+        # 收集不一致的结果
+        error_number_list = []  # 负责记录不一致的nb和摘要
+        error_detail_list = []  # 符合记录不一致的具体信息
+
+        for nb in self.cgc_num_list:
+            cgc_tuple = eval("self.data.cgc_{}".format(nb))
+            cgc_param = cgc_tuple[: -1]
+            cgc_answer = cgc_tuple[-1]
+            if cgc_param[0] > self.test_sn:
+                continue
+            flag, cgc = load_cgc(*cgc_param, is_flag_true_if_not_s_n=True)
+            assert flag
+            if len(cgc) != (len(cgc_answer) - 1):
+                error_number_list.append(nb)
+                error_detail_list.append({"nb": nb, "param": cgc_param, "answer": cgc_answer, "rst": cgc})
+                continue
+            cgc_answer_n = cgc_answer.pop("N")
+
+            sub_error_number = None
+            sub_rst_dict = {}
+            sub_answer_dict = {}
+            for cgc_k, cgc_v in cgc_answer.items():
+                if cgc_k not in cgc:
+                    sub_error_number = nb
+                    sub_answer_dict[cgc_k] = cgc_v
+                elif cgc[cgc_k] != Ra(cgc_v) / cgc_answer_n:
+                    sub_error_number = nb
+                    sub_rst_dict[cgc_k] = cgc[cgc_k]
+                    sub_answer_dict[cgc_k] = Ra(cgc_v) / cgc_answer_n
+
+            if sub_error_number is not None:
+                error_number_list.append(nb)
+                error_detail_list.append({"nb": nb, "param": cgc_param, "answer": sub_answer_dict, "rst": sub_rst_dict})
+
+        assert len(error_number_list) == 0, "cgc check {} error {}, " \
+                                            "with \nerror_number_list={}, \nerror_detail_list={}" \
+                                            "".format(len(self.ϵ_num_list), len(error_number_list),
+                                                      error_number_list, error_detail_list)

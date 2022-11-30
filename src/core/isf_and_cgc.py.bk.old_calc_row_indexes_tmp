@@ -27,7 +27,7 @@ from core.branching_laws import load_branching_law
 from core.yamanouchi_matrix import load_yamanouchi_matrix
 from core.cg_series import load_cg_series
 from core.eigenvalues import load_eigenvalues
-from core.symmetry_combination import load_meta_σμν, load_sym_σμν, calc_ϵ_map_dicts
+from core.symmetry_combination import load_meta_σμν, load_sym_σμν, spell_ϵ_key, calc_ϵ_map_dicts
 from core.cgc_utils.cgc_db_typing import ISFInfo, CGCInfo, EInfo
 from core.cgc_utils.cgc_local_db import get_isf_file_name, get_isf_finish_s_n_name
 from core.cgc_utils.cgc_local_db import get_cgc_file_name, get_cgc_finish_s_n_name
@@ -38,7 +38,7 @@ from utils.log import get_logger
 logger = get_logger(__name__)
 
 
-def _debug_condition(data_σ_μ, ν_st=None, ν=None):
+def _debug_condition(data_σ_μ, ν_st):
     """ TODO delete it """
     cond_0 = None
     cond_1 = (data_σ_μ.σ == [3, 2] and data_σ_μ.μ == [3, 1, 1] and ν_st == [2, 1, 1])
@@ -60,38 +60,9 @@ def _debug_condition(data_σ_μ, ν_st=None, ν=None):
     cond_7 = (data_σ_μ.σ == [3, 1] and data_σ_μ.μ == [2, 1, 1])
     cond_8 = (data_σ_μ.σ == [3] and data_σ_μ.μ == [2, 1])
     cond_9 = (data_σ_μ.σ == [3, 1, 1] and data_σ_μ.μ == [3, 1, 1])
-    cond_10 = (sum(data_σ_μ.σ) in [4])
-
-    md1 = (data_σ_μ.σ == [3] and data_σ_μ.μ == [2, 1])
-    md2 = (data_σ_μ.σ == [3, 1] and data_σ_μ.μ == [3, 1])
-    md3 = (md2 and ν == [2, 2])
-    md4 = (md1 and ν == [2, 1])
-    if md4:
+    if cond_21 or cond_23:
         return True
     return False
-
-
-def _debug_isf_cond(σ, μ, ν_st=None):
-    """ TODO delete it """
-    cond_0 = None
-    cond_1 = (σ == [3, 1] and μ == [2, 2] and ν_st == [1, 1, 1])
-    cond_2 = (σ == [3, 1] and μ == [2, 2])
-    if cond_2:
-        return True
-    return False
-
-
-def _debug_σμν_cond(σ, μ, ν=None):
-    """ TODO delete it """
-    cond_0 = None
-    cond_1 = (σ == [3, 1] and μ == [2, 2] and ν == [2, 1, 1])
-    if cond_1:
-        return True
-    return False
-
-
-# if _debug_condition(meta_data_σ_μ):
-#     logger.warning("@@@@ meta_data_σ_μ={}".format(meta_data_σ_μ))
 
 
 def create_isf_and_cgc(s_n: int=default_s_n):
@@ -182,7 +153,7 @@ def create_isf_and_cgc(s_n: int=default_s_n):
         ϵ_func.enable_now_s_n(s_i)
 
         # 对于St，如果可以从上一次循环继承，则继承；否则要计算
-        data_st = data_si if data_si is not None else DataHelper(s_i - 1, ϵ_key2groups_dict, groups2ϵ_key_dict)
+        data_st = data_si if data_si is not None else DataHelper(s_i - 1)
         # 对于Sn=1、2，是不启动add_more_data的，后面的函数也不会调用它
         if data_si is None and s_i - 1 - 1 >= min_s_n_of_branching_law:
             data_st_st_yt_num_list = []
@@ -192,32 +163,19 @@ def create_isf_and_cgc(s_n: int=default_s_n):
                 data_st_st_yt_num_list.append(total_num)
             data_st.add_more_data(data_st_st_yt_num_list, yd_st_st_list)
         # 对于Sn，需要计算本轮的准备数据
-        data_si = DataHelper(s_i, ϵ_key2groups_dict, groups2ϵ_key_dict)
+        data_si = DataHelper(s_i)
         data_si.add_more_data(data_st.yt_num_list, data_st.yd_list)
-        '''
-        理论上，两次独立的循环。第一次，先把所有元σμν都算一遍。第二次，算元的对称，是可以得到所有的。且非常简明。
-        但是，第二次循环中，会大量重复load，有些消耗资源了。
-        所以，我们争取算一部分元，立刻对称，再继续算元，再对称，一次循环算完所有。
-        '''
 
-        # 1.1，拿到Sn下所有元σμν组合
-        # 1.2，过滤出元组合中所有不同的σμ（σμ_combination_of_meta_σμν_tuple_list）
-        # 与σμ对应的ν列表（ν_combination_of_meta_σμν_tuple_list），要求σμ+ν必须是元组合
-        # 【σμ循环开启】
+        # 1，按照σμ，直接计算所有元组合的ISF、CGC、ϵ & 2，计算对称组合的ϵ
+        # 所有元组合σμν中，不重复的σμ  # 注意，此σμ可以同时包含元组合σμν_1和非元组合σμν_2
         for (σ, μ) in data_si.σμ_combination_of_meta_σμν_tuple_list:
             # 初始化σμ组合数据
+            logger.debug("meta σ={}, μ={}".format(σ, μ))
             data_σ_μ = ΣMDataHelper(s_i, σ, μ, data_si, data_st)
-            # 2，拿到所有符合本轮ν_combination_of_meta_σμν_tuple_list的ν'
-            data_σ_μ.hook_meta_ν_list_of_σμ_and_get_ν_st_list_inner_meta_bl()
-            # logger.debug("now circling meta σ={}, μ={} with inner meta ν_list={}"
-            #              "".format(σ, μ, data_σ_μ.meta_ν_list_of_σμ))
-            logger.info("now circling meta_σμν=(σ={}, μ={}, ν_list={})".format(σ, μ, data_σ_μ.meta_ν_list_of_σμ))
 
-            # 【第一次ν'循环开启】
-            for ν_st in data_σ_μ.ν_st_list_inner_meta_bl:  # 只循环与元σμν有关的ν'
-                logger.info("ν_st={}".format(ν_st))
-                # 2.1，补充ISF_σμν'（注意，不是补完！）
-                # 2.1.1，先尝试load一次，如果发现完成了，则跳过；否则要新建或补完
+            # 补充所有σμ组合下的ISF、CGC和ϵ（使用4-195a式而不是ϵ） # 注意，其中非元组合的部分已经计算完成了，需要按需跳过
+            for ν_st in data_st.yd_list:  # 因为首先计算ISF，所以把ν_st的循环提到ν前
+                # 1.1，先尝试load一次，如果发现完成了，则跳过；否则要新建或补完
                 flag, old_isf_info_dict = load_isf(s_i, σ, μ, ν_st, output_mode="all", ex_params=["data", "flags"],
                                                    is_flag_true_if_not_s_n=True)
                 if not flag:
@@ -225,65 +183,63 @@ def create_isf_and_cgc(s_n: int=default_s_n):
                               "msg={}".format(s_i, σ, μ, ν_st, old_isf_info_dict)
                     logger.error(err_msg)
                     return False, err_msg
-                if old_isf_info_dict and old_isf_info_dict.get("flags", {}).get("finish_cols", None) is None:
-                    continue  # 完成的标志
+                if old_isf_info_dict is not False and old_isf_info_dict.get("flags", {}).get("not_finish") is not True:
+                    continue
+                # if old_isf_info_dict is False:
+                #     old_isf_info_dict = {}
 
-                # 2.1.2，计算row_index_list，如果它为[]，表示该组合下不存在ISF（理论上不应该，报错）
-                isf_row_index_list = isf_func.calc_row_indexes(data_σ_μ, ν_st, data_st)
-                if not isf_row_index_list:
-                    err_msg = "isf_row_index_list={} must real list, pls check with data_σ_μ={}, ν_st={}, data_st={}" \
-                              "".format(isf_row_index_list, data_σ_μ, ν_st, data_st)
-                    logger.error(err_msg)
-                    return False, err_msg
+                # 1.2，计算row_index_tmp_list，如果它为[]，表示该组合下不存在ISF（跳过）
+                row_index_tmp_list = isf_func.calc_row_indexes_tmp(data_σ_μ, ν_st, data_st)  # 带着None的rows
+                if not row_index_tmp_list:
+                    continue
 
-                # 2.1.3，正式补完σμν'的ISF（使用4-189a和4-195a）
-                # (其中，只有元σμν是真计算；其他部分，有些被先前的元所对称了；还有一些，是本轮元的对称，需要等待对称完成，才能完整
-                # （例如，[52]*[4111]=[311]是元，[52]*[4111]=[322]是它本身的对称）)
+                # 1.3，补完计算σμν'的ISF
                 '''
                 isf_square_dict = {"rows": [([σ'], [μ'], τ'), ([σ'], [μ']), ...],  # 有自由度len3，无自由度len2
                                    "cols":[[ν], ([ν], τ), ...],  # 有自由度tuple，无自由度list
-                                   "isf": isf_square_matrix}  # sp.Matrix([len(rows), len(cols)])，且len(rows)=len(cols)
+                                   "isf": isf_square_matrix}  # sp.Matrix([len(rows), len(cols)])
                 '''
+                # 1.3.1，使用4-189a和4-195a式计算ν'对应的ISF¥[σ][μ][ν']¥
                 meta_isf_start_time = time.time()
-                flag, msg = isf_func.calc_meta_isf_dict_include_save(data_σ_μ, ν_st, isf_row_index_list,
-                                                                     data_si, data_st, old_isf_info_dict)
+                flag, meta_isf_square_dict = isf_func.calc_meta_isf_dict(row_index_tmp_list, ν_st, old_isf_info_dict,
+                                                                         data_si, data_st, data_σ_μ)
                 if not flag:
-                    err_msg = "calc_meta_isf_dict_include_save meet error by data_σ_μ={}, ν_st={}, " \
-                              "isf_row_index_list={}, data_si={}, data_st={}, old_isf_info_dict={} with msg={}" \
-                              "".format(data_σ_μ, ν_st, isf_row_index_list, 
-                                        data_si, data_st, old_isf_info_dict, msg)
+                    err_msg = "calc_meta_isf_dict meet error by row_index_tmp_list={}, ν_st={}, data_si={}, " \
+                              "data_st={}, data_σ_μ={} with msg={}".format(row_index_tmp_list, ν_st, data_si,
+                                                                           data_st, data_σ_μ, meta_isf_square_dict)
                     logger.error(err_msg)
                     return False, err_msg
+                # 1.3.2，保存和注册元ISF信息和数据
+                data_σ_μ.register_isf_ν_st_list(ν_st)
+                data_σ_μ.register_isf_square_dict_by_ν_st(ν_st, meta_isf_square_dict)
                 meta_isf_speed_time = int(time.time() - meta_isf_start_time)
-                isf_speed_time_s_i += meta_isf_speed_time  # 总时间不需要计入old_adding_time，它在计算时已经计入了
-
-                # 2.2，只计算元σμν部分的CGC
-                # （注意，循环内，一次只能计算出ν'所对应的部分m，
-                # 但是2循环结束时，元σμν对应的所有m，都应该被计算过，且必然在2中完成，不能通过对称性得到）
-                meta_cgc_start_time = time.time()
-                flag, msg = cgc_func.calc_cgc_by_isf_include_save(data_σ_μ, ν_st, data_si, data_st)
+                isf_speed_time_s_i += meta_isf_speed_time
+                flag, msg = save_isf(s_i, σ, μ, ν_st, meta_isf_square_dict, meta_isf_speed_time)
                 if not flag:
-                    err_msg = "calc_cgc_by_isf_include_save fail by data_σ_μ={}, ν_st={}, data_si={}, data_st={} " \
-                              "with msg={}".format(data_σ_μ, ν_st, data_si, data_st, msg)
+                    err_msg = "save meta isf meet error with s_i={}, σ={}, μ={}, ν_st={}, meta_isf_square_dict={}, " \
+                              "msg={}".format(s_i, σ, μ, ν_st, meta_isf_square_dict, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
+
+                if _debug_condition(data_σ_μ, ν_st):
+                    logger.warning("@@@@ meta_isf_square_dict={}".format(meta_isf_square_dict))
+
+                # 1.4，根据当前ISF计算元CGC【[σ][μ][ν]τ】
+                meta_cgc_start_time = time.time()
+                flag, msg = cgc_func.calc_meta_cgc_include_save(meta_isf_square_dict, ν_st, data_si, data_st, data_σ_μ)
+                if not flag:
+                    err_msg = "calc_meta_cgc_include_save fail by meta_isf_square_dict={}, ν_st={}, " \
+                              "data_si={}, data_st={}, data_σ_μ={} with " \
+                              "msg={}".format(meta_isf_square_dict, ν_st, data_si, data_st, data_σ_μ, msg)
                     logger.error(err_msg)
                     return False, err_msg
                 meta_cgc_speed_time = int(time.time() - meta_cgc_start_time)
                 cgc_speed_time_s_i += meta_cgc_speed_time
-            # 【第一次ν'循环结束】
-            # 此时，所有σμ开头的元σμν的ISF、CGC都应该全部计算出来了。也只计算了它们。
-            # (非元的：被其他元σμν轮所对称的，必然在之前被计算好了；未算的是本轮的元σμν所对称的部分，本轮下面会有计算，不在上面关于元的计算里)
 
             ϵ_start_time = time.time()
-            meta_ν_τ_list = data_σ_μ.get_meta_ν_τ_list()
-            # 【ν, τ循环开启】
-            for (ν, τ) in meta_ν_τ_list:  # 这里的ν一定是与当前σμ构成元组合的ν
-                # 3，只计算元σμν+τ的ϵ
-                _, is_calc_ed = is_ϵ_exist(s_i, σ, μ, ν, τ)
-                if is_calc_ed:
-                    err_msg = "the meta combination of σ={}, μ={}, ν={}, τ={} is first appearing, " \
-                              "cannot be calc ed before, pls check".format(σ, μ, ν, τ)
-                    logger.error(err_msg)
-                    return False, err_msg
+            meta_ν_τ_list = data_σ_μ.get_isf_ν_τ_list()
+            for (ν, τ) in meta_ν_τ_list:
+                # 1.5，计算当前σμ组合全部ν的24个元ϵ
                 # 计算
                 ϵ_dict, ϵ_flags = ϵ_func.calc_meta_ϵ_dict(data_σ_μ, ν, τ, data_si)
                 if not ϵ_dict:
@@ -300,7 +256,7 @@ def create_isf_and_cgc(s_n: int=default_s_n):
                               "msg={}".format(s_i, σ, μ, ν, τ, ϵ_dict, ϵ_flags, msg)
                     logger.error(err_msg)
                     return False, err_msg
-                # 4，计算元σμν+τ的所有对称的ϵ
+                # 2，计算剩余23组非元对称组合的自身的24个ϵ
                 flag, msg = ϵ_func.calc_symmetry_ϵ_by_meta_include_save(ϵ_dict, ϵ_flags, data_σ_μ, ν, τ, data_si)
                 if not flag:
                     err_msg = "calc_symmetry_ϵ_by_meta_include_save fail by ϵ_dict={}, ϵ_flags={}, " \
@@ -310,11 +266,8 @@ def create_isf_and_cgc(s_n: int=default_s_n):
                     return False, err_msg
             ϵ_speed_time = int(time.time() - ϵ_start_time)
             ϵ_speed_time_s_i += ϵ_speed_time
-            # 【ν, τ循环结束】
-            # 在上述(ν, τ)循环结束时，所有σμ开头的和之前循环过的σμ，的元组合以及它们的对称组合，的ϵ都应该全部计算出来了
-            # （即使有一些CGC还未计算，但它们必然不是元组合，所以只要元组合的CGC有了，ϵ也可以对称出来）
 
-            # 5，计算元组合的对称ISF（不是整表，而是部分列）
+            # 4，计算对称性ISF
             sym_isf_start_time = time.time()
             flag, msg = isf_func.calc_σμ_symmetry_isf_include_save(data_σ_μ, data_si, data_st)
             if not flag:
@@ -325,48 +278,51 @@ def create_isf_and_cgc(s_n: int=default_s_n):
             sym_isf_speed_time = int(time.time() - sym_isf_start_time)
             isf_speed_time_s_i += sym_isf_speed_time
 
-            # 6，计算对称性是ν结尾的CGC（σμν，σ~μ~ν，σ~μν~，σμ~ν~，μσν，μ~σ~ν，μ~σν~，μσ~ν~）
+            # 5，计算对称性是ν结尾的CGC
             sym_cgc_start_time = time.time()
-            meta_ν_τ_list = data_σ_μ.get_meta_ν_τ_list()
+            meta_ν_τ_list = data_σ_μ.get_isf_ν_τ_list()
             for (ν, τ) in meta_ν_τ_list:
-
-                # if _debug_condition(data_σ_μ) and ν == [2, 1]:
-                #     logger.warning("@@@@ calcing σ,μ,ν,τ={},{},{},{} and same ν sym".format(σ, μ, ν, τ))
-
-                flag, msg = cgc_func.calc_sym_cgc_by_same_end_cgc_include_save(data_σ_μ, ν, τ, data_si)
+                flag, msg = cgc_func.calc_sym_ν_end_cgc_include_save(data_σ_μ, ν, τ, data_si)
                 if not flag:
-                    err_msg = "calc_sym_cgc_by_same_end_cgc_include_save fail by data_σ_μ={}, ν={}, τ={}, data_si={} " \
-                              "with msg={}".format(data_σ_μ, ν, τ, data_si, msg)
+                    err_msg = "calc_sym_ν_end_cgc_include_save fail by data_σ_μ={}, ν={}, τ={}, data_si={} with " \
+                              "msg={}".format(data_σ_μ, ν, τ, data_si, msg)
                     logger.error(err_msg)
                     return False, err_msg
-            # 7，计算对称性非ν结尾的CGC
-            # 这里使用这种方法的主要原因是，cgc是以m_ν分开储存的。所以不如用isf再造一次σ，μ结尾的cgc，再利用它们的sym_ϵ计算同σ，μ结尾的cgc
-            for meta_ν in data_σ_μ.meta_ν_list_of_σμ:
-                meta_σμν = (σ, μ, meta_ν)
-                new_σμν_list = [(σ, meta_ν, μ), (meta_ν, μ, σ)]  # [σνμ] & [νμσ]
-                for new_σμν in new_σμν_list:
-                    # 跳过条件
-                    closed_loop_sym_σμν_list = []  # 如果new_σμν在这里，则其自身和同结尾yd，都已经被计算过了，可以跳过
-                    for key, d3, k4 in chain(ϵ_func.σμν_0, ϵ_func.σμν_1):
-                        sym_σμν = tuple(meta_σμν[d] if k is False else
-                                        data_si.get_tilde(meta_σμν[d]) for d, k in zip(d3, k4))
-                        if sym_σμν not in closed_loop_sym_σμν_list:
-                            closed_loop_sym_σμν_list.append(sym_σμν)
-                    if new_σμν in closed_loop_sym_σμν_list:
-                        continue
-
-                    # if _debug_condition(data_σ_μ):
-                    #     logger.warning("@@@@ calcing new_σμν={} and same ν sym".format(new_σμν))
-
-                    # 正式计算
-                    flag, msg = cgc_func.calc_sym_μ_σ_end_cgc_include_save(new_σμν, data_si, data_st)
-                    if not flag:
-                        err_msg = "calc_sym_μ_σ_end_cgc_include_save fail by new_σμν={}, data_si={}, data_st={} " \
-                                  "with msg={}".format(new_σμν, data_si, data_st, msg)
-                        logger.error(err_msg)
-                        return False, err_msg
             sym_cgc_speed_time = int(time.time() - sym_cgc_start_time)
             cgc_speed_time_s_i += sym_cgc_speed_time
+
+            # 6，计算对称性非ν结尾的CGC
+            # 这里使用这种方法的主要原因是，cgc是以m_ν分开储存的。所以不如用isf再造一次σ，μ结尾的cgc，再利用它们的sym_ϵ计算同σ，μ结尾的cgc
+            # TODO ν
+            new_data_σ_μ_cls_list = [ΣMDataHelper(s_i, σ, ν, data_si, data_st),
+                                     ΣMDataHelper(s_i, σ, μ, data_si, data_st)]
+            new_meta_σμ_list = [(σ, ν), (ν, μ)]  # [σνμ] & [νμσ]
+            for new_ν_st, new_meta_σμ in product(data_st.yd_list, new_meta_σμ_list):
+                _, is_calc_ed = is_isf_exist(*(s_i, *new_meta_σμ, new_ν_st))
+                if is_calc_ed is False:  # 跳过不存在的isf
+                    continue
+                flag, new_meta_isf_square_dict = load_isf(*(s_i, *new_meta_σμ, new_ν_st), is_flag_true_if_not_s_n=False)
+                if not flag:
+                    err_msg = "load_isf meet error with s_n={}, new_meta_σμ={}, new_ν_st={}, " \
+                              "msg={}".format(s_i, new_meta_σμ, new_ν_st, new_meta_isf_square_dict)
+                    logger.error(err_msg)
+                    return False, err_msg
+
+
+            # [σνμ] and [νμσ]
+
+
+            meta_ν_τ_list = data_σ_μ.get_isf_ν_τ_list()
+            for (ν, τ) in meta_ν_τ_list:
+                # 这里先用m1做一个粗略的判断，计算单独cgc前，在函数内部，还有具体的判断
+                for new_meta_σμν in [(σ, ν, μ), (ν, μ, σ)]:  # [σνμ] & [νμσ]
+                    _, is_calc_ed = is_cgc_exist(*(s_i, *new_meta_σμν, τ, 1))
+                    if is_calc_ed is True:
+                        continue
+                    new_bl_ν_st_list = data_si.get_bl_yds(new_meta_σμν[-1])
+                    for new_ν_st in new_bl_ν_st_list:
+                        new_meta_isf_square_dict =
+                    pass
 
         flag, msg = save_isf_finish_s_n(s_i, isf_speed_time_s_i, is_check_add_one=True)
         if not flag:
@@ -390,10 +346,9 @@ def create_isf_and_cgc(s_n: int=default_s_n):
     return True, s_n
 
 
-def save_isf(s_n: int, σ: list, μ: list, ν_st: list, isf_square_dict: dict, speed_time: int, finish_cols=None):
+def save_isf(s_n: int, σ: list, μ: list, ν_st: list, isf_square_dict: dict, speed_time: int,
+             not_finish: bool=True, finish_cols=[]):
     """
-    自动保存或者更新isf
-
     ISF的落盘格式为
 
     <CG>/isf_info/Sn/[σ]_[μ]/[ν’].pkl
@@ -424,9 +379,6 @@ def save_isf(s_n: int, σ: list, μ: list, ν_st: list, isf_square_dict: dict, s
                        [-1/12, 0, 5/12, 1/2],
                        [-1/12, 0, 5/12, -1/2],
                        [5/12, -1/2, 1/12, 0]])}
-
-    因为引入非ν结尾的对称性，所以会出现只算了部分列的isf
-    注意：isf_square_dict应该是更新后的字典，speed_time需要在函数外部加上旧时间
     """
     if not isinstance(s_n, int) or s_n < min_s_n_of_isf:
         err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_isf)
@@ -445,7 +397,65 @@ def save_isf(s_n: int, σ: list, μ: list, ν_st: list, isf_square_dict: dict, s
         err_msg = "speed_time={} with type={} must be int and >= 0".format(speed_time, type(speed_time))
         logger.error(err_msg)
         return False, err_msg
-    if finish_cols is not None and not isinstance(finish_cols, list):
+    if not isinstance(not_finish, bool):
+        err_msg = "not_finish={} with type={} must be bool".format(not_finish, type(not_finish))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(finish_cols, list):
+        err_msg = "finish_cols={} with type={} must be list".format(finish_cols, type(finish_cols))
+        logger.error(err_msg)
+        return False, err_msg
+
+    db_info = ISFInfo(s_n)
+    _, file_name = get_isf_file_name(s_n, σ, μ, ν_st)
+    if not_finish:
+        table = {"file_name": file_name,
+                 "data": isf_square_dict,
+                 "flags": {"speed_time": speed_time,
+                           "not_finish": True,
+                           "finish_cols": finish_cols}}
+    else:
+        table = {"file_name": file_name,
+                 "data": isf_square_dict,
+                 "flags": {"speed_time": speed_time}}
+    flag, msg = db_info.insert(table)
+    if not flag:
+        return flag, msg
+    flag, msg = db_info.insert_txt(table)
+    if not flag:
+        return flag, msg
+
+    return True, None
+
+
+def update_isf(s_n: int, σ: list, μ: list, ν_st: list, isf_square_dict: dict, speed_time: int,
+               not_finish: bool=False, finish_cols=[]):
+    """更新isf
+
+    因为引入非ν结尾的对称性，所以会出现只算了部分列的isf，此函数正式为了配合它
+    注意：isf_square_dict应该是更新后的字典，speed_time需要在外面加上旧时间"""
+    if not isinstance(s_n, int) or s_n < min_s_n_of_isf:
+        err_msg = "s_n={} with type={} must be int and >= {}".format(s_n, type(s_n), min_s_n_of_isf)
+        logger.error(err_msg)
+        return False, err_msg
+    if not all(isinstance(yd, list) for yd in [σ, μ, ν_st]):
+        err_msg = "all [σ={}, μ={}, ν_st={}] must be list but type [{}, {}, {}]".format(
+            σ, μ, ν_st, type(σ), type(μ), type(ν_st))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(isf_square_dict, dict):
+        err_msg = "isf_square_dict={} with type={} must be dict".format(isf_square_dict, type(isf_square_dict))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(speed_time, int) or speed_time < 0:
+        err_msg = "speed_time={} with type={} must be int and >= 0".format(speed_time, type(speed_time))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(not_finish, bool):
+        err_msg = "not_finish={} with type={} must be bool".format(not_finish, type(not_finish))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(finish_cols, list):
         err_msg = "finish_cols={} with type={} must be list".format(finish_cols, type(finish_cols))
         logger.error(err_msg)
         return False, err_msg
@@ -453,31 +463,22 @@ def save_isf(s_n: int, σ: list, μ: list, ν_st: list, isf_square_dict: dict, s
     db_info = ISFInfo(s_n)
     _, file_name = get_isf_file_name(s_n, σ, μ, ν_st)
 
-    if finish_cols is None:  # 它也是是否完整的标志
-        table = {"file_name": file_name,
-                 "data": isf_square_dict,
-                 "flags": {"speed_time": speed_time}}
+    if not_finish:
+        new_table = {"file_name": file_name,
+                     "data": isf_square_dict,
+                     "flags": {"speed_time": speed_time,
+                               "not_finish": True,
+                               "finish_cols": finish_cols}}
     else:
-        table = {"file_name": file_name,
-                 "data": isf_square_dict,
-                 "flags": {"speed_time": speed_time,
-                           "finish_cols": finish_cols}}
-
-    _, is_calc_ed = is_isf_exist(s_n, σ, μ, ν_st)
-    if is_calc_ed is False:  # 新建
-        flag, msg = db_info.insert(table)
-        if not flag:
-            return flag, msg
-        flag, msg = db_info.insert_txt(table)
-        if not flag:
-            return flag, msg
-    else:  # 更新
-        flag, msg = db_info.update_by_file_name(file_name, table)
-        if not flag:
-            return flag, msg
-        flag, msg = db_info.update_txt_by_file_name(file_name, table)
-        if not flag:
-            return flag, msg
+        new_table = {"file_name": file_name,
+                     "data": isf_square_dict,
+                     "flags": {"speed_time": speed_time}}
+    flag, msg = db_info.update_by_file_name(file_name, new_table)
+    if not flag:
+        return flag, msg
+    flag, msg = db_info.update_txt_by_file_name(file_name, new_table)
+    if not flag:
+        return flag, msg
 
     return True, None
 
@@ -971,15 +972,15 @@ def save_ϵ(s_n: int, σ: list, μ: list, ν: list, τ: (int, None), ϵ_dict: di
 
     例如，
     <CG>/ϵ_info/S5/[3, 1, 1]_[3, 1, 1]/[3, 2]_2.pkl
-    {"data": {"σμν": 1, "μσν": 1, "σ~μ~ν": -1, "μ~σ~ν": -1,
-              "σ~μν~": 1, "μ~σν~": -1, "σμ~ν~": -1, "μσ~ν~": 1},
-     "flags": {"σμν": (1, 1), "μσν": (1, 1), "σ~μ~ν": (6, 6), "μ~σ~ν": (6, 6),
-               "σ~μν~": (6, 4), "μ~σν~": (3, 1), "σμ~ν~": (1, 3), "μσ~ν~": (4, 6)}}
+    {"data": {"ϵ0": 1, "ϵ1": 1, "ϵ4": -1, "ϵ14": -1,
+                  "ϵ5": 1, "ϵ15": -1, "ϵ6": -1, "ϵ16": 1},
+     "flags": {"ϵ0": (1, 1), "ϵ1": (1, 1), "ϵ4": (6, 6), "ϵ14": (6, 6),
+               "ϵ5": (6, 4), "ϵ15": (3, 1), "ϵ6": (1, 3), "ϵ16": (4, 6)}}
     <CG>/ϵ_info/S5/[3, 1, 1]_[3, 1, 1]/[2, 1, 1]_2.pkl
-    {"data": {"σμν": 1, "μσν": -1, "σ~μ~ν": -1, "μ~σ~ν": 1,
-              "σ~μν~": -1, "μ~σν~": -1, "σμ~ν~": 1, "μ~σ~ν": 1},
-     "flags": {"σμν": (1, 4), "μσν": (4, 1), "σ~μ~ν": (6, 3), "μ~σ~ν": (3, 6),
-               "σ~μν~": (6, 1), "μ~σν~": (6, 1), "σμ~ν~": (1, 6), "μ~σ~ν": (1, 6)}}
+    {"data": {"ϵ0": 1, "ϵ1": -1, "ϵ4": -1, "ϵ14": 1,
+              "ϵ5": -1, "ϵ15": -1, "ϵ6": 1, "ϵ16": 1},
+     "flags": {"ϵ0": (1, 4), "ϵ1": (4, 1), "ϵ4": (6, 3), "ϵ14": (3, 6),
+               "ϵ5": (6, 1), "ϵ15": (6, 1), "ϵ6": (1, 6), "ϵ16": (1, 6)}}
     """
     if not isinstance(s_n, int) or s_n <= 0:
         err_msg = "s_n={} with type={} must be int and > 0".format(s_n, type(s_n))
@@ -1307,12 +1308,9 @@ class ΣMDataHelper(SimpleΣMDataHelper):
         self.in_matrix_μ_dict = None
         self._add_init_data()
 
-        self.meta_ν_list_of_σμ = []
-        self.ν_st_list_inner_meta_bl = []
-        self.real_calc_isf_ν_st_list = []
+        self.isf_ν_st_list = []
         self.isf_square_dict_dict_by_ν_st = {}
-        self.isf_finish_cols_dict_by_ν_st = {}
-        self.isf_meta_ν_τ_list = []
+        self.isf_ν_τ_list = []
         self.ϵ_dict_dict = {}
         self.ϵ_flags_dict = {}
 
@@ -1349,46 +1347,25 @@ class ΣMDataHelper(SimpleΣMDataHelper):
                     raise Exception(err_msg)
                 in_matrix_μ_dict[in_key] = in_matrix_μ
             self.in_matrix_μ_dict = in_matrix_μ_dict
-            
-    def hook_meta_ν_list_of_σμ_and_get_ν_st_list_inner_meta_bl(self):
-        # 挂载meta_ν_list_of_σμ
-        # 得到ν_st_list_inner_meta_bl
-        self.meta_ν_list_of_σμ = self.data_sn_cls.get_ν_combination_of_meta_σμν_tuple_list_by_σμ(self.σ, self.μ)
-        ν_st_list_inner_meta_bl = []
-        tmp_repeatable_meta_ν_bl_list = []
-        for meta_ν in self.meta_ν_list_of_σμ:
-            tmp_repeatable_meta_ν_bl_list += self.data_sn_cls.get_bl_yds(meta_ν)
-        for ν_st in self.data_st_cls.yd_list:
-            if ν_st in tmp_repeatable_meta_ν_bl_list:
-                ν_st_list_inner_meta_bl.append(ν_st)
-        self.ν_st_list_inner_meta_bl = ν_st_list_inner_meta_bl
 
-    def register_real_calc_isf_ν_st_list(self, ν_st):
-        self.real_calc_isf_ν_st_list.append(ν_st)
+    def register_isf_ν_st_list(self, ν_st):
+        self.isf_ν_st_list.append(ν_st)
 
-    def get_real_calc_isf_ν_st_list(self):
-        return self.real_calc_isf_ν_st_list
+    def get_isf_ν_st_list(self):
+        return self.isf_ν_st_list
 
-    def register_isf_square_dict_and_finish_cols_by_ν_st(self, ν_st, isf_square_dict, finish_cols):
+    def register_isf_square_dict_by_ν_st(self, ν_st, isf_square_dict):
         self.isf_square_dict_dict_by_ν_st[tuple(ν_st)] = isf_square_dict
-        self.isf_finish_cols_dict_by_ν_st[tuple(ν_st)] = finish_cols
 
     def get_isf_square_dict_by_ν_st(self, ν_st):
         return self.isf_square_dict_dict_by_ν_st[tuple(ν_st)]
 
-    def get_isf_finish_cols_by_ν_st(self, ν_st):
-        return self.isf_finish_cols_dict_by_ν_st[tuple(ν_st)]
+    def register_isf_ν_τ_list(self, ν, τ):
+        if (ν, τ) not in self.isf_ν_τ_list:
+            self.isf_ν_τ_list.append((ν, τ,))
 
-    # def register_isf_ν_τ_list(self, ν, τ):
-    #     if (ν, τ) not in self.isf_ν_τ_list:
-    #         self.isf_ν_τ_list.append((ν, τ,))
-
-    def register_meta_ν_τ_list(self, ν, τ):
-        if (ν, τ) not in self.isf_meta_ν_τ_list and ν in self.meta_ν_list_of_σμ:
-            self.isf_meta_ν_τ_list.append((ν, τ,))
-
-    def get_meta_ν_τ_list(self):
-        return self.isf_meta_ν_τ_list
+    def get_isf_ν_τ_list(self):
+        return self.isf_ν_τ_list
 
     def register_ϵ_dict_and_flags(self, ν, τ, ϵ_dict, ϵ_flags):
         key = tuple(ν) if τ is None else (tuple(ν), τ)
@@ -1403,7 +1380,7 @@ class ΣMDataHelper(SimpleΣMDataHelper):
 class DataHelper(object):
     """这里封装供模块内部，Si循环应该取得的数据"""
 
-    def __init__(self, s_k, ϵ_key2groups_dict, groups2ϵ_key_dict):
+    def __init__(self, s_k):
         if not isinstance(s_k, int) or s_k < min(min_s_n_of_isf, min_s_n_of_cgc):
             raise Exception("s_k={} must be int and >= 1".format(s_k))
         self.s_n = s_k  # 既可以实例化Sn，也可以实例化St
@@ -1418,9 +1395,6 @@ class DataHelper(object):
         self.butler_phase_factor_dict_dict = None  # (英文版4-196')
         self.meta_σμν_tuple_list = None
         self.σμ_combination_of_meta_σμν_tuple_list = None
-        self.ν_combination_of_meta_σμν_tuple_list_list = None
-        self.ϵ_key2groups_dict = ϵ_key2groups_dict
-        self.groups2ϵ_key_dict = groups2ϵ_key_dict
         self._init_data()
 
         # 需手动加载
@@ -1516,17 +1490,13 @@ class DataHelper(object):
             raise Exception(err_msg)
         self.meta_σμν_tuple_list = meta_σμν_tuple_list
 
-        # 9, 计算σμ_combination_of_meta_σμν_tuple_list和ν_combination_of_meta_σμν_tuple_list_list
+        # 9, 计算σμ_combination_of_meta_σμν_tuple_list  # 注意，此σμ组合下可以同时包含元组合σμν_1和非元组合σμν_2
         σμ_combination_of_meta_σμν_tuple_list = []
-        ν_combination_of_meta_σμν_tuple_list_list = []
         for meta_σμν in meta_σμν_tuple_list:
             if meta_σμν[0:2] not in σμ_combination_of_meta_σμν_tuple_list:
                 σμ_combination_of_meta_σμν_tuple_list.append(meta_σμν[0:2])
-                ν_combination_of_meta_σμν_tuple_list_list.append([meta_σμν[-1]])
-            else:
-                ν_combination_of_meta_σμν_tuple_list_list[-1].append(meta_σμν[-1])
         self.σμ_combination_of_meta_σμν_tuple_list = σμ_combination_of_meta_σμν_tuple_list
-        self.ν_combination_of_meta_σμν_tuple_list_list = ν_combination_of_meta_σμν_tuple_list_list
+
 
     def add_more_data(self, yt_st_num_list, yd_st_list):
         # 无法仅通过Sn，还需要传入其他参数才能创建的数据
@@ -1570,21 +1540,8 @@ class DataHelper(object):
     def get_bl_yds(self, yd):
         return self.bl_yd_list_dict[tuple(yd)]
 
-    # def get_bl_rows(self, yd):
-    #     return self.bl_row_list_dict[tuple(yd)]
-
-    def get_d3_k4_by_ϵ_key(self, ϵ_key: str):
-        return self.ϵ_key2groups_dict[ϵ_key]
-
-    def get_ϵ_key_by_d3_k4(self, d3: tuple, k4: tuple):
-        return self.groups2ϵ_key_dict[(d3, k4)]
-
-    def get_ν_combination_of_meta_σμν_tuple_list_by_σμ(self, σ, μ):
-        if (σ, μ) in self.σμ_combination_of_meta_σμν_tuple_list:
-            return self.ν_combination_of_meta_σμν_tuple_list_list[
-                self.σμ_combination_of_meta_σμν_tuple_list.index((σ, μ))]
-        else:
-            return []
+    def get_bl_rows(self, yd):
+        return self.bl_row_list_dict[tuple(yd)]
 
 
 class CalcHelper(object):
@@ -1620,8 +1577,8 @@ class ISFHelper(CalcHelper):
     def __init__(self):
         super(ISFHelper, self).__init__()
 
-    def calc_meta_isf_dict_include_save(self, data_σ_μ, ν_st, row_index_list, data_sn, data_st, old_isf_info_dict):
-        """计算ISF中，属于元σμν的部分
+    def calc_meta_isf_dict(self, row_index_tmp_list, ν_st, old_isf_info_dict, data_sn, data_st, data_σ_μ):
+        """补充计算元ISF
 
         对于包含元σμν的组合σμ，计算其中元组合那部分的元ISF（无法通过对称性生成）
         使用如下公式：
@@ -1634,9 +1591,8 @@ class ISFHelper(CalcHelper):
         返回flag, meta_isf_square_dict:
         meta_isf_square_dict = {"rows": [([σ'], [μ'], τ'), ([σ'], [μ']), ...],  # 有自由度len3，无自由度len2
                                 "cols":[[ν], ([ν], τ), ...],  # 有自由度tuple，无自由度list
-                                "isf": isf_square_matrix}  # sp.Matrix([len(rows), len(cols)])，且len(rows)=len(cols)
+                                "isf": isf_square_matrix}  # np.array/sp.Matrix([len(rows), len(cols)])
         """
-        meta_isf_start_time = time.time()
         # 只象征性检查Sn、St
         if not all(self.s_n == s_n for s_n in [data_sn.s_n, data_σ_μ.s_n]) \
                 or not all(self.s_t == s_t for s_t in [data_st.s_n, data_σ_μ.s_t]):
@@ -1650,16 +1606,12 @@ class ISFHelper(CalcHelper):
             isf_2_square_dict = {"rows": [([1], [1])],
                                  "cols": [[2]] if data_σ_μ.σ == data_σ_μ.μ else [[1, 1]],
                                  "isf": sp.Matrix([[1]])}
-            finish_cols = [[2]] if data_σ_μ.σ == data_σ_μ.μ else [[1, 1]]
-            data_σ_μ.register_real_calc_isf_ν_st_list(ν_st)
-            data_σ_μ.register_isf_square_dict_and_finish_cols_by_ν_st(ν_st, isf_2_square_dict, finish_cols)
-            _, msg = save_isf(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν_st, isf_2_square_dict, 0)
-            return True, None
+            return True, isf_2_square_dict
 
-        flag, isf_matrix = self._calc_isf_matrix(row_index_list, ν_st, data_sn, data_σ_μ)
+        flag, isf_matrix = self._calc_isf_matrix(row_index_tmp_list, ν_st, data_sn, data_σ_μ)
         if not flag:
-            err_msg = "get isf_matrix by row_index_list={}, ν_st={}, data_sn={}, data_σ_μ={} fail " \
-                      "with msg={}".format(row_index_list, ν_st, data_sn, data_σ_μ, isf_matrix)
+            err_msg = "get isf_matrix by row_index_tmp_list={}, ν_st={}, data_sn={}, data_σ_μ={} fail " \
+                      "with msg={}".format(row_index_tmp_list, ν_st, data_sn, data_σ_μ, isf_matrix)
             logger.error(err_msg)
             return False, err_msg
         try:
@@ -1685,102 +1637,162 @@ class ISFHelper(CalcHelper):
 
         λ_ν_st = data_st.get_eigenvalue(ν_st)
 
-        # if _debug_condition(data_σ_μ, ν_st):
-        #     logger.warning("@@@@ isf_matrix={} with data_σ_μ={}".format(isf_matrix, data_σ_μ))
-        #     logger.warning("@@@@ row_index_list={}".format(row_index_list))
-        #     logger.warning("@@@@ ν_st={}, λ_ν_st={}".format(ν_st, λ_ν_st))
-        #     logger.warning("@@@@ eigen_tuple_list={}".format(eigen_tuple_list))
+        if _debug_condition(data_σ_μ, ν_st):
+            logger.warning("@@@@ isf_matrix={} with data_σ_μ={}".format(isf_matrix, data_σ_μ))
+            logger.warning("@@@@ row_index_tmp_list={}".format(row_index_tmp_list))
+            logger.warning("@@@@ ν_st={}, λ_ν_st={}".format(ν_st, λ_ν_st))
+            logger.warning("@@@@ eigen_tuple_list={}".format(eigen_tuple_list))
 
-        # 下面的代码改成先有col了，用λ(col)点名eigen_tuple_list，以后如果有需要，甚至可以不解矩阵，直接用mat+λ求eigenvectors
-        if old_isf_info_dict is not False:
-            meta_isf_square_dict = copy.deepcopy(old_isf_info_dict["data"])  # 这里浪费一点点，可以确保入参不会被改
-            col_index_list = meta_isf_square_dict.get("cols")
-            finish_cols = copy.deepcopy(old_isf_info_dict["flags"]["finish_cols"])
-        else:
-            col_index_list = self.calc_col_indexes(data_σ_μ, ν_st, data_sn)
-            meta_isf_square_dict = {"rows": row_index_list,
-                                    "cols": col_index_list,
-                                    "isf": sp.zeros(len(row_index_list))}
-            finish_cols = []
-        ν_flag = None
-        for tmp_col in col_index_list:
-            if tmp_col in finish_cols:  # 算过了不用算（理论上应该不会出现）
-                continue
-            # tmp_col is [ν] or ([ν], τ)，但是，它不是最终的col，因为我们要重新指定τ
-            ν = tmp_col if isinstance(tmp_col, list) else tmp_col[0]
-            if ν == ν_flag:  # 相同的ν，不同的τ，只需做一次，就可以得到所有
-                continue
-            else:
-                ν_flag = ν
-            if ν not in data_σ_μ.meta_ν_list_of_σμ:  # 本函数只计算元σμν，非元的跳过不管（后面专门有只计算对称的）
-                continue
-                
-            λ_ν = data_sn.get_eigenvalue(ν)
-            e_value = λ_ν - λ_ν_st  # 这里就不用怕同λ的ν冲突了，因为col已经把不合理ν排除了
-            (e_value, τ_max, e_vectors) = list(filter(lambda x: x[0] == e_value, eigen_tuple_list))[0]
+        # 开始计算ISF中mata的部分列
+        isf_square_tmp_dict = {"ν_tmp": [],
+                               "τ_tmp": [],
+                               "isf_tmp": []}
+        for e_value, τ_max, e_vectors in eigen_tuple_list[::-1]:  # 按照e_value降序循环
             if τ_max > 1:
-                logger.debug("meet multiplicity free cases with data_σ_μ={}, ν={}, ν_st={}, "
-                             "e_value={}, τ_max={}, e_vectors={}".format(data_σ_μ, ν, ν_st, e_value, τ_max, e_vectors))
+                logger.debug("meet multiplicity free cases with e_value={}, τ_max={}, e_vectors={} "
+                             "by data_σ_μ={}, ν_st={}".format(e_value, τ_max, e_vectors, data_σ_μ, ν_st))
+            # 计算本征值对应的ν
+            λ_ν = e_value + λ_ν_st
+            ν = self._calc_ν_by_λ_and_bl(λ_ν, data_sn.eigenvalue_list, data_sn.yd_list,
+                                         data_sn.bl_yd_list_dict, ν_st)
+
+            ask_col = ν if τ_max == 1 else (ν, 1)  # 作为是否被计算过，询问τ的任何一个就行了
+            if ask_col in old_isf_info_dict.get("flags", {}).get("finish_cols", []):
+                continue  # 已经算过这个ν的所有列，所以跳过
 
             # 这里是用[::-1]倒序而不是正序就是为了对齐书中给的多重根自由度选择
             soe_vectors = self._calc_schmidt_orthogonalization_tricky(e_vectors)[::-1] if τ_max > 1 \
                 else [self._calc_orthogonalization_vector(e_vectors[0])]
 
-            # 注意，τ_tmp_list, isf_phase_vector_list不仅可以带None占位，它还可以不是升序的，因为它对应着soe_vectors顺序
             flag, τ_tmp_list, isf_phase_vector_list = \
-                self._calc_isf_τ_and_phase_vector_list(soe_vectors, ν, ν_st, row_index_list, τ_max,
+                self._calc_isf_τ_and_phase_vector_list(soe_vectors, ν, ν_st, row_index_tmp_list, τ_max,
                                                        data_sn, data_st, data_σ_μ)
             if not flag:
                 err_msg = "_calc_isf_τ_and_phase_vector_list meet error " \
-                          "with soe_vectors={}, ν={}, ν_st={}, row_index_list={}, τ_max={} " \
+                          "with soe_vectors={}, ν={}, ν_st={}, row_index_tmp_list={}, τ_max={} " \
                           "data_sn={}, data_st={}, data_σ_μ={}, " \
-                          "msg={}".format(soe_vectors, ν, ν_st, row_index_list, τ_max,
+                          "msg={}".format(soe_vectors, ν, ν_st, row_index_tmp_list, τ_max,
                                           data_sn, data_st, data_σ_μ, τ_tmp_list)
                 logger.error(err_msg)
                 return False, err_msg
 
-            # 按照升序填空
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ τ_tmp_list={}".format(τ_tmp_list))
+                logger.warning("@@@@ isf_phase_list={}".format(isf_phase_vector_list))
+
             for τ_tmp in range(1, τ_max + 1):  # 因为按照soe_vectors对应的τ乱序了，所以需要正序
-                τ_tmp = None if τ_max == 1 else τ_tmp
+                if τ_max == 1:
+                    τ_tmp = None
                 τ_tmp_index = τ_tmp_list.index(τ_tmp)
                 phase_vector = isf_phase_vector_list[τ_tmp_index]
+
                 # 计算单列的ISF
                 isf_square = sp.Matrix([sp.sign(i) * i**2 for i in phase_vector])
-                real_col = ν if τ_max == 1 else (ν, τ_tmp)  # 区别于tmp_col，它是真的了
-                real_col_index = col_index_list.index(real_col)
-                meta_isf_square_dict["isf"][:, real_col_index] = isf_square
-                # 填finish_cols
-                finish_cols.append(real_col)  # 它的顺序在这里不重要
 
-        # 注册元ISF信息和数据备用
-        data_σ_μ.register_real_calc_isf_ν_st_list(ν_st)
-        data_σ_μ.register_isf_square_dict_and_finish_cols_by_ν_st(ν_st, meta_isf_square_dict, finish_cols)
+                isf_square_tmp_dict["ν_tmp"].append(ν)
+                isf_square_tmp_dict["τ_tmp"].append(τ_tmp)  # τ按照代码逻辑，同ν必然升序，且临近
+                isf_square_tmp_dict["isf_tmp"].append(isf_square)
 
-        # 保存 # 注意：这里的ISF仍然可能是不完整的
-        meta_isf_speed_time = int(time.time() - meta_isf_start_time)
-        old_adding_time = 0 if old_isf_info_dict is False else old_isf_info_dict["flags"]["speed_time"]
-        if len(finish_cols) == len(row_index_list):  # 当完整的时候，它们长度也相等
-            flag, msg = save_isf(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν_st, meta_isf_square_dict,
-                                 meta_isf_speed_time + old_adding_time)
-            if not flag:
-                err_msg = "save meta isf meet error with s_n={}, meta_σ={}, meta_μ={}, ν_st={}, " \
-                          "meta_isf_square_dict={}, msg={}" \
-                          "".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν_st, meta_isf_square_dict, msg)
-                logger.error(err_msg)
-                return False, err_msg
-        else:
-            flag, msg = save_isf(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν_st, meta_isf_square_dict,
-                                 meta_isf_speed_time + old_adding_time, finish_cols=finish_cols)
-            if not flag:
-                err_msg = "save meta isf meet error with s_n={}, meta_σ={}, meta_μ={}, ν_st={}, " \
-                          "sym_isf_square_dict={}, finish_cols={}, msg={}" \
-                          "".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν_st, meta_isf_square_dict, finish_cols, msg)
-                logger.error(err_msg)
-                return False, err_msg
+        if _debug_condition(data_σ_μ, ν_st):
+            logger.warning("@@@@ isf_square_tmp_dict={}".format(isf_square_tmp_dict))
 
-        return True, None
+        # 按照顺序整理ISF中mata的部分列的矩阵
+        row_index_list = [(i[0], i[1]) if i[2] is None else i for i in row_index_tmp_list]
+        if len(isf_square_tmp_dict["ν_tmp"]) != len(row_index_list):  # 先检查理论上要求的方阵
+            err_msg = "ν_tmp_list={} with len={} and row_index_list={} with len={} must same, pls check".format(
+                isf_square_tmp_dict["ν_tmp"], len(isf_square_tmp_dict["ν_tmp"]),
+                row_index_list, len(row_index_list))
+            logger.error(err_msg)
+            return False, err_msg
+        meta_isf_square_dict = {"rows": row_index_list,
+                           "cols": [],
+                           "isf": sp.zeros(len(row_index_list))}
+        for ν in data_sn.yd_list:
+            while ν in isf_square_tmp_dict["ν_tmp"]:
+                # 找数据
+                tmp_index = isf_square_tmp_dict["ν_tmp"].index(ν)
+                τ = isf_square_tmp_dict["τ_tmp"][tmp_index]
+                single_col_index = ν if τ is None else (ν, τ,)
+                isf_square = isf_square_tmp_dict["isf_tmp"][tmp_index]
+                # 赋值
+                # 用上一轮cols的len巧妙确定当前的index
+                meta_isf_square_dict["isf"][:, len(meta_isf_square_dict["cols"])] = isf_square
+                meta_isf_square_dict["cols"].append(single_col_index)
+                # 删tmp数据
+                isf_square_tmp_dict["ν_tmp"].pop(tmp_index)
+                isf_square_tmp_dict["τ_tmp"].pop(tmp_index)
+                isf_square_tmp_dict["isf_tmp"].pop(tmp_index)
 
-    def _calc_isf_τ_and_phase_vector_list(self, soe_vectors, ν, ν_st, row_index_list, τ_max,
+        # 如果有之前计算过的部分，融合它们非常简单，只需矩阵相加即可
+
+        return True, meta_isf_square_dict
+
+    # def complete_same_table_self_symmetry_isf(self, partial_meta_isf_dict, ν_st, data_sn, data_st, data_σ_μ):
+    #     """
+    #     补完ISF中同表自共轭ev<0的部分（它们会以全列None的形式传进来）
+    #     """
+    #     # 解析入参
+    #     σ_μ_τ_st_list = partial_meta_isf_dict["rows"]
+    #     ν_τ_list = partial_meta_isf_dict["cols"]
+    #     partial_isf_square = partial_meta_isf_dict["isf"]
+    #     # 公共
+    #     is_σ_self_conjugate = (data_σ_μ.σ == data_sn.get_tilde(data_σ_μ.σ))
+    #     meta_ϵ_st_dict_dict = {}  # 简化版支持用meta_isf_rows的元素拿ϵ_st
+    #     for σ_μ_τ_st in σ_μ_τ_st_list:
+    #         meta_σ_st, meta_μ_st, τ_st = σ_μ_τ_st if len(σ_μ_τ_st) == 3 else (*σ_μ_τ_st, None)
+    #         flag, ϵ_st_dict = load_ϵ(self.s_t, meta_σ_st, meta_μ_st, ν_st, τ_st, is_flag_true_if_not_s_n=False)
+    #         if not flag:
+    #             err_msg = "load_ϵ fail by self.s_t={}, meta_σ_st={}, meta_μ_st={}, ν_st={}, τ_st={} " \
+    #                       "with msg={}".format(self.s_t, meta_σ_st, meta_μ_st, ν_st, τ_st, ϵ_st_dict)
+    #             logger.error(err_msg)
+    #         meta_ϵ_st_dict_dict[str(σ_μ_τ_st)] = ϵ_st_dict
+    #
+    #     for col, ν_τ in enumerate(ν_τ_list):  # 按照列循环
+    #         meta_ν, τ = ν_τ if isinstance(ν_τ, tuple) else (ν_τ, None)
+    #         if data_sn.get_eigenvalue(meta_ν) <= 0:  # 这里巧妙使用ev>0的列做元，去推ev<0的对应列。所以跳过它，执行>0的元
+    #             continue
+    #         # 用meta列推导对称列
+    #         sym_ν = data_sn.get_tilde(meta_ν)
+    #         sym_ν_τ = sym_ν if τ is None else (sym_ν, τ)
+    #         sym_col = ν_τ_list.index(sym_ν_τ)
+    #         meta_ϵ_dict = data_σ_μ.get_ϵ_dict(meta_ν, τ)
+    #         for row, σ_μ_τ_st in enumerate(σ_μ_τ_st_list):
+    #             meta_σ_st, meta_μ_st, τ_st = σ_μ_τ_st if len(σ_μ_τ_st) == 3 else (*σ_μ_τ_st, None)
+    #             if is_σ_self_conjugate:
+    #                 sym_σ_st, sym_μ_st = data_st.get_tilde(meta_σ_st), meta_μ_st
+    #             else:
+    #                 sym_σ_st, sym_μ_st = meta_σ_st, data_st.get_tilde(meta_μ_st)
+    #             sym_σ_μ_τ_st = (sym_σ_st, sym_μ_st) if τ_st is None else (sym_σ_st, sym_μ_st, τ_st)
+    #             sym_row = σ_μ_τ_st_list.index(sym_σ_μ_τ_st)
+    #             # 正式调换None
+    #             if partial_isf_square[sym_row, sym_col] is not None:
+    #                 err_msg = "sym_row={}, sym_col={} in partial_isf_square={} for same_table should be None".format(
+    #                     sym_row, sym_col, partial_isf_square)
+    #                 logger.error(err_msg)
+    #                 return False, err_msg
+    #             if is_σ_self_conjugate:
+    #                 ϵ = meta_ϵ_dict["ϵ5"] * meta_ϵ_st_dict_dict[str(σ_μ_τ_st)]["ϵ5"]
+    #                 butler_σ_σ_st = data_sn.get_butler_phase_factor(data_σ_μ.σ, meta_σ_st)
+    #                 butler_ν_ν_st = data_sn.get_butler_phase_factor(meta_ν, ν_st)
+    #                 butler_Λ = butler_σ_σ_st * butler_ν_ν_st
+    #             else:
+    #                 ϵ = meta_ϵ_dict["ϵ6"] * meta_ϵ_st_dict_dict[str(σ_μ_τ_st)]["ϵ6"]
+    #                 butler_μ_μ_st = data_sn.get_butler_phase_factor(data_σ_μ.μ, meta_μ_st)
+    #                 butler_ν_ν_st = data_sn.get_butler_phase_factor(meta_ν, ν_st)
+    #                 butler_Λ = butler_μ_μ_st * butler_ν_ν_st
+    #
+    #             if _debug_condition(data_σ_μ, ν_st):
+    #                 logger.warning("@@@@ ϵ={}, butler_Λ={}, data_σ_μ={}, ν_st={}".format(
+    #                     ϵ, butler_Λ, data_σ_μ, ν_st))
+    #
+    #             partial_isf_square[sym_row, sym_col] = ϵ * butler_Λ * partial_isf_square[row, col]
+    #
+    #     full_isf_square_dict = {"rows": σ_μ_τ_st_list,
+    #                             "cols": ν_τ_list,
+    #                             "isf": partial_isf_square}
+    #     return True, full_isf_square_dict
+
+    def _calc_isf_τ_and_phase_vector_list(self, soe_vectors, ν, ν_st, row_index_tmp_list, τ_max,
                                           data_sn, data_st, data_σ_μ):
         """ 将经过施密特正交归一化手续后的本征矢量调整为Yamanouchi相位，同时确定非第一分支的τ
         返回结果是按照soe_vectors对应排序的
@@ -1795,8 +1807,8 @@ class ISFHelper(CalcHelper):
 
         if data_sn.get_bl_yds(ν)[0] == ν_st:  # ν_st击中ν的第一分支
 
-            # if _debug_condition(data_σ_μ, ν_st):
-            #     logger.warning("@@@@ 绝对相位 ν={} 的第一分支是 ν_st={}".format(ν, ν_st))
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ 绝对相位 ν={} 的第一分支是 ν_st={}".format(ν, ν_st))
 
             # 当ν_st为ν第一分支的时候，令首个非零系数符号为+，称为绝对相位
             for τ_tmp, soe_vector in zip(range(1, τ_max + 1), soe_vectors):
@@ -1823,8 +1835,8 @@ class ISFHelper(CalcHelper):
             '''
             ν_st_fbl = data_sn.get_bl_yds(ν)[0]  # ν_st_fbl就是ν_st对应ν的第一分支，它们σ、μ虽然不同，但σ'μ'ν相同
 
-            # if _debug_condition(data_σ_μ, ν_st):
-            #     logger.warning("@@@@ 相对相位 ν={} 的第一分支不是 ν_st={} 而是 ν_st_fbl={}".format(ν, ν_st, ν_st_fbl))
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ 相对相位 ν={} 的第一分支不是 ν_st={} 而是 ν_st_fbl={}".format(ν, ν_st, ν_st_fbl))
 
             # 三个m的意义分别是：
             # 1 m_ν：               令当前ν_st（非ν的第一分支）的m'取1时，ν的m；
@@ -1850,13 +1862,14 @@ class ISFHelper(CalcHelper):
             isf_fbl_row_list, isf_fbl_col_list, isf_fbl_square = \
                 isf_fbl_dict["rows"], isf_fbl_dict["cols"], isf_fbl_dict["isf"]
 
-            # if _debug_condition(data_σ_μ, ν_st):
-            #     logger.warning("@@@@ isf_fbl_row_list={}, isf_fbl_col_list={}, isf_fbl_square={} with "
-            #                    "data_σ_μ.σ={}, data_σ_μ.μ={}, ν_st_fbl={}".format(
-            #         isf_fbl_row_list, isf_fbl_col_list, isf_fbl_square, data_σ_μ.σ, data_σ_μ.μ, ν_st_fbl))
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ isf_fbl_row_list={}, isf_fbl_col_list={}, isf_fbl_square={} with "
+                               "data_σ_μ.σ={}, data_σ_μ.μ={}, ν_st_fbl={}".format(
+                    isf_fbl_row_list, isf_fbl_col_list, isf_fbl_square, data_σ_μ.σ, data_σ_μ.μ, ν_st_fbl))
 
             # 将第一分支(fbl)的τ分配给当前分支，并充分利用结果，把能确定的phase定下来
             '''
+            TODO 看用时决定是否优化确定τ的算法
             为了区分τ，我们采取一个最笨的办法，就是：
             1，维护一个flag_uncertain_τ_num，用来判断是否完成目标
             2，维护τ_by_soe_vectors，用来表示当前每个vector的τ范围（循环结束后应该是len1的）
@@ -1910,14 +1923,14 @@ class ISFHelper(CalcHelper):
                         continue
                     # 用当前待定τ的列soe_vector，去计算已知的isf_fbl_square
                     flag, isf_fbl_another = \
-                        self._calc_isf_by_known_isf(soe_vector, row_index_list, ν_st, m_ν_st, m_ν,
+                        self._calc_isf_by_known_isf(soe_vector, row_index_tmp_list, ν_st, m_ν_st, m_ν,
                                                     row, ν_st_fbl, m_ν_st_fbl, m_ν_by_m_ν_st_fbl, ν, data_sn, data_σ_μ)
                     if not flag:
                         err_msg = "calc isf_fbl_another meet error " \
-                                  "with soe_vector={}, row_index_list={}, ν_st={}, m_ν_st={}, m_ν={}, " \
+                                  "with soe_vector={}, row_index_tmp_list={}, ν_st={}, m_ν_st={}, m_ν={}, " \
                                   "row={}, ν_st_fbl={}, m_ν_st_fbl={}, m_ν_by_m_ν_st_fbl={}, " \
                                   "ν={}, data_sn={}, data_σ_μ={}, " \
-                                  "msg={}".format(soe_vector, row_index_list, ν_st, m_ν_st, m_ν,
+                                  "msg={}".format(soe_vector, row_index_tmp_list, ν_st, m_ν_st, m_ν,
                                                   row, ν_st_fbl, m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
                                                   ν, data_sn, data_σ_μ, isf_fbl_another)
                         logger.error(err_msg)
@@ -1964,10 +1977,10 @@ class ISFHelper(CalcHelper):
                                 logger.error(err_msg)
                                 return False, err_msg, None
 
-            # if _debug_condition(data_σ_μ, ν_st):
-            #     logger.warning("@@@@ τ_candidate={}".format(τ_candidate))
-            #     logger.warning("@@@@ phase_candidate={}".format(phase_candidate))
-            #     logger.warning("@@@@ soe_vectors={}".format(soe_vectors))
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ τ_candidate={}".format(τ_candidate))
+                logger.warning("@@@@ phase_candidate={}".format(phase_candidate))
+                logger.warning("@@@@ soe_vectors={}".format(soe_vectors))
 
             if flag_soe:
                 # 到这里，soe_vectors的τ已经完全确定，phase部分确定，下面补充未确定的phase就可以了
@@ -1990,21 +2003,21 @@ class ISFHelper(CalcHelper):
                         first_no_0_isf_fbl_row_index, first_no_0_isf_fbl_square = \
                             self._get_first_no_0_number_from_vector(isf_fbl_square_same_τ)
 
-                        # if _debug_condition(data_σ_μ, ν_st):
-                        #     logger.warning("@@@@ first_no_0_isf_fbl_row_index={}".format(first_no_0_isf_fbl_row_index))
-                        #     logger.warning("@@@@ first_no_0_isf_fbl_square={}".format(first_no_0_isf_fbl_square))
+                        if _debug_condition(data_σ_μ, ν_st):
+                            logger.warning("@@@@ first_no_0_isf_fbl_row_index={}".format(first_no_0_isf_fbl_row_index))
+                            logger.warning("@@@@ first_no_0_isf_fbl_square={}".format(first_no_0_isf_fbl_square))
 
                         first_no_0_isf_fbl_row = isf_fbl_row_list[first_no_0_isf_fbl_row_index]
                         flag, isf_fbl_another = \
-                            self._calc_isf_by_known_isf(soe_vector, row_index_list, ν_st, m_ν_st, m_ν,
+                            self._calc_isf_by_known_isf(soe_vector, row_index_tmp_list, ν_st, m_ν_st, m_ν,
                                                         first_no_0_isf_fbl_row, ν_st_fbl, m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
                                                         ν, data_sn, data_σ_μ)
                         if not flag:
                             err_msg = "complete isf_fbl_another meet error " \
-                                      "with soe_vector={}, row_index_list={}, ν_st={}, m_ν_st={}, m_ν={}, " \
+                                      "with soe_vector={}, row_index_tmp_list={}, ν_st={}, m_ν_st={}, m_ν={}, " \
                                       "first_no_0_isf_fbl_row={}, ν_st_fbl={}, m_ν_st_fbl={}, m_ν_by_m_ν_st_fbl={}, " \
                                       "ν={}, data_sn={}, data_σ_μ={}, " \
-                                      "msg={}".format(soe_vector, row_index_list, ν_st, m_ν_st, m_ν,
+                                      "msg={}".format(soe_vector, row_index_tmp_list, ν_st, m_ν_st, m_ν,
                                                       first_no_0_isf_fbl_row, ν_st_fbl, m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
                                                       ν, data_sn, data_σ_μ, isf_fbl_another)
                             logger.error(err_msg)
@@ -2039,8 +2052,8 @@ class ISFHelper(CalcHelper):
                 τ_tmp_list = []
                 phase_vector_list = []
 
-                # logger.warning("@@@@ renew isf for ν={}, ν_st={}, data_sn={}, data_st={}, data_σ_μ={}".format(
-                #     ν, ν_st, data_sn, data_st, data_σ_μ))
+                logger.warning("@@@@ renew isf for ν={}, ν_st={}, data_sn={}, data_st={}, data_σ_μ={}".format(
+                    ν, ν_st, data_sn, data_st, data_σ_μ))
 
                 # 使用4-195c重新正算phase_vector，放弃seo_vector
                 for τ_tmp in range(1, τ_max + 1):  # 此时，列按照fbl的就是正序了，且它必须有非零τ
@@ -2049,7 +2062,7 @@ class ISFHelper(CalcHelper):
                     isf_fbl_square_by_col = isf_fbl_square[:, isf_fbl_col_list.index(col)]
                     isf_fbl_col_vector = sp.Matrix([sp.sign(i) * sp.sqrt(abs(i)) for i in isf_fbl_square_by_col])
                     phase_vector_tmp = []
-                    for row in row_index_list:
+                    for row in row_index_tmp_list:
                         flag, single_phase_vector_new = \
                             self._calc_isf_by_known_isf(isf_fbl_col_vector, isf_fbl_row_list, ν_st_fbl,
                                                         m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
@@ -2070,8 +2083,8 @@ class ISFHelper(CalcHelper):
                         phase_vector_tmp.append(single_phase_vector_new)
                     phase_vector_list.append(sp.Matrix(phase_vector_tmp))
 
-                # logger.warning("@@@@ renew isf phase_vector_list={}".format(phase_vector_list))
-                # logger.warning("@@@@ old soe_vectors={}".format(soe_vectors))
+                logger.warning("@@@@ renew isf phase_vector_list={}".format(phase_vector_list))
+                logger.warning("@@@@ old soe_vectors={}".format(soe_vectors))
 
                 # TODO delete it(因为这部分回推，对计算是多余的，它只是初次写这段代码的检查)
                 # 利用new的，再回推fbl，反正以下自洽
@@ -2081,7 +2094,7 @@ class ISFHelper(CalcHelper):
                     first_isf_fbl_square = isf_fbl_square[:, isf_fbl_col_list.index(col)][0]
                     phase_vector = phase_vector_list[τ_tmp - 1]
                     flag, isf_fbl_another = \
-                        self._calc_isf_by_known_isf(phase_vector, row_index_list, ν_st, m_ν_st, m_ν,
+                        self._calc_isf_by_known_isf(phase_vector, row_index_tmp_list, ν_st, m_ν_st, m_ν,
                                                     first_isf_fbl_row, ν_st_fbl, m_ν_st_fbl, m_ν_by_m_ν_st_fbl,
                                                     ν, data_sn, data_σ_μ)
                     if sp.sign(isf_fbl_another) * isf_fbl_another**2 != first_isf_fbl_square:
@@ -2159,9 +2172,77 @@ class ISFHelper(CalcHelper):
         u_isf_element = sum_3_loop / in_matrix_ν_m_m_element
         return True, u_isf_element
 
+    # def _calc_isf_fbl_another_way(self, ν, m_ν, m_ν_by_m_ν_st_fbl, isf_fbl_row, ν_st_fbl,
+    #                               row_index_tmp_list, soe_vector, ν_st, m_ν_st, data_sn, data_σ_μ):
+    #     """
+    #     isf除了有书中介绍的两种根据St_ISF计算的递推方法外，还可以根据已有Sn的isf，推断一部分isf
+    #     见式子 4-195c
+    #     这里，是用待定符号的当前isf，计算前面已经确定符号和数值的isf_fbl，其结果最多只可能相差一个正负号
+    #     用符号是否相同，就可以判断相对相位是否需要整体改变符号
+    #     用数值是否相同，可以判断τ，也可以校验结果的正确性"""
+    #     σ_st_fbl, μ_st_fbl = isf_fbl_row[0], isf_fbl_row[1]
+    #     τ_st_fbl = isf_fbl_row[2] if len(isf_fbl_row) == 3 else None
+    #     flag, cgc_square_st_fbl_dict = load_cgc(self.s_t, σ_st_fbl, μ_st_fbl, ν_st_fbl, τ_st_fbl, m_ν_by_m_ν_st_fbl,
+    #                                             is_flag_true_if_not_s_n=False)
+    #
+    #     if _debug_condition(data_σ_μ, ν_st):
+    #         logger.warning("@@@@ cgc_square_st_fbl_dict={}".format(cgc_square_st_fbl_dict))
+    #
+    #     if not flag:
+    #         err_msg = "get cgc_square_dict with self.s_t={}, σ_st_fbl={}, μ_st_fbl={}, " \
+    #                   "ν_st_fbl={}, τ_st_fbl={}, cgc_square_st_fbl_dict={} meet error with " \
+    #                   "msg={}".format(self.s_t, σ_st_fbl, μ_st_fbl, ν_st_fbl, τ_st_fbl,
+    #                                   m_ν_by_m_ν_st_fbl, cgc_square_st_fbl_dict)
+    #         logger.error(err_msg)
+    #         return False, err_msg
+    #
+    #     sum_3_loop = 0
+    #     offset_σ_fbl = data_sn.get_offset(σ_st_fbl, data_σ_μ.σ)
+    #     offset_μ_fbl = data_sn.get_offset(μ_st_fbl, data_σ_μ.μ)
+    #     for (σ_st, μ_st, τ_st), soe_vector_element in zip(row_index_tmp_list, soe_vector):
+    #         flag, cgc_square_st_dict = load_cgc(self.s_t, σ_st, μ_st, ν_st, τ_st, m_ν_st, is_flag_true_if_not_s_n=False)
+    #         if not flag:
+    #             err_msg = "get cgc_square_st_dict with self.s_t={}, σ_st={}, μ_st={}, ν_st={}, τ_st={}, m_ν_st={} " \
+    #                       "meet error with msg={}".format(self.s_t, σ_st, μ_st, ν_st, τ_st, m_ν_st, cgc_square_st_dict)
+    #             logger.error(err_msg)
+    #             return False, err_msg
+    #         sum_3_loop_part = 0
+    #         offset_σ = data_sn.get_offset(σ_st, data_σ_μ.σ)
+    #         offset_μ = data_sn.get_offset(μ_st, data_σ_μ.μ)
+    #         for (m_σ_st_fbl, m_μ_st_fbl), cgc_square_st_fbl_element \
+    #                 in cgc_square_st_fbl_dict.items():
+    #             m_σ_fbl = offset_σ_fbl + m_σ_st_fbl
+    #             m_μ_fbl = offset_μ_fbl + m_μ_st_fbl
+    #             for (m_σ_st, m_μ_st), cgc_square_st_element in cgc_square_st_dict.items():
+    #                 m_σ = offset_σ + m_σ_st
+    #                 m_μ = offset_μ + m_μ_st
+    #                 in_matrix_σ_element = data_σ_μ.in_matrix_σ_dict[(self.s_t, self.s_n)][m_σ_fbl - 1, m_σ - 1]
+    #                 in_matrix_μ_element = data_σ_μ.in_matrix_μ_dict[(self.s_t, self.s_n)][m_μ_fbl - 1, m_μ - 1]
+    #                 sum_3_loop_part += in_matrix_σ_element * in_matrix_μ_element \
+    #                                    * sp.sign(cgc_square_st_element) * sp.sign(cgc_square_st_fbl_element) \
+    #                                    * sp.sqrt(abs(cgc_square_st_element * cgc_square_st_fbl_element))
+    #         sum_3_loop += sum_3_loop_part * soe_vector_element
+    #
+    #     flag, in_matrix_ν = load_yamanouchi_matrix(self.s_n, ν, (self.s_t, self.s_n,), mode="in",
+    #                                                is_flag_true_if_not_s_n=False)  # (Sn-1, Sn)的对换
+    #     if not flag:
+    #         err_msg = "get in_matrix_ν with s_n={}, ν={}, in_key={} meet error with " \
+    #                   "msg={}".format(self.s_n, ν, (self.s_t, self.s_n,), in_matrix_ν)
+    #         logger.error(err_msg)
+    #         return False, err_msg
+    #     in_matrix_ν_m_m_element = in_matrix_ν[m_ν - 1, m_ν_by_m_ν_st_fbl - 1]
+    #     fbl_isf = sum_3_loop / in_matrix_ν_m_m_element
+    #     return True, fbl_isf
+
     @staticmethod
     def _get_first_no_0_number_from_vector(vector):
-        """提取vector中首个非0的数字和index"""
+        """提取vector中首个误差范围内非0的数字和index"""
+        # 现在使用sympy了，不会有误差
+        # for number in vector:
+        #     if abs(number) < error_value:
+        #         continue
+        #     return number
+        # return None
         for i, number in enumerate(vector):
             if number != 0:
                 return i, number
@@ -2186,63 +2267,49 @@ class ISFHelper(CalcHelper):
 
         return rst
 
-    # @staticmethod
-    # def _calc_ν_by_λ_and_bl(λ_ν, eigenvalue_list, yd_list, bl_yd_list_dict, ν_st):
-    #     """根据本征值航道，得到ν"""
-    #     count_λ_ν = eigenvalue_list.count(λ_ν)
-    #     if count_λ_ν == 0:
-    #         err_msg = "λ_ν={} should in eigenvalue_list={} but not, pls check".format(λ_ν, eigenvalue_list)
-    #         logger.error(err_msg)
-    #         raise Exception(err_msg)
-    #     elif count_λ_ν == 1:
-    #         return yd_list[eigenvalue_list.index(λ_ν)]
-    #
-    #     else:  # 多于1个，需要用"航道"确定
-    #         rst_list = []
-    #         for ev, yd_candidate in zip(eigenvalue_list, yd_list):
-    #             if ev != λ_ν:
-    #                 continue
-    #             bl_yds = bl_yd_list_dict[tuple(yd_candidate)]
-    #             if ν_st in bl_yds:  # 核心就是判断yd_candidate的分支律中是否含有ν_st
-    #                 rst_list.append(yd_candidate)
-    #         if len(rst_list) == 1:
-    #             return rst_list[0]
-    #         else:
-    #             # TODO 这里先报错，暂不确定是否会出现这种情况
-    #             msg = "get rst_list={} len > 1, pls check, " \
-    #                   "with λ_ν={}, eigenvalue_list={}, yd_list={}, bl_yd_list_dict={}, ν_st={}".format(
-    #                 rst_list, λ_ν, eigenvalue_list, yd_list, bl_yd_list_dict, ν_st)
-    #             logger.warning(msg)
-    #             raise Exception(msg)
+    @staticmethod
+    def _calc_ν_by_λ_and_bl(λ_ν, eigenvalue_list, yd_list, bl_yd_list_dict, ν_st):
+        """根据本征值航道，得到ν"""
+        count_λ_ν = eigenvalue_list.count(λ_ν)
+        if count_λ_ν == 0:
+            err_msg = "λ_ν={} should in eigenvalue_list={} but not, pls check".format(λ_ν, eigenvalue_list)
+            logger.error(err_msg)
+            raise Exception(err_msg)
+        elif count_λ_ν == 1:
+            return yd_list[eigenvalue_list.index(λ_ν)]
 
-    # @staticmethod
-    # def calc_row_indexes_tmp(data_σ_μ, ν_st, data_st, is_tmp=True):
-    #     """计算ISF表格的行的意义，它是的bl_σ, bl_μ, τ'的列表
-    #     形如[([3,1],[3,1],None), ([3,1],[2,1,1],1), ([3,1],[2,1,1],2), ...]"""
-    #     row_index_tmp_list = []  # [(bl_σ, bl_μ, τ'), ...]
-    #     for bl_σ, bl_μ in product(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ):
-    #         single_ν_cg_series = data_σ_μ.get_cg_series_st(bl_σ, bl_μ, ν_st, data_st.yd_list)
-    #         if single_ν_cg_series == 0:
-    #             continue
-    #         part_rst_list = [(bl_σ, bl_μ, τ_st) if single_ν_cg_series >= 2 else
-    #                          ((bl_σ, bl_μ, None) if is_tmp is True else (bl_σ, bl_μ))
-    #                          for τ_st in range(1, single_ν_cg_series + 1)]  # [1, 2, ..., single_ν_cg_series]
-    #         row_index_tmp_list += part_rst_list
-    #     return row_index_tmp_list  # 当σ * μ中不包含ν_st时，结果为[]
+        else:  # 多于1个，需要用"航道"确定
+            rst_list = []
+            for ev, yd_candidate in zip(eigenvalue_list, yd_list):
+                if ev != λ_ν:
+                    continue
+                bl_yds = bl_yd_list_dict[tuple(yd_candidate)]
+                if ν_st in bl_yds:  # 核心就是判断yd_candidate的分支律中是否含有ν_st
+                    rst_list.append(yd_candidate)
+            if len(rst_list) == 1:
+                return rst_list[0]
+            else:
+                # TODO 这里先报错，暂不确定是否会出现这种情况
+                msg = "get rst_list={} len > 1, pls check, " \
+                      "with λ_ν={}, eigenvalue_list={}, yd_list={}, bl_yd_list_dict={}, ν_st={}".format(
+                    rst_list, λ_ν, eigenvalue_list, yd_list, bl_yd_list_dict, ν_st)
+                logger.warning(msg)
+                raise Exception(msg)
 
     @staticmethod
-    def calc_row_indexes(data_σ_μ, ν_st, data_st):
+    def calc_row_indexes_tmp(data_σ_μ, ν_st, data_st, is_tmp=True):
         """计算ISF表格的行的意义，它是的bl_σ, bl_μ, τ'的列表
         形如[([3,1],[3,1],None), ([3,1],[2,1,1],1), ([3,1],[2,1,1],2), ...]"""
-        row_index_list = []  # [(bl_σ, bl_μ, τ'), ...]
+        row_index_tmp_list = []  # [(bl_σ, bl_μ, τ'), ...]
         for bl_σ, bl_μ in product(data_σ_μ.bl_yds_of_σ, data_σ_μ.bl_yds_of_μ):
             single_ν_cg_series = data_σ_μ.get_cg_series_st(bl_σ, bl_μ, ν_st, data_st.yd_list)
             if single_ν_cg_series == 0:
                 continue
             part_rst_list = [(bl_σ, bl_μ, τ_st) if single_ν_cg_series >= 2 else
-                             (bl_σ, bl_μ) for τ_st in range(1, single_ν_cg_series + 1)]
-            row_index_list += part_rst_list
-        return row_index_list  # 当σ * μ中不包含ν_st时，结果为[]
+                             ((bl_σ, bl_μ, None) if is_tmp is True else (bl_σ, bl_μ))
+                             for τ_st in range(1, single_ν_cg_series + 1)]  # [1, 2, ..., single_ν_cg_series]
+            row_index_tmp_list += part_rst_list
+        return row_index_tmp_list  # 当σ * μ中不包含ν_st时，结果为[]
 
     @staticmethod
     def calc_col_indexes(data_σ_μ, ν_st, data_sn):
@@ -2291,6 +2358,27 @@ class ISFHelper(CalcHelper):
 
         return True, rst_dict
 
+    # def _cgc_st_2_cgc_m_dict(self, cgc_st_tuple, yt_st_num_dict, data_σ_μ):
+    #     """取得cg_st_dict，并且，根据分支律，将m_st转化为对应的m
+    #     注意：返回的字典，仅仅是把m_st按照分支律准化成了它的m对应，value仍然是st的cgc"""
+    #     σ_st, μ_st, ν_st, τ_st, _ = cgc_st_tuple
+    #     rst_dict = {}
+    #     flag, cgc_st_square_dict = self._load_cgc_with_m1_lru(self.s_t, σ_st, μ_st, ν_st, τ_st)
+    #     if not flag:
+    #         err_msg = "load_cgc fail by s_t={}, σ_st={}, μ_st={}, ν_st={}, τ_st={} with msg={}".format(
+    #             self.s_t, σ_st, μ_st, ν_st, τ_st, cgc_st_square_dict)
+    #         logger.error(err_msg)
+    #         return False, err_msg
+    #     cgc_st_square_n = cgc_st_square_dict.pop("N")
+    #     for (m_σ_st, m_μ_st), cgc_st_square in cgc_st_square_dict.items():
+    #         m_σ = self._calc_m_with_m_st(σ_st, m_σ_st, data_σ_μ.bl_yds_of_σ, yt_st_num_dict)
+    #         m_μ = self._calc_m_with_m_st(μ_st, m_μ_st, data_σ_μ.bl_yds_of_μ, yt_st_num_dict)
+    #         rst_dict[(m_σ, m_μ,)] = cgc_st_square
+    #     cgc_st_square_dict["N"] = cgc_st_square_n
+    #     rst_dict["N"] = cgc_st_square_n
+    #
+    #     return True, rst_dict
+    
     def _calc_isf_matrix_element(self, cgc_st_tuple_left, cgc_st_tuple_right, data_sn, data_σ_μ):
         """计算ISF本征矩阵的矩阵元，其中主对角元可适当优化"""
         matrix_element = 0
@@ -2323,29 +2411,67 @@ class ISFHelper(CalcHelper):
 
         return True, matrix_element
 
-    def _calc_isf_matrix(self, row_index_list, ν_st, data_sn, data_σ_μ):
+    # def _calc_isf_matrix_element(self, cgc_st_tuple_left, cgc_st_tuple_right, yt_st_num_dict, data_σ_μ):
+    #     """计算ISF本征矩阵的矩阵元，其中主对角元可适当优化"""
+    #     matrix_element = 0
+    #     # 将St的cgc根据分支律上升到Sn，并整形成py序
+    #     # 左
+    #     _, factor_cgc_left_dict = self._cgc_st_2_cgc_m_dict(cgc_st_tuple_left, yt_st_num_dict, data_σ_μ)
+    #     left_n = factor_cgc_left_dict.pop("N")
+    #     left_tmp_dict = {}
+    #     for left_key, factor_cgc_left in factor_cgc_left_dict.items():
+    #         left_tmp = sp.sign(factor_cgc_left) * sp.sqrt(abs(factor_cgc_left))
+    #         left_tmp_dict[left_key] = left_tmp
+    #     factor_cgc_left_dict["N"] = left_n  # 还原字典，避免deepcopy
+    #     # 右
+    #     if cgc_st_tuple_right == cgc_st_tuple_left:  # 如果相等，则直接使用left结果，无需重复计算
+    #         right_tmp_dict = left_tmp_dict
+    #         left_right_sqrt_n = left_n
+    #     else:
+    #         _, factor_cgc_right_dict = self._cgc_st_2_cgc_m_dict(cgc_st_tuple_right, yt_st_num_dict, data_σ_μ)
+    #         right_n = factor_cgc_right_dict.pop("N")
+    #         right_tmp_dict = {}
+    #         for right_key, factor_cgc_right in factor_cgc_right_dict.items():
+    #             right_tmp = sp.sign(factor_cgc_right) * sp.sqrt(abs(factor_cgc_right))
+    #             right_tmp_dict[right_key] = right_tmp
+    #         factor_cgc_right_dict["N"] = right_n
+    #         left_right_sqrt_n = sp.sqrt(left_n * right_n)
+    #
+    #     # 计算matrix_element
+    #     for (m_σ_left, m_μ_left), left_tmp in left_tmp_dict.items():
+    #         for (m_σ_right, m_μ_right), right_tmp in right_tmp_dict.items():
+    #             in_element_sum = 0
+    #             for i in range(1, self.s_n):  # 这个i是交换矩阵（in）中的i
+    #                 σ_in_element = data_σ_μ.in_matrix_σ_dict[(i, self.s_n)][m_σ_left - 1, m_σ_right - 1]  # m-1得到py序
+    #                 μ_in_element = data_σ_μ.in_matrix_μ_dict[(i, self.s_n)][m_μ_left - 1, m_μ_right - 1]
+    #                 in_element_sum += σ_in_element * μ_in_element
+    #             matrix_element += in_element_sum * left_tmp * right_tmp
+    #     matrix_element = matrix_element / left_right_sqrt_n
+    #
+    #     return True, matrix_element
+
+    def _calc_isf_matrix(self, row_index_tmp_list, ν_st, data_sn, data_σ_μ):
         """计算ISF的本征矩阵"""
-        matrix_div = len(row_index_list)
+        matrix_div = len(row_index_tmp_list)
         isf_matrix = sp.zeros(matrix_div)
 
         # 构建主对角元
-        for i, row in enumerate(row_index_list):
-            cgc_st_tuple = (row[0], row[1], ν_st, None, 1) if len(row) == 2 else (row[0], row[1], ν_st, row[2], 1)
+        for rc, (σ_st, μ_st, τ_st) in enumerate(row_index_tmp_list):
+            cgc_st_tuple = (σ_st, μ_st, ν_st, τ_st, 1)
             flag, isf_matrix_element = self._calc_isf_matrix_element(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ)
             if not flag:
                 err_msg = "get isf_matrix_element by cgc_st_tuple={}, cgc_st_tuple={}, data_sn={}, data_σ_μ={}" \
                           "with msg={}".format(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ, isf_matrix_element)
                 logger.error(err_msg)
                 return False, err_msg
-            isf_matrix[i, i] = isf_matrix_element
+            isf_matrix[rc, rc] = isf_matrix_element
 
         # 构建其他矩阵元素
         if matrix_div >= 2:
-            for (left_i, left_st), (right_i, right_st) in combinations(enumerate(row_index_list), 2):
-                cgc_st_tuple_left = (left_st[0], left_st[1], ν_st, None, 1) if len(left_st) == 2 \
-                    else (left_st[0], left_st[1], ν_st, left_st[2], 1)
-                cgc_st_tuple_right = (right_st[0], right_st[1], ν_st, None, 1) if len(right_st) == 2 \
-                    else (right_st[0], right_st[1], ν_st, right_st[2], 1)
+            for (row, (σ_st_left, μ_st_left, τ_st_left)), (col, (σ_st_right, μ_st_right, τ_st_right)) \
+                    in combinations(enumerate(row_index_tmp_list), 2):
+                cgc_st_tuple_left = (σ_st_left, μ_st_left, ν_st, τ_st_left, 1)
+                cgc_st_tuple_right = (σ_st_right, μ_st_right, ν_st, τ_st_right, 1)
                 flag, isf_matrix_element = self._calc_isf_matrix_element(cgc_st_tuple_left, cgc_st_tuple_right,
                                                                          data_sn, data_σ_μ)
                 if not flag:
@@ -2355,8 +2481,8 @@ class ISFHelper(CalcHelper):
                                                    data_σ_μ, isf_matrix_element)
                     logger.error(err_msg)
                     return False, err_msg
-                isf_matrix[left_i, right_i] = isf_matrix_element
-                isf_matrix[right_i, left_i] = isf_matrix_element  # 因为ISF的本征矩阵共轭
+                isf_matrix[row, col] = isf_matrix_element
+                isf_matrix[col, row] = isf_matrix_element  # 因为ISF的本征矩阵共轭
 
         return True, isf_matrix
 
@@ -2373,61 +2499,47 @@ class ISFHelper(CalcHelper):
         ISF_ν~ν'~σσ'μ~μ'~
         = sqrt(h_ν'/h_ν)/sqrt(h_μ'/h_μ) * ϵ(σ'μ'ν')*ϵ(σμν) / ϵ(ν'~σ'μ'~)*ϵ(ν~σμ~) / Λ^ν_ν'*Λ^μ_μ' * ISF_σσ'μμ'νν'
         = sqrt(h_ν'*h_μ/h_ν*h_μ') * ϵ(σ'μ'ν')*ϵ(σμν) * ϵ(ν'~σ'μ'~)*ϵ(ν~σμ~) * Λ^ν_ν'*Λ^μ_μ' * ISF_σσ'μμ'νν'
-        # 注意，因为实际输出的是ISF_square，所以sqrt是要平方的
-        有：
-        ISF_ν~ν'~σσ'μ~μ'~_square
-        = h_ν'*h_μ / h_ν*h_μ' * ϵ(σ'μ'ν')*ϵ(σμν) * ϵ(ν'~σ'μ'~)*ϵ(ν~σμ~) * Λ^ν_ν'*Λ^μ_μ' * ISF_σσ'μμ'νν'_square
         """
-
-        # if _debug_σμν_cond(*sym_σμν) and _debug_condition(meta_data_σ_μ):
-        #     logger.warning("@@@@ catch sym_σμν={}, sym_ν_st={} with sym_τ={}, "
-        #                    "s_row={}, sym_key={}, sym_d3={}, sym_k4={}"
-        #                    "".format(sym_σμν, sym_ν_st, sym_τ, s_row, sym_key, sym_d3, sym_k4))
-
         # 0, 数据准备
-        sym_σ_st, sym_μ_st, sym_τ_st = s_row if len(s_row) == 3 else (s_row[0], s_row[1], None)
+        sym_σ_st, sym_μ_st, sym_τ_st = s_row if isinstance(s_row, tuple) else (s_row[0], s_row[1], None)
         meta_τ_st = sym_τ_st
         sym_σμν_st = (sym_σ_st, sym_μ_st, sym_ν_st)
         # d3和k4对于σμν，σ'μ'ν'应该是一致的，所以用它也能反推meta'
         meta_σμν = [None, None, None]
         meta_σμν_st = [None, None, None]
         for single_s_σμν, single_s_σμν_st, s_d, s_k in zip(sym_σμν, sym_σμν_st, sym_d3, sym_k4):
-            single_meta_σμν = single_s_σμν if s_k is False else data_sn.get_tilde(single_s_σμν)
-            meta_σμν[s_d] = single_meta_σμν
-            single_meta_σμν_st = single_s_σμν_st if s_k is False else data_st.get_tilde(single_s_σμν_st)
-            meta_σμν_st[s_d] = single_meta_σμν_st
+            single_meta_σμν = single_s_σμν if sym_k4 is False else data_sn.get_tilde(single_s_σμν)
+            meta_σμν[sym_d3] = single_meta_σμν
+            single_meta_σμν_st = single_s_σμν_st if sym_k4 is False \
+                else data_st.get_tilde(single_s_σμν_st)
+            meta_σμν_st[sym_d3] = single_meta_σμν_st
         meta_τ = sym_τ
+
         meta_isf_square_dict = meta_data_σ_μ.get_isf_square_dict_by_ν_st(meta_σμν_st[-1])
-
-        if _debug_σμν_cond(*sym_σμν) and _debug_condition(meta_data_σ_μ):
-            logger.warning("@@@@ meta_σμν={}, meta_σμν_st={}, meta_isf_square_dict={}"
-                           "".format(meta_σμν, meta_σμν_st, meta_isf_square_dict))
-
-        # 1, h_ν'*h_μ / h_ν*h_μ'
+        # 1, sqrt
         h_meta_ν = data_sn.get_yt_num(meta_σμν[-1])
         h_meta_ν_st = data_st.get_yt_num(meta_σμν_st[-1])
         h_sym_ν = data_sn.get_yt_num(sym_σμν[-1])
         h_sym_ν_st = data_st.get_yt_num(sym_σμν_st[-1])
-        h_square = sp.Rational(h_meta_ν_st * h_sym_ν, h_meta_ν * h_sym_ν_st)
+        h_sqrt = sp.sqrt(sp.Rational(h_meta_ν_st * h_sym_ν, h_meta_ν * h_sym_ν_st))
         # 2, ϵ
-        ϵ_dict, _ = meta_data_σ_μ.get_ϵ_dict_and_flags(meta_σμν[-1], meta_τ)
-        _, rst_st_dict = load_ϵ(*(self.s_t, *meta_σμν_st, meta_τ_st), is_with_flags=True)
+        ϵ_dict, ϵ_flags = meta_data_σ_μ.get_ϵ_dict_and_flags(meta_σμν[-1], meta_τ)
+        flag, rst_st_dict = load_ϵ(*(self.s_t, *meta_σμν_st, meta_τ_st),
+                                   is_with_flags=True, is_flag_true_if_not_s_n=False)
+        if not flag:
+            err_msg = "load_ϵ fail by self.s_t={}, meta_σμν_st={}, meta_τ_st={} " \
+                      "with msg={}".format(self.s_t, meta_σμν_st, meta_τ_st, rst_st_dict)
+            logger.error(err_msg)
+            return False, err_msg
         ϵ_st_dict, ϵ_st_flags = rst_st_dict.get("data", {}), rst_st_dict.get("flags", {})
         ϵ_4 = ϵ_st_dict["σμν"] * ϵ_dict["σμν"] * ϵ_st_dict[sym_key] * ϵ_dict[sym_key]
         # 3, Λ
-        # 注意：这里的m是跟m'有关的，不是取自ϵ_flags
-        # 法1，直接nb；法2，Λ^ν_ν' = Λ^ν(m) / Λ^ν'(m') = Λ^ν(m) * Λ^ν'(m')  # ：Λ^ν(m) = Λ^ν_ν' * Λ^ν'(m')
-        meta_st_Λ_list_list = [data_st.get_phase_factor_list(yd) for yd in meta_σμν_st]
+        # 由：Λ^ν(m) = Λ^ν_ν' * Λ^ν'(m')
+        # 有：Λ^ν_ν' = Λ^ν(m) / Λ^ν'(m') = Λ^ν(m) * Λ^ν'(m')
+        meta_m_list = ϵ_flags[sym_key]
+        meta_m_st_list = ϵ_st_flags[sym_key]
         meta_Λ_list_list = [data_sn.get_phase_factor_list(yd) for yd in meta_σμν]
-        meta_m_st_list = ϵ_st_flags[sym_key]  # 其实取1也可以，m'是任意取的
-        meta_m_list = [data_sn.quick_calc_m(m_st, yd_st, yd)
-                       for m_st, yd_st, yd in zip(meta_m_st_list, meta_σμν_st, meta_σμν)]
-
-        if _debug_σμν_cond(*sym_σμν) and _debug_condition(meta_data_σ_μ):
-            logger.warning("@@@@ sym_key={}, ϵ_st={}, ϵ={}".format(sym_key, ϵ_st_dict[sym_key], ϵ_dict[sym_key]))
-            logger.warning("@@@@ meta_m_st_list={}, meta_st_Λ_list_list={}".format(meta_m_st_list, meta_st_Λ_list_list))
-            logger.warning("@@@@ meta_m_list={}, meta_Λ_list_list={}".format(meta_m_list, meta_Λ_list_list))
-
+        meta_st_Λ_list_list = [data_st.get_phase_factor_list(yd) for yd in sym_σμν_st]
         ΛΛ = 1
         for d, k in zip(sym_d3, sym_k4):
             if k is True:
@@ -2439,238 +2551,371 @@ class ISFHelper(CalcHelper):
         meta_row = (meta_σμν_st[0], meta_σμν_st[1]) if meta_τ_st is None \
             else (meta_σμν_st[0], meta_σμν_st[1], meta_τ_st)
         meta_col = meta_σμν[-1] if meta_τ is None else (meta_σμν[-1], meta_τ)
-
-        if _debug_σμν_cond(*sym_σμν) and _debug_condition(meta_data_σ_μ):
-            logger.warning("@@@@ meta_row={}, meta_isf_rows={}, meta_col={}, meta_isf_cols={}"
-                           "".format(meta_row, meta_isf_rows, meta_col, meta_isf_cols))
-
         meta_row_index = meta_isf_rows.index(meta_row)
         meta_col_index = meta_isf_cols.index(meta_col)
         single_meta_isf_square = meta_isf_square_matrix[meta_row_index, meta_col_index]
         # ISF_ν~ν'~σσ'μ~μ'~
-        single_sym_isf_square = h_square * ϵ_4 * ΛΛ * single_meta_isf_square
-
-        if _debug_σμν_cond(*sym_σμν) and _debug_condition(meta_data_σ_μ):
-            logger.warning("@@@@ single_sym_isf_square={} \n"
-                           "= h_square={} * ϵ_4={} * ΛΛ={} * single_meta_isf_square={}"
-                           "".format(single_sym_isf_square, h_square, ϵ_4, ΛΛ, single_meta_isf_square))
-
-        return single_sym_isf_square
+        single_sym_isf_square = h_sqrt * ϵ_4 * ΛΛ * single_meta_isf_square
+        return True, single_sym_isf_square
 
     def calc_σμ_symmetry_isf_include_save(self, meta_data_σ_μ, data_sn, data_st):
         """
         计算σμ全组的对称ISF
-        注意：以ν结尾的ISF可以都算出来。而以σ、μ结尾的ISF只能算出部分列，这部分需要标记清楚
+        注意：以ν结尾的ISF可以都算出来，而以σ、μ结尾的ISF只能算出部分列
 
-        1，收集当前σμ下所有ν的列表，为24个对称构型作准备（meta_data_σ_μ中已经有了，可以直接拿）
-        2，记录24种ϵ下的所有新构型以及来源，all_json_sym_σμν_dict={json(σ_s,μ_s,ν_s): sym_key}
-        3，根据all_json_sym_σμν_dict统计出不重不漏的σ_s,μ_s,ν_s'
+        1，收集当前σμ下所有ν的列表，为24个对称构型作准备
+        2，记录24种ϵ下的所有新构型以及来源，json_sym_σμν_dict={json(σ_s,μ_s,ν_s): [(sym_d3, sym_k4)]}
+        3，根据json_sym_σμν_dict统计出不重不漏的σ_s,μ_s,ν_s'
         4，此时，ISF的title已经凑齐s_n,σ_s,μ_s,ν_s'，可以正式开启循环了
-        5，首先计算rows，可以复用calc_row_indexes
+        5，首先计算rows，可以复用calc_row_indexes_tmp（是否使用None还需要斟酌）
         6，使用cg序列重建cols
         7，按列计算对称ISF的具体matrix
         8，保存
         """
         sym_isf_start_time = time.time()
-        # 1，收集当前σμ下所有ν的列表，留下属于元σμν的部分，为24个对称构型作准备（meta_data_σ_μ中已经有了，可以直接拿）
-        meta_ν_τ_list = meta_data_σ_μ.get_meta_ν_τ_list()
-        # 2，读取元σμν经过24种ϵ变换后的所有新构型以及来源，all_json_sym_σμν_dict={(j_σ_s, j_μ_s, j_ν_s): sym_key}
-        all_json_sym_σμν_dict = {}
+        # 1，收集当前σμ下所有ν的列表，为24个对称构型作准备
+        meta_ν_τ_list = []
+        meta_ν_st_list = meta_data_σ_μ.get_isf_ν_st_list()
+        for meta_ν_st in meta_ν_st_list:
+            meta_isf_square_dict = meta_data_σ_μ.get_isf_square_dict_by_ν_st(meta_ν_st)
+            meta_isf_cols = meta_isf_square_dict["cols"]  # cols有两种可能形式：1，[ν]；2，([ν], τ)
+            for single_col in meta_isf_cols:
+                if single_col not in meta_ν_τ_list:
+                    meta_ν_τ_list.append(single_col)
+        # 2，记录24种ϵ下的所有新构型以及来源，json_sym_σμν_dict={(j_σ_s, j_μ_s, j_ν_s): (sym_key, sym_d3, sym_k4)}
+        json_sym_σμν_dict = {}
         for meta_ν_τ in meta_ν_τ_list:
             meta_ν, meta_τ = meta_ν_τ if isinstance(meta_ν_τ, tuple) else (meta_ν_τ, None)
-            if meta_τ is not None and meta_τ != 1:  # 只留None和1
+            if meta_τ != 1 or meta_τ is not None:
                 continue
             meta_σμν = (meta_data_σ_μ.σ, meta_data_σ_μ.μ, meta_ν)
-            _, json_sym_σμν_dict = load_sym_σμν(*(self.s_n, *meta_σμν), is_flag_true_if_not_s_n=False)
-            for j_sym_σμν, sym_key_list in json_sym_σμν_dict.items():
-                if j_sym_σμν not in all_json_sym_σμν_dict:
-                    all_json_sym_σμν_dict[j_sym_σμν] = sym_key_list[0]  # 记录一个就够了
-        # 3，根据all_json_sym_σμν_dict统计出不重不漏的σ_s,μ_s,ν_s'
-        json_sym_σμ_ν_st_dict = {}  # {(j_σ_s, j_μ_s): [ν_s']}
-        for (j_sym_σ, j_sym_μ, j_sym_ν) in all_json_sym_σμν_dict.keys():
+            for key, key_d3, key_k4 in chain(self.σμν_0, self.σμν_1, self.σμν_2, self.σμν_3, self.σμν_4, self.σμν_5):
+                sym_σμν = (meta_σμν[d] if k is False else
+                           data_sn.get_tilde(meta_σμν[d]) for d, k in zip(key_d3, key_k4))
+                # 这里暂时不用记录τ
+                if sym_σμν not in json_sym_σμν_dict:
+                    json_sym_σμν = tuple(json.dumps(yd) for yd in sym_σμν)
+                    json_sym_σμν_dict[json_sym_σμν] = (key, key_d3, key_k4)  # 记录一个就够了
+        # 3，根据json_sym_σμν_dict统计出不重不漏的σ_s,μ_s,ν_s'
+        json_sym_σμ_ν_st_dict = {}  # {json(σ_s, μ_s): [ν_s']}
+        for (j_sym_σ, j_sym_μ, j_sym_ν) in json_sym_σμν_dict.keys():
             if (j_sym_σ, j_sym_μ) not in json_sym_σμ_ν_st_dict:
                 json_sym_σμ_ν_st_dict[(j_sym_σ, j_sym_μ)] = []
-            sym_ν_bl = data_sn.get_bl_yds(json.loads(j_sym_ν))
+            sym_ν_bl = data_st.get_bl_yds(json.loads(j_sym_ν))
             for sym_ν_st in sym_ν_bl:
                 if sym_ν_st not in json_sym_σμ_ν_st_dict[(j_sym_σ, j_sym_μ)]:
                     json_sym_σμ_ν_st_dict[(j_sym_σ, j_sym_μ)].append(sym_ν_st)
-
-        if _debug_condition(meta_data_σ_μ):
-            logger.warning("@@@@ meta_data_σ_μ={}, meta_ν_τ_list={}, "
-                           "all_json_sym_σμν_dict={}, json_sym_σμ_ν_st_dict={}"
-                           "".format(meta_data_σ_μ, meta_ν_τ_list, all_json_sym_σμν_dict, json_sym_σμ_ν_st_dict))
-
         # 4，此时，ISF的title已经凑齐s_n,σ_s,μ_s,ν_s'，可以正式开启循环了
         sym_data_σ_μ_flag = (None, None)
         sym_data_σ_μ = None
         for (j_sym_σ, j_sym_μ), sym_ν_st_list in json_sym_σμ_ν_st_dict.items():
             sym_σ, sym_μ = map(json.loads, [j_sym_σ, j_sym_μ])
             for sym_ν_st in sym_ν_st_list:
-                # 正式拿到s_n,σ_s,μ_s,ν_s'
                 sym_isf_tuple = (self.s_n, sym_σ, sym_μ, sym_ν_st)
-                _, old_isf_info_dict = load_isf(*sym_isf_tuple, output_mode="all", ex_params=["data", "flags"],
-                                                is_flag_true_if_not_s_n=True)
-                if old_isf_info_dict and old_isf_info_dict.get("flags", {}).get("finish_cols", None) is None:
+                _, is_calc_ed = is_isf_exist(*sym_isf_tuple)
+                if is_calc_ed is True:
                     continue
                 if sym_data_σ_μ_flag != (sym_σ, sym_μ):
                     sym_data_σ_μ = SimpleΣMDataHelper(self.s_n, sym_σ, sym_μ, data_sn, data_st)
                     sym_data_σ_μ_flag = (sym_σ, sym_μ)
-                if old_isf_info_dict is not False:
-                    old_isf_info_dict_cp = copy.deepcopy(old_isf_info_dict)
-                    sym_isf_square_dict = old_isf_info_dict_cp["data"]
-                    sym_rows = sym_isf_square_dict["rows"]
-                    sym_cols = sym_isf_square_dict["cols"]
-                    sym_isf_square_matrix = sym_isf_square_dict["isf"]
-                    finish_cols = old_isf_info_dict_cp["flags"]["finish_cols"]
-                    old_adding_time = old_isf_info_dict_cp["flags"]["speed_time"]
-                else:
-                    # 5，首先计算rows，可以复用calc_row_indexes
-                    # 注意，由meta_rows直接变换的话，值相同，但顺序不同！
-                    sym_rows = self.calc_row_indexes(sym_data_σ_μ, sym_ν_st, data_st)
-                    # 6，使用cg序列重建cols
-                    sym_cols = self.calc_col_indexes(sym_data_σ_μ, sym_ν_st, data_sn)
-                    # 7，按列计算对称ISF的具体matrix
-                    if len(sym_rows) != len(sym_cols):
-                        err_msg = "len(sym_rows)={} len(sym_cols)={} should eq but not " \
-                                  "with meta_data_σ_μ={}, sym_data_σ_μ={}" \
-                                  "".format(len(sym_rows), len(sym_cols), meta_data_σ_μ, sym_data_σ_μ)
-                        return False, err_msg
-                    sym_div = len(sym_rows)
-                    if sym_div == 0:
-                        continue
-                    sym_isf_square_matrix = sp.zeros(sym_div)
-                    finish_cols = []
-                    old_adding_time = 0
-                    sym_isf_square_dict = {"rows": sym_rows,
-                                           "cols": sym_cols,
-                                           "isf": sym_isf_square_matrix}
-
-                    if _debug_condition(meta_data_σ_μ) and _debug_isf_cond(sym_σ, sym_μ, sym_ν_st):
-                        logger.warning("@@@@ sym_σ={}, sym_μ={}, sym_ν_st={}, "
-                                       "old_isf_info_dict={}, sym_isf_square_dict={}"
-                                       "".format(sym_σ, sym_μ, sym_ν_st,
-                                                 old_isf_info_dict, sym_isf_square_dict))
-
+                # 5，首先计算rows，可以复用calc_row_indexes_tmp（是否使用None还需要斟酌）
+                # 注意，由meta_rows直接变换的话，值相同，但顺序不同！
+                sym_rows = self.calc_row_indexes_tmp(sym_data_σ_μ, sym_ν_st, data_st, is_tmp=False)
+                # 6，使用cg序列重建cols
+                sym_cols = self.calc_col_indexes(sym_data_σ_μ, sym_ν_st, data_sn)
+                # 7，按列计算对称ISF的具体matrix
+                if len(sym_rows) != len(sym_cols):
+                    err_msg = "len(sym_rows)={} len(sym_cols)={} should eq but not " \
+                              "with meta_data_σ_μ={}, sym_data_σ_μ={}".format(
+                        len(sym_rows), len(sym_cols), meta_data_σ_μ, sym_data_σ_μ)
+                    return False, err_msg
+                sym_div = len(sym_rows)
+                if sym_div == 0:
+                    continue
+                sym_isf_square_matrix = sp.zeros(sym_div)
                 for s_col_i, s_col in enumerate(sym_cols):
-                    if s_col in finish_cols:
-                        continue
                     sym_ν, sym_τ = s_col if isinstance(s_col, tuple) else (s_col, None)
                     sym_σμν = (sym_σ, sym_μ, sym_ν)
                     json_sym_σμν_key = (j_sym_σ, j_sym_μ, json.dumps(sym_ν))
-                    if json_sym_σμν_key not in all_json_sym_σμν_dict:
-                        continue  # 当前的元σμν一般不能通过对称得到当前所有isf的ν（不能的那部分，就是当前还未循环到的σμ组合及其对称）
-                    finish_cols.append(s_col)
-                    sym_key = all_json_sym_σμν_dict[json_sym_σμν_key]
-                    sym_d3, sym_k4 = data_sn.get_d3_k4_by_ϵ_key(sym_key)
-
-                    if _debug_condition(meta_data_σ_μ) and _debug_isf_cond(sym_σ, sym_μ, sym_ν_st):
-                        logger.warning("@@@@ before calc s_col={}, sym_isf_square_matrix={}"
-                                       "".format(s_col, sym_isf_square_matrix))
-
+                    sym_key, sym_d3, sym_k4 = json_sym_σμν_dict.get(json_sym_σμν_key)
                     for s_row_i, s_row in enumerate(sym_rows):
                         sym_isf_element = self._calc_sym_isf_element(s_row, sym_σμν, sym_τ, sym_ν_st, sym_key,
                                                                      sym_d3, sym_k4, data_sn, data_st, meta_data_σ_μ)
                         sym_isf_square_matrix[s_row_i, s_col_i] = sym_isf_element
-
-                        if _debug_condition(meta_data_σ_μ) and _debug_isf_cond(sym_σ, sym_μ, sym_ν_st) \
-                                and s_col == [2, 1, 1]:
-                            logger.warning("@@@@ test 'μν~σ~' for _calc_sym_isf_element again but not save")
-                            test_isf_element = self._calc_sym_isf_element(s_row, sym_σμν, sym_τ, sym_ν_st, 'μν~σ~',
-                                                                          group_d3[5], group_k4[3], data_sn, data_st,
-                                                                          meta_data_σ_μ)
-                            logger.warning("@@@@ sym_isf_element={}, test_isf_element={}"
-                                           "".format(sym_isf_element, test_isf_element))
-
-                    if _debug_condition(meta_data_σ_μ) and _debug_isf_cond(sym_σ, sym_μ, sym_ν_st):
-                        logger.warning("@@@@ after calc s_col={}, sym_isf_square_matrix={}"
-                                       "".format(s_col, sym_isf_square_matrix))
-
                 # 8，保存
-                # 根据python特性，sym_isf_square_dict是浅拷贝，对其元素所新指定的变量赋值，就相当于更新了它
-
-                if _debug_condition(meta_data_σ_μ) and _debug_isf_cond(sym_σ, sym_μ, sym_ν_st):
-                    logger.warning("@@@@ meta_data_σ_μ={}, sym_σ={}, sym_μ={}, sym_ν_st={}, "
-                                   "sym_isf_square_dict={}, finish_cols={}"
-                                   "".format(meta_data_σ_μ, sym_σ, sym_μ, sym_ν_st, sym_isf_square_dict, finish_cols))
-
+                sym_isf_square_dict = {"rows": sym_rows,
+                                       "cols": sym_cols,
+                                       "isf": sym_isf_square_matrix}
                 sym_isf_speed_time = int(time.time() - sym_isf_start_time)
-                if len(finish_cols) == len(sym_cols):
-                    flag, msg = save_isf(self.s_n, sym_σ, sym_μ, sym_ν_st, sym_isf_square_dict,
-                                         sym_isf_speed_time + old_adding_time)
-                    if not flag:
-                        err_msg = "save meta isf meet error with s_i={}, sym_σ={}, sym_μ={}, sym_ν_st={}, " \
-                                  "sym_isf_square_dict={}, " \
-                                  "msg={}".format(self.s_n, sym_σ, sym_μ, sym_ν_st, sym_isf_square_dict, msg)
-                        logger.error(err_msg)
-                        return False, err_msg
-                else:
-                    flag, msg = save_isf(self.s_n, sym_σ, sym_μ, sym_ν_st, sym_isf_square_dict,
-                                         sym_isf_speed_time + old_adding_time, finish_cols=finish_cols)
-                    if not flag:
-                        err_msg = "save meta isf meet error with s_i={}, sym_σ={}, sym_μ={}, sym_ν_st={}, " \
-                                  "sym_isf_square_dict={}, finish_cols={}, msg={}" \
-                                  "".format(self.s_n, sym_σ, sym_μ, sym_ν_st, sym_isf_square_dict, finish_cols, msg)
-                        logger.error(err_msg)
-                        return False, err_msg
+                flag, msg = save_isf(self.s_n, sym_σ, sym_μ, sym_ν_st, sym_isf_square_dict, sym_isf_speed_time)
+                if not flag:
+                    err_msg = "save meta isf meet error with s_i={}, sym_σ={}, sym_μ={}, sym_ν_st={}, " \
+                              "sym_isf_square_dict={}, " \
+                              "msg={}".format(self.s_n, sym_σ, sym_μ, sym_ν_st, sym_isf_square_dict, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
                 sym_isf_start_time = time.time()
+        return True, None
+
+    def _calc_symmetry_isf_include_save(self, meta_isf_square_dict, meta_ν_st, data_sn, data_st, data_σ_μ):
+        """
+        3，计算σμ外对称ISF
+        metaISF循环：(元ISF的标志是ν')
+        3.0，数据准备
+        3.1，根据ϵ1算¥[μ][σ][ν']¥
+        3.2，根据ϵ4算¥[σ~][μ~][ν‘]¥
+        3.3，根据ϵ14算¥[μ~][σ~][ν’]¥
+        3.4，根据ϵ5算¥[σ~][μ][ν‘~]¥
+        3.5，根据ϵ15算¥[μ][σ~][ν’~]¥
+        3.6，根据ϵ6算¥[σ][μ~][ν‘~]¥
+        3.7，根据ϵ16算¥[μ~][σ][ν’~]¥
+        """
+        # 公共
+        meta_isf_rows = meta_isf_square_dict["rows"]  # rows有两种可能形式：1，([σ'], [μ'], τ')；2，([σ'], [μ'])
+        meta_isf_cols = meta_isf_square_dict["cols"]
+        meta_isf_square_matrix = meta_isf_square_dict["isf"]
+        # tilde_isf_cols_unsort = [(data_sn.get_tilde(i[0]), i[1]) if isinstance(i, tuple) else data_sn.get_tilde(i)
+        #                           for i in meta_isf_cols]
+        # tilde_isf_cols, tilde_meta_2_sym_relationship_cols, _ = self._sort_isf_cols(tilde_isf_cols_unsort, data_sn)
+        div = len(meta_isf_rows)  # =len(meta_isf_cols)
+        ϵ_st_simple_dict = {}  # 简化版支持用meta_isf_rows的元素拿ϵ_st
+        for single_row_st in meta_isf_rows:
+            σ_st, μ_st, τ_st = single_row_st if len(single_row_st) == 3 else (*single_row_st, None)
+            flag, ϵ_st_dict = load_ϵ(self.s_t, σ_st, μ_st, meta_ν_st, τ_st, is_flag_true_if_not_s_n=False)
+            if not flag:
+                err_msg = "load_ϵ fail by self.s_t={}, σ_st={}, μ_st={}, meta_ν_st={}, τ_st={} " \
+                          "with msg={}".format(self.s_t, σ_st, μ_st, meta_ν_st, τ_st, ϵ_st_dict)
+                logger.error(err_msg)
+                return False, err_msg
+            ϵ_st_simple_dict[str(single_row_st)] = ϵ_st_dict  # 它们meta_ν_st相同，所以只用σ_st, μ_st, τ_st就能区分
+        ϵ_simple_dict = {}  # 简化版支持用meta_isf_cols的元素拿ϵ
+        for single_col in meta_isf_cols:
+            ν, τ = single_col if isinstance(single_col, tuple) else (single_col, None)
+            ϵ_dict, ϵ_flags = data_σ_μ.get_ϵ_dict_and_flags(ν, τ)
+            ϵ_simple_dict[str(single_col)] = ϵ_dict  # 它们σ, μ相同，所以只用ν, τ就能区分
+
+        # if _debug_condition(data_σ_μ, meta_ν_st):
+        #     logger.warning("@@@@ ϵ_st_simple_dict={}, ϵ_simple_dict={}".format(ϵ_st_simple_dict, ϵ_simple_dict))
+
+        # 计算7个对称ISF
+        for ϵ_mode in ["ϵ1", "ϵ4", "ϵ14", "ϵ5", "ϵ15", "ϵ6", "ϵ16"]:
+            if ϵ_mode == "ϵ1":
+                # 3.1，根据ϵ1算¥[μ][σ][ν']¥
+                ϵ_tuple = (self.s_n, data_σ_μ.μ, data_σ_μ.σ, meta_ν_st)
+                _, is_calc_ed = is_isf_exist(*ϵ_tuple)
+                if is_calc_ed is True:
+                    continue
+                symmetry_isf_rows_unsort = [(i[1], i[0]) if len(i) == 2 else (i[1], i[0], i[2]) for i in meta_isf_rows]
+            elif ϵ_mode == "ϵ4":
+                # 3.2，根据ϵ4算¥[σ~][μ~][ν‘]¥
+                ϵ_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.σ), data_sn.get_tilde(data_σ_μ.μ), meta_ν_st)
+                _, is_calc_ed = is_isf_exist(*ϵ_tuple)
+                if is_calc_ed is True:
+                    continue
+                symmetry_isf_rows_unsort = [(data_st.get_tilde(i[0]), data_st.get_tilde(i[1])) if len(i) == 2 else
+                                            (data_st.get_tilde(i[0]), data_st.get_tilde(i[1]), i[2])
+                                            for i in meta_isf_rows]
+            elif ϵ_mode == "ϵ14":
+                # 3.3，根据ϵ14算¥[μ~][σ~][ν’]¥
+                ϵ_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.μ), data_sn.get_tilde(data_σ_μ.σ), meta_ν_st)
+                _, is_calc_ed = is_isf_exist(*ϵ_tuple)
+                if is_calc_ed is True:
+                    continue
+                symmetry_isf_rows_unsort = [(data_st.get_tilde(i[1]), data_st.get_tilde(i[0])) if len(i) == 2 else
+                                            (data_st.get_tilde(i[1]), data_st.get_tilde(i[0]), i[2])
+                                            for i in meta_isf_rows]
+            elif ϵ_mode == "ϵ5":
+                # 3.4，根据ϵ5算¥[σ~][μ][ν‘~]¥
+                ϵ_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.σ), data_σ_μ.μ, data_st.get_tilde(meta_ν_st))
+                _, is_calc_ed = is_isf_exist(*ϵ_tuple)
+                if is_calc_ed is True:
+                    continue
+                symmetry_isf_rows_unsort = [(data_st.get_tilde(i[0]), i[1]) if len(i) == 2 else
+                                            (data_st.get_tilde(i[0]), i[1], i[2])
+                                            for i in meta_isf_rows]
+            elif ϵ_mode == "ϵ15":
+                # 3.5，根据ϵ15算¥[μ][σ~][ν’~]¥
+                ϵ_tuple = (self.s_n, data_σ_μ.μ, data_sn.get_tilde(data_σ_μ.σ), data_st.get_tilde(meta_ν_st))
+                _, is_calc_ed = is_isf_exist(*ϵ_tuple)
+                if is_calc_ed is True:
+                    continue
+                symmetry_isf_rows_unsort = [(i[1], data_st.get_tilde(i[0])) if len(i) == 2 else
+                                            (i[1], data_st.get_tilde(i[0]), i[2])
+                                            for i in meta_isf_rows]
+            elif ϵ_mode == "ϵ6":
+                # 3.6，根据ϵ6算¥[σ][μ~][ν‘~]¥
+                ϵ_tuple = (self.s_n, data_σ_μ.σ, data_sn.get_tilde(data_σ_μ.μ), data_st.get_tilde(meta_ν_st))
+                _, is_calc_ed = is_isf_exist(*ϵ_tuple)
+                if is_calc_ed is True:
+                    continue
+                symmetry_isf_rows_unsort = [(i[0], data_st.get_tilde(i[1])) if len(i) == 2 else
+                                            (i[0], data_st.get_tilde(i[1]), i[2])
+                                            for i in meta_isf_rows]
+            elif ϵ_mode == "ϵ16":
+                # 3.7，根据ϵ16算¥[μ~][σ][ν’~]¥
+                ϵ_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.μ), data_σ_μ.σ, data_st.get_tilde(meta_ν_st))
+                _, is_calc_ed = is_isf_exist(*ϵ_tuple)
+                if is_calc_ed is True:
+                    continue
+                symmetry_isf_rows_unsort = [(data_st.get_tilde(i[1]), i[0]) if len(i) == 2 else
+                                            (data_st.get_tilde(i[1]), i[0], i[2])
+                                            for i in meta_isf_rows]
+            else:
+                err_msg = "get unsupported ϵ={}".format(ϵ_mode)
+                logger.error(err_msg)
+                return False, err_msg
+
+            isf_start_time = time.time()
+            symmetry_isf_rows, meta_2_sym_relationship_rows, _ = self._sort_isf_rows(symmetry_isf_rows_unsort,
+                                                                                     data_st)
+            meta_2_sym_relationship_cols = list(range(div)) if ϵ_mode in ["ϵ1", "ϵ4", "ϵ14"] else \
+                tilde_meta_2_sym_relationship_cols
+
+            symmetry_isf_square_matrix = \
+                self._calc_symmetry_isf_square_matrix(meta_isf_square_matrix, meta_isf_rows, meta_isf_cols, div,
+                                                      ϵ_st_simple_dict, ϵ_simple_dict, ϵ_mode,
+                                                      meta_2_sym_relationship_rows, meta_2_sym_relationship_cols,
+                                                      meta_ν_st, data_sn, data_σ_μ)
+
+            # symmetry_isf_cols = meta_isf_cols if ϵ_mode in ["ϵ1", "ϵ4", "ϵ14"] else tilde_isf_cols_unsort
+            symmetry_isf_cols = meta_isf_cols if ϵ_mode in ["ϵ1", "ϵ4", "ϵ14"] else tilde_isf_cols
+            symmetry_isf_square = {"rows": symmetry_isf_rows,
+                                   "cols": symmetry_isf_cols,
+                                   "isf": symmetry_isf_square_matrix}
+
+            if _debug_condition(data_σ_μ, meta_ν_st):
+                logger.warning("@@@@ symmetry_isf_square={} meta_2_sym_relationship_cols={} "
+                               "for ϵ_mode={}".format(symmetry_isf_square, meta_2_sym_relationship_cols, ϵ_mode))
+
+            isf_speed_time = int(time.time() - isf_start_time)
+            flag, msg = save_isf(*(*ϵ_tuple, symmetry_isf_square, isf_speed_time))
+            if not flag:
+                err_msg = "save_isf meet error with ϵ_mode={}, s_i={}, σ={}, μ={}, ν_st={}, " \
+                          "meta_isf_square_dict={}, " \
+                          "msg={}".format(*(ϵ_mode, *ϵ_tuple, meta_isf_square_dict, msg))
+                logger.error(err_msg)
+                return False, err_msg
 
         return True, None
 
-    # @staticmethod
-    # def _sort_isf_rows(symmetry_isf_rows_unsort, data_st):
-    #     """将未按照Yamanouchi排序的symmetry_isf_rows_unsort按照Yamanouchi排序
-    #     技巧是利用yd_st_index达到排序yd_st的目的"""
-    #     sort_isf_rows = []
-    #     sym_2_meta_relationship = []  # 形如[1, 3, 2]表示已排序的rows是从meta中哪里来的
-    #     all_yd_st_list = data_st.yd_list
-    #     σ_st_index_list = [all_yd_st_list.index(i[0]) for i in symmetry_isf_rows_unsort]
-    #     σ_st_index_one_list = list(set(σ_st_index_list))
-    #     for σ_st_index_one in sorted(σ_st_index_one_list):  # 排序金牌的σ
-    #         σ_st = all_yd_st_list[σ_st_index_one]
-    #         μ_st_index_list = [all_yd_st_list.index(i[1]) for i in symmetry_isf_rows_unsort if i[0] == σ_st]
-    #         μ_st_index_one_list = list(set(μ_st_index_list))
-    #         for μ_st_index_one in sorted(μ_st_index_one_list):  # 排序银牌的μ
-    #             μ_st = all_yd_st_list[μ_st_index_one]
-    #             # 实有τ的才会是real list，没有的会是[]
-    #             τ_st_list = [i[2] for i in symmetry_isf_rows_unsort if len(i) == 3 and i[0] == σ_st and i[1] == μ_st]
-    #             if τ_st_list:
-    #                 for τ_st in sorted(τ_st_list):  # 排序铜牌的τ
-    #                     single_tuple = (σ_st, μ_st, τ_st)
-    #                     sort_isf_rows.append(single_tuple)
-    #                     sym_2_meta_relationship.append(symmetry_isf_rows_unsort.index(single_tuple))
-    #             else:
-    #                 single_tuple = (σ_st, μ_st)
-    #                 sort_isf_rows.append(single_tuple)
-    #                 sym_2_meta_relationship.append(symmetry_isf_rows_unsort.index(single_tuple))
-    #     # 形如[1, 3, 2]表示meta会到已排序的rows哪里去
-    #     meta_2_sym_relationship = [sym_2_meta_relationship.index(i) for i in range(len(sym_2_meta_relationship))]
-    #     return sort_isf_rows, meta_2_sym_relationship, sym_2_meta_relationship
+    @staticmethod
+    def _sort_isf_rows(symmetry_isf_rows_unsort, data_st):
+        """将未按照Yamanouchi排序的symmetry_isf_rows_unsort按照Yamanouchi排序
+        技巧是利用yd_st_index达到排序yd_st的目的"""
+        sort_isf_rows = []
+        sym_2_meta_relationship = []  # 形如[1, 3, 2]表示已排序的rows是从meta中哪里来的
+        all_yd_st_list = data_st.yd_list
+        σ_st_index_list = [all_yd_st_list.index(i[0]) for i in symmetry_isf_rows_unsort]
+        σ_st_index_one_list = list(set(σ_st_index_list))
+        for σ_st_index_one in sorted(σ_st_index_one_list):  # 排序金牌的σ
+            σ_st = all_yd_st_list[σ_st_index_one]
+            μ_st_index_list = [all_yd_st_list.index(i[1]) for i in symmetry_isf_rows_unsort if i[0] == σ_st]
+            μ_st_index_one_list = list(set(μ_st_index_list))
+            for μ_st_index_one in sorted(μ_st_index_one_list):  # 排序银牌的μ
+                μ_st = all_yd_st_list[μ_st_index_one]
+                # 实有τ的才会是real list，没有的会是[]
+                τ_st_list = [i[2] for i in symmetry_isf_rows_unsort if len(i) == 3 and i[0] == σ_st and i[1] == μ_st]
+                if τ_st_list:
+                    for τ_st in sorted(τ_st_list):  # 排序铜牌的τ
+                        single_tuple = (σ_st, μ_st, τ_st)
+                        sort_isf_rows.append(single_tuple)
+                        sym_2_meta_relationship.append(symmetry_isf_rows_unsort.index(single_tuple))
+                else:
+                    single_tuple = (σ_st, μ_st)
+                    sort_isf_rows.append(single_tuple)
+                    sym_2_meta_relationship.append(symmetry_isf_rows_unsort.index(single_tuple))
+        # 形如[1, 3, 2]表示meta会到已排序的rows哪里去
+        meta_2_sym_relationship = [sym_2_meta_relationship.index(i) for i in range(len(sym_2_meta_relationship))]
+        return sort_isf_rows, meta_2_sym_relationship, sym_2_meta_relationship
 
-    # @staticmethod
-    # def _sort_isf_cols(tilde_isf_cols_unsort, data_sn):
-    #     """将未按照Yamanouchi排序的tilde_isf_cols_unsort按照Yamanouchi排序
-    #     技巧是利用yd_index达到排序yd的目的"""
-    #     sort_isf_cols = []
-    #     sym_2_meta_relationship = []  # 形如[1, 3, 2]表示已排序的cols是从meta中哪里来的
-    #     all_yd_list = data_sn.yd_list
-    #     ν_index_list = [all_yd_list.index(i[0]) if isinstance(i, tuple) else all_yd_list.index(i)
-    #                     for i in tilde_isf_cols_unsort]
-    #     ν_index_one_list = list(set(ν_index_list))
-    #     for ν_index_one in sorted(ν_index_one_list):  # 排序金牌的ν
-    #         ν = all_yd_list[ν_index_one]
-    #         # 实有τ的才会是real list，没有的会是[]
-    #         τ_list = [i[1] for i in tilde_isf_cols_unsort if isinstance(i, tuple) and i[0] == ν]
-    #         if τ_list:
-    #             for τ in sorted(τ_list):  # 排序银牌的τ
-    #                 single_tuple = (ν, τ)
-    #                 sort_isf_cols.append(single_tuple)
-    #                 sym_2_meta_relationship.append(tilde_isf_cols_unsort.index(single_tuple))
-    #         else:
-    #             sort_isf_cols.append(ν)
-    #             sym_2_meta_relationship.append(tilde_isf_cols_unsort.index(ν))
-    #     # 形如[1, 3, 2]表示meta会到已排序的cols哪里去
-    #     meta_2_sym_relationship = [sym_2_meta_relationship.index(i) for i in range(len(sym_2_meta_relationship))]
-    #     return sort_isf_cols, meta_2_sym_relationship, sym_2_meta_relationship
+    @staticmethod
+    def _sort_isf_cols(tilde_isf_cols_unsort, data_sn):
+        """将未按照Yamanouchi排序的tilde_isf_cols_unsort按照Yamanouchi排序
+        技巧是利用yd_index达到排序yd的目的"""
+        sort_isf_cols = []
+        sym_2_meta_relationship = []  # 形如[1, 3, 2]表示已排序的cols是从meta中哪里来的
+        all_yd_list = data_sn.yd_list
+        ν_index_list = [all_yd_list.index(i[0]) if isinstance(i, tuple) else all_yd_list.index(i)
+                        for i in tilde_isf_cols_unsort]
+        ν_index_one_list = list(set(ν_index_list))
+        for ν_index_one in sorted(ν_index_one_list):  # 排序金牌的ν
+            ν = all_yd_list[ν_index_one]
+            # 实有τ的才会是real list，没有的会是[]
+            τ_list = [i[1] for i in tilde_isf_cols_unsort if isinstance(i, tuple) and i[0] == ν]
+            if τ_list:
+                for τ in sorted(τ_list):  # 排序银牌的τ
+                    single_tuple = (ν, τ)
+                    sort_isf_cols.append(single_tuple)
+                    sym_2_meta_relationship.append(tilde_isf_cols_unsort.index(single_tuple))
+            else:
+                sort_isf_cols.append(ν)
+                sym_2_meta_relationship.append(tilde_isf_cols_unsort.index(ν))
+        # 形如[1, 3, 2]表示meta会到已排序的cols哪里去
+        meta_2_sym_relationship = [sym_2_meta_relationship.index(i) for i in range(len(sym_2_meta_relationship))]
+        return sort_isf_cols, meta_2_sym_relationship, sym_2_meta_relationship
+
+    @staticmethod
+    def _calc_symmetry_isf_square_matrix(meta_isf_square_matrix, meta_isf_rows, meta_isf_cols, div,
+                                         ϵ_st_simple_dict, ϵ_simple_dict, ϵ_key,
+                                         meta_2_sym_relationship_rows, meta_2_sym_relationship_cols,
+                                         meta_ν_st, data_sn, data_σ_μ):
+        symmetry_isf_square_matrix = sp.zeros(div)
+        for (row_i, row_st), (col_i, col) in product(enumerate(meta_isf_rows), enumerate(meta_isf_cols)):
+            sym_row_i, sym_col_i = meta_2_sym_relationship_rows[row_i], meta_2_sym_relationship_cols[col_i]
+            ϵ_st = ϵ_st_simple_dict[str(row_st)][ϵ_key]
+            ϵ_sn = ϵ_simple_dict[str(col)][ϵ_key]
+            ϵ = ϵ_sn * ϵ_st
+            if ϵ_key == "ϵ1":
+                # $[μ][σ][ν']$
+                butler_Λ = 1
+            elif ϵ_key in ["ϵ4", "ϵ14"]:
+                # $[σ~][μ~][ν‘]$
+                butler_σ_σ_st = data_sn.get_butler_phase_factor(data_σ_μ.σ, row_st[0])
+                butler_μ_μ_st = data_sn.get_butler_phase_factor(data_σ_μ.μ, row_st[1])
+                butler_Λ = butler_σ_σ_st * butler_μ_μ_st
+            elif ϵ_key in ["ϵ5", "ϵ15"]:
+                # $[σ~][μ][ν‘~]$
+                butler_σ_σ_st = data_sn.get_butler_phase_factor(data_σ_μ.σ, row_st[0])
+                butler_ν_ν_st = data_sn.get_butler_phase_factor(col if isinstance(col, list) else col[0], meta_ν_st)
+                butler_Λ = butler_σ_σ_st * butler_ν_ν_st
+            elif ϵ_key in ["ϵ6", "ϵ16"]:
+                # $[σ][μ~][ν‘~]$
+                butler_μ_μ_st = data_sn.get_butler_phase_factor(data_σ_μ.μ, row_st[1])
+                butler_ν_ν_st = data_sn.get_butler_phase_factor(col if isinstance(col, list) else col[0], meta_ν_st)
+                butler_Λ = butler_μ_μ_st * butler_ν_ν_st
+            else:
+                err_msg = "get unsupported ϵ={}".format(ϵ_key)
+                logger.error(err_msg)
+                return False, err_msg
+
+            # if _debug_condition(data_σ_μ, meta_ν_st):
+            #     logger.warning("@@@@ {}={}, {}_st={}, butler_Λ={}, row_st={}, col={}".format(
+            #         ϵ_key, ϵ_sn, ϵ_key, ϵ_st, butler_Λ, row_st, col))
+
+            symmetry_isf_square_matrix[sym_row_i, sym_col_i] = ϵ * butler_Λ * meta_isf_square_matrix[row_i, col_i]
+
+        if _debug_condition(data_σ_μ, meta_ν_st):
+            logger.warning("@@@@ symmetry_isf_square_matrix={}, data_σ_μ={}, meta_ν_st={}".format(
+                symmetry_isf_square_matrix, data_σ_μ, meta_ν_st))
+
+        return symmetry_isf_square_matrix
+
+    def is_isf_σ_μ_exist(self, σ, μ):
+        """只关注存在性，不真正读取数据"""
+        if not all(isinstance(yd, list) for yd in [σ, μ]):
+            err_msg = "all [σ={}, μ={}] must be list but type [{}, {}]".format(
+                σ, μ, type(σ), type(μ))
+            logger.error(err_msg)
+            return False, err_msg
+
+        flag, file_name = get_isf_file_name(self.s_n, σ, μ, [1])
+        if not flag:
+            err_msg = "cannot get file_name by s_n={}, σ={}, μ={}, ν_st={} because {}".format(
+                self.s_n, σ, μ, [1], file_name)
+            logger.error(err_msg)
+            return False, err_msg
+        folder_name = os.path.dirname(file_name)
+        return ISFInfo(self.s_n).folder_exist(folder_name)
 
 
 class CGCHelper(CalcHelper):
@@ -2679,55 +2924,30 @@ class CGCHelper(CalcHelper):
     def __init__(self):
         super(CGCHelper, self).__init__()
 
-    def calc_cgc_by_isf_include_save(self, data_σ_μ, ν_st, data_sn, data_st, non_meta_ν_end=None):
+    def calc_meta_cgc_include_save(self, meta_isf_square_dict, ν_st, data_sn, data_st, data_σ_μ):
         """
-        使用ISF计算CGC
-        
-        公式：4-189a、4-195a
-        
-        当new_ν=None时：
-        凭借ISF中的元那部分，计算和储存元CGC
+        凭借元ISF计算元CGC，并且，计算ϵ
+        存储元CGC以及ϵ_dict
 
-        当non_meta_ν_end=yd时：
-        利用ISF计算和储存σνμ和νμσ的CGC
+        1.2.1，判断，并注册元
+        1.2.2，计算元CGC
         """
         # 准备数据
-        isf_square_dict = data_σ_μ.get_isf_square_dict_by_ν_st(ν_st)
-        isf_rows = isf_square_dict["rows"]
-        isf_cols = isf_square_dict["cols"]
-        isf_square_matrix = isf_square_dict["isf"]
-        isf_finish_cols = data_σ_μ.get_isf_finish_cols_by_ν_st(ν_st)
-        isf_finish_ν_list = []
-        for col in isf_finish_cols:
-            ν, τ = col if isinstance(col, tuple) else (col, None)
-            if ν not in isf_finish_ν_list:
-                isf_finish_ν_list.append(ν)
-        # 算metaCGC的时候，只留meta_ν_list_of_σμ与isf_finish_ν_list重合那部分col；算non_meta_ν_end的时候，只留等于它的col
-        if non_meta_ν_end is not None:
-            wanted_ν_list = [non_meta_ν_end]
-        else:
-            wanted_ν_list = []
-            for meta_ν in data_σ_μ.meta_ν_list_of_σμ:
-                if meta_ν in isf_finish_ν_list:
-                    wanted_ν_list.append(meta_ν)
+        # 拆解isf_square_dict
+        σ_μ_τ_all_st_tuple_list = meta_isf_square_dict["rows"]
+        ν_τ_list = meta_isf_square_dict["cols"]
+        isf_square_matrix = meta_isf_square_dict["isf"]
         # 得到h_ν_st
         h_ν_st = data_st.get_yt_num(ν_st)
 
-        # catch_cond_31 = (data_σ_μ.σ == data_σ_μ.μ == [3, 1])
-        # if catch_cond_31:
-        #     logger.warning("######## catch CGC maker [3, 1] * [3, 1], "
-        #                    "isf_finish_ν_list={}, wanted_ν_list={}, h_ν_st={}"
-        #                    "".format(isf_finish_ν_list, wanted_ν_list, h_ν_st))
-
-        # 下面的循环，由互不相干的四层构成：
-        # m_ν'（CGC名）；ν,τ（ISF列）；ISF行、(m_σ', m_μ')(CGC内)。更改它们的顺序只影响算法速度，不影响计算结果。
-        for m_ν_st in range(1, h_ν_st + 1):  # m_ν'循环
+        # 下面的循环，由互不相干的三层构成：行、列、m。更改它们的顺序不影响计算结果。当前使用，先m再列最后行的顺序，比较优
+        for m_ν_st in range(1, h_ν_st + 1):
             # 在深层循环前，准备数据，空间换时间
             cgc_st_square_dict_list_by_row = []
             offset_σ_list = []
             offset_μ_list = []
-            for isf_row in isf_rows:  # 数据准备，不是四层之一
-                σ_st, μ_st, τ_st = isf_row if len(isf_row) == 3 else (*isf_row, None)
+            for σ_μ_τ_all_st in σ_μ_τ_all_st_tuple_list:
+                σ_st, μ_st, τ_st = σ_μ_τ_all_st if len(σ_μ_τ_all_st) == 3 else (*σ_μ_τ_all_st, None)
                 flag, cgc_st_square_dict = load_cgc(self.s_t, σ_st, μ_st, ν_st, τ_st, m_ν_st,
                                                     is_flag_true_if_not_s_n=False)
                 if not flag:
@@ -2742,72 +2962,26 @@ class CGCHelper(CalcHelper):
                 offset_σ_list.append(offset_σ)
                 offset_μ_list.append(offset_μ)
 
-            # if catch_cond_31:
-            #     logger.warning("## isf_rows={}, m_ν_st={}, ν_st={}, "
-            #                    "cgc_st_square_dict_list_by_row={}, offset_σ_list={}, offset_μ_list={}"
-            #                    "".format(isf_rows, m_ν_st, ν_st,
-            #                              cgc_st_square_dict_list_by_row, offset_σ_list, offset_μ_list))
-
-            for col_i, isf_col in enumerate(isf_cols):  # 按照列循环
-                ν, τ = isf_col if isinstance(isf_col, tuple) else (isf_col, None)
-
-                # if catch_cond_31:
-                #     logger.warning("#1# ν={}, τ={}".format(ν, τ))
-
-                if ν not in wanted_ν_list:
-                    continue
-
+            for col, ν_τ in enumerate(ν_τ_list):  # 按照列循环
                 # 1.2，根据元ISF计算元CGC【[σ][μ][ν]τ】
                 # 拆解列信息
-                isf_square_vector = isf_square_matrix.col(col_i)
+                isf_square_vector = isf_square_matrix.col(col)
+                ν, τ = ν_τ if isinstance(ν_τ, tuple) else (ν_τ, None)
                 # 每个ν有自己的offset
                 offset_ν = data_sn.get_offset(ν_st, ν)
                 m_ν = offset_ν + m_ν_st
-                # 1.2.1，已经得到σ,μ,ν,τ,m，开始计算元CGC前先检查一下（因为非元σμν那部分已经算好了）
-                _, is_calc_ed = is_cgc_exist(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, m_ν)
-                if is_calc_ed is True:
-                    continue
-                # 1.2.2，判断，并注册元信息
-                data_σ_μ.register_meta_ν_τ_list(ν, τ)
+                # 1.2.1，判断，并注册元信息
+                data_σ_μ.register_isf_ν_τ_list(ν, τ)
+
+                # 1.2.2，已经得到σ,μ,ν,τ,m，开始计算元CGC
                 meta_cgc_start_time = time.time()
                 meta_cgc_square_dict = {}
-
-                # if catch_cond_31:
-                #     logger.warning("#2# ν={}, τ={}".format(ν, τ))
-                #
-                # catch_cond_31_22 = (catch_cond_31 and ν == [2, 2])
-                #
-                # if catch_cond_31:
-                #     logger.warning("#3# ν={}, τ={}".format(ν, τ))
-                #
-                # if catch_cond_31_22:
-                #     logger.warning("#4# ν={}, τ={}".format(ν, τ))
-                #
-                # if catch_cond_31_22:
-                #     logger.warning("## catch CGC maker [3, 1] * [3, 1] = [2, 2] "
-                #                    "isf_col={}, ν={}, τ={}, m_ν_st={}"
-                #                    "".format(isf_col, ν, τ, m_ν_st))
-
-                for isf_row, isf_square, single_cgc_st_square_dict, single_offset_σ, single_offset_μ in \
-                        zip(isf_rows, isf_square_vector, cgc_st_square_dict_list_by_row,
+                for σ_μ_τ_all_st, isf_square, cgc_st_square_dict, offset_σ, offset_μ in \
+                        zip(σ_μ_τ_all_st_tuple_list, isf_square_vector, cgc_st_square_dict_list_by_row,
                             offset_σ_list, offset_μ_list):  # 按照行循环
-                    if isf_square == 0:
-                        continue
 
-                    # if catch_cond_31_22:
-                    #     logger.warning("## isf_row={}, isf_square={}, single_cgc_st_square_dict={}, "
-                    #                    "single_offset_σ={}, single_offset_μ={}"
-                    #                    "".format(isf_row, isf_square, single_cgc_st_square_dict,
-                    #                              single_offset_σ, single_offset_μ))
-
-                    for (m_σ_st, m_μ_st), cgc_st_square in single_cgc_st_square_dict.items():  # (m_σ', m_μ')循环
-                        if cgc_st_square == 0:
-                            continue
-                        cgc_key = (single_offset_σ + m_σ_st, single_offset_μ + m_μ_st)
-
-                        # if catch_cond_31_22:
-                        #     logger.warning("## m_σ_st={}, m_μ_st={}, cgc_st_square={}, cgc_key={}"
-                        #                    "".format(m_σ_st, m_μ_st, cgc_st_square, cgc_key))
+                    for (m_σ_st, m_μ_st), cgc_st_square in cgc_st_square_dict.items():  # 按照CGC_st内容循环
+                        cgc_key = (offset_σ + m_σ_st, offset_μ + m_μ_st)
 
                         if cgc_key not in meta_cgc_square_dict:
                             single_cgc_square = isf_square * cgc_st_square
@@ -2825,12 +2999,9 @@ class CGCHelper(CalcHelper):
                             else:
                                 meta_cgc_square_dict.pop(cgc_key)
 
-                # if catch_cond_31_22:
-                #     logger.warning("## meta_cgc_square_dict={}, m_ν={}".format(meta_cgc_square_dict, m_ν))
-
                 cgc_square_n = sum(abs(i) for i in meta_cgc_square_dict.values())
                 if cgc_square_n != 1:  # 归一性检查
-                    err_msg = "calc cgc fail by self.s_n={}, σ={}, μ={}, " \
+                    err_msg = "calc cgc fail by self.s_n={}, data_σ_μ.σ={}, data_σ_μ.μ={}, " \
                               "ν={}, τ={}, m_ν={}, meta_cgc_square_dict={} with " \
                               "meet cgc_square_n={} not eq 1".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, m_ν,
                                                                      meta_cgc_square_dict, cgc_square_n)
@@ -2841,18 +3012,17 @@ class CGCHelper(CalcHelper):
                 flag, msg = save_cgc(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, m_ν, meta_cgc_square_dict,
                                      meta_cgc_speed_time)
                 if not flag:
-                    err_msg = "save_cgc fail by self.s_n={}, σ={}, μ={}, " \
+                    err_msg = "save_cgc fail by self.s_n={}, data_σ_μ.σ={}, data_σ_μ.μ={}, " \
                               "ν={}, τ={}, m_ν={}, meta_cgc_square_dict={} with " \
                               "msg={}".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, m_ν, meta_cgc_square_dict, msg)
                     logger.error(err_msg)
                     return False, err_msg
-                # 对于non_meta_ν_end=yd的情况，在这里继续下去，就不用再以后重新load一次CGC了，但为了复用代码，我们浪费一点点资源
 
         return True, None
 
-    def calc_sym_cgc_by_same_end_cgc_include_save(self, current_data_σ_μ, current_ν, τ, data_sn):
+    def calc_sym_ν_end_cgc_include_save(self, meta_data_σ_μ, meta_ν, τ, data_sn):
         """
-        利用一组当前已知CGC和同它结尾相同的ϵ，计算同它结尾相同的对称CGC
+        利用元CGC和ϵ计算全部以ν为结尾的那部分对称CGC
 
         公式：
         CGC^sym_mode(m|meta_key cond)
@@ -2862,111 +3032,69 @@ class CGCHelper(CalcHelper):
         """
         # 数据准备
         sym_cgc_start_time = time.time()
-        current_yd_σμν = (current_data_σ_μ.σ, current_data_σ_μ.μ, current_ν)
-        current_Λ_list_list = [data_sn.get_phase_factor_list(yd) for yd in current_yd_σμν]
-        current_h_list = [data_sn.get_yt_num(yd) for yd in current_yd_σμν]
-        ϵ_yds_dict = {}  # {ϵ_key: sym_current_yd_σμν}
+        meta_yd_σμν = (meta_data_σ_μ.σ, meta_data_σ_μ.μ, meta_ν)
+        meta_Λ_list_list = [data_sn.get_phase_factor_list(yd) for yd in meta_yd_σμν]
+        meta_h_list = (data_sn.get_phase_factor_list(yd) for yd in meta_yd_σμν)
+        ϵ_yds_dict = {}  # {ϵ_key: sym_yd_σμν}
         for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
-            sym_current_yd_σμν = tuple(current_yd_σμν[d] if k is False else
-                                       data_sn.get_tilde(current_yd_σμν[d]) for d, k in zip(d3, k4))
-            ϵ_yds_dict[ϵ_key] = sym_current_yd_σμν
-        # 对于meta，current_ϵ_dict必然能拿到；对于非meta，在使用前，有代码负责提前装载，所以也能拿到
-        # current_ϵ_dict, current_ϵ_flags = current_data_σ_μ.get_ϵ_dict_and_flags(current_ν, τ)
-        current_ϵ_dict, _ = current_data_σ_μ.get_ϵ_dict_and_flags(current_ν, τ)
-        # ϵ(σμν) * ϵ(sym_mode) 与m无关，可以拿到前面算
-        ϵ_2_dict = {}
-        for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
-            ϵ_2 = current_ϵ_dict["σμν"] * current_ϵ_dict[ϵ_key]
-            ϵ_2_dict[ϵ_key] = ϵ_2
-        h_ν = data_sn.get_yt_num(current_ν)
-        for current_m_ν in range(1, h_ν + 1):
-            current_m_ν_tilde = h_ν + 1 - current_m_ν
-            # 准备结果的空字典  # 对于一个m，一次循环里，把所有ν结尾的对称CGC都算出来（最多也就7个），空间换时间
+            sym_yd_σμν = (meta_yd_σμν[d] if k is False else
+                          data_sn.get_tilde(meta_yd_σμν[d]) for d, k in zip(d3, k4))
+            ϵ_yds_dict[ϵ_key] = sym_yd_σμν
+        meta_ϵ_dict, meta_ϵ_flags = meta_data_σ_μ.get_ϵ_dict_and_flags(meta_ν, τ)
+        h_ν = data_sn.get_yt_num(meta_ν)
+        for meta_m_ν in range(1, h_ν + 1):
+            meta_m_ν_tilde = h_ν + 1 - meta_m_ν
+            # 准备结果的空字典
             sym_cgc_square_dict_dict = {}  # {ϵ_key: sym_cgc_square_dict}
-            sym_cgc_tuple_list = []  # 记录要算哪些tuple，避免重复
             for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
-                sym_current_yd_σμν = ϵ_yds_dict[ϵ_key]
-                cgc_tuple = (self.s_n, *sym_current_yd_σμν, τ, current_m_ν) if k4[-1] is False \
-                    else (self.s_n, *sym_current_yd_σμν, τ, current_m_ν_tilde)
+                sym_yd_σμν = ϵ_yds_dict[ϵ_key]
+                cgc_tuple = (self.s_n, *sym_yd_σμν, τ, meta_m_ν) if k4[-1] is False \
+                    else (self.s_n, *sym_yd_σμν, τ, meta_m_ν_tilde)
                 _, is_calc_ed = is_cgc_exist(*cgc_tuple)
-                if is_calc_ed is False and cgc_tuple not in sym_cgc_tuple_list:  # 这样，就可以保证不重不漏了
-                    sym_cgc_tuple_list.append(cgc_tuple)
+                if is_calc_ed is False:
                     sym_cgc_square_dict_dict[ϵ_key] = {}
             sym_cgc_square_dict_dict_keys = list(sym_cgc_square_dict_dict.keys())
             if not sym_cgc_square_dict_dict:  # 空字典说明对称都被算过了
                 continue
-
-            # catch_cond = (4, [2, 1, 1], [3, 1], [2, 2], None, 1) in sym_cgc_tuple_list or \
-            #              (4, [2, 1, 1], [3, 1], [2, 2], None, 2) in sym_cgc_tuple_list
-            # catch_cond = (3, [2, 1], [3], [2, 1], None, 1) in sym_cgc_tuple_list or \
-            #              (3, [2, 1], [3], [2, 1], None, 2) in sym_cgc_tuple_list
-            # if catch_cond:
-            #     logger.warning("######## catch (3, [2, 1], [3], [2, 1]) with sym_cgc_square_dict_dict={}, "
-            #                    "current_yd_σμν={}, τ={}, current_m_ν={}, sym_cgc_tuple_list={}"
-            #                    "".format(sym_cgc_square_dict_dict, current_yd_σμν, τ, current_m_ν, sym_cgc_tuple_list))
-
-            # 准备meta_cgc
-            flag, meta_cgc_square_dict = load_cgc(*(self.s_n, *current_yd_σμν, τ, current_m_ν),
-                                                  is_flag_true_if_not_s_n=False)
+            # 准备cgc
+            flag, meta_cgc_square_dict = load_cgc(*(self.s_n, *meta_yd_σμν, τ, meta_m_ν), is_flag_true_if_not_s_n=False)
             if not flag:
-                err_msg = "load_cgc fail by self.s_n={}, current_yd_σμν={}, τ={}, current_m_ν={}, " \
-                          "with msg={}".format(self.s_n, current_yd_σμν, τ, current_m_ν, meta_cgc_square_dict)
+                err_msg = "load_cgc fail by self.s_n={}, meta_yd_σμν={}, τ={}, meta_m_ν={}, " \
+                          "with msg={}".format(self.s_n, meta_yd_σμν, τ, meta_m_ν, meta_cgc_square_dict)
                 logger.error(err_msg)
                 return False, err_msg
             '''这里，meta_cgc_square_dict是最大的，所以它的循环应该放在外面，循环最少的次数，而且它循环，可以在外面就尽量在外面'''
-            for (meta_m_σ, meta_m_μ), meta_cgc_square in meta_cgc_square_dict.items():
-                meta_m_σμν = (meta_m_σ, meta_m_μ, current_m_ν)
+            for (meta_m_σ, meta_m_μ), meta_cgc in meta_cgc_square_dict.items():
+                meta_m_σμν = (meta_m_σ, meta_m_μ, meta_m_ν)
                 for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
                     if ϵ_key not in sym_cgc_square_dict_dict_keys:
                         continue
-                    # ϵ(σμν) * ϵ(sym_mode)已经在外面算好了
-                    ϵ_2 = ϵ_2_dict[ϵ_key]
+                    # ϵ(σμν) * ϵ(sym_mode)
+                    ϵ_2 = meta_ϵ_dict["σμν"] * meta_ϵ_dict[ϵ_key]
                     # ΛΛ_u^sym_mode(m｜meta_key cond) & sym m
                     ΛΛ = 1
-                    sym_m_list = [meta_m_σμν[d] if k is False else
-                                  current_h_list[d] + 1 - meta_m_σμν[d] for d, k in zip(d3, k4)]
-                    for i, d, k in zip(range(3), d3, k4):
+                    sym_m_list = [None, None, None]
+                    for d, k, single_meta_m_σμν, single_meta_h in zip(d3, k4, meta_m_σμν, meta_h_list):
                         if k is True:
-                            ΛΛ *= current_Λ_list_list[d][meta_m_σμν[d] - 1]
-                    # 小心，下面注释掉的是错误代码，它错在拿了meta_m_σ，却去算sym_m_σ
-                    # for d, k, single_meta_m_σμν, single_meta_h in zip(d3, k4, meta_m_σμν, current_h_list):
-                    #     if k is True:
-                    #         ΛΛ *= current_Λ_list_list[d][meta_m_σμν[d] - 1]
-                    #         sym_m_list[d] = single_meta_h + 1 - single_meta_m_σμν
-                    #     else:
-                    #         sym_m_list[d] = single_meta_m_σμν
-
-                        # if catch_cond and (ϵ_key == "μσν" or ϵ_key == "μ~σν~"):
-                        #     logger.warning("ϵ_key={}, d={}, k={}, sym_m_list[i]={}"
-                        #                    "".format(ϵ_key, d, k, sym_m_list[i]))
-
+                            ΛΛ *= meta_Λ_list_list[d][meta_m_σμν[d] - 1]
+                            sym_m_list[d] = single_meta_h + 1 - single_meta_m_σμν
+                        else:
+                            sym_m_list[d] = single_meta_m_σμν
                     # CGC^meta_mode[m｜meta_key cond]
-                    # meta_cgc_square
+                    # meta_cgc
                     # CGC^sym_mode(m|meta_key cond)
-                    sym_cgc_square = ϵ_2 * ΛΛ * meta_cgc_square
+                    sym_cgc_square = ϵ_2 * ΛΛ * meta_cgc
                     sym_cgc_square_dict_dict[ϵ_key][(sym_m_list[0], sym_m_list[1])] = sym_cgc_square
-
-                    # if catch_cond and ϵ_key == "σ~μν~":
-                    # if catch_cond and (ϵ_key == "μσν" or ϵ_key == "μ~σν~"):
-                    #     logger.warning("## ϵ_key={}, sym_cgc_square={} eq\nϵ_2={} * ΛΛ={} * meta_cgc_square={} "
-                    #                    "with sym_m_list={}, meta_m_σμν={}, sym_cgc_square_dict_dict={}"
-                    #                    "".format(ϵ_key, sym_cgc_square, ϵ_2, ΛΛ, meta_cgc_square, sym_m_list,
-                    #                              meta_m_σμν, sym_cgc_square_dict_dict))
-
-            # if catch_cond:
-            #     logger.warning("## sym_cgc_square_dict_dict={}, sym_cgc_tuple_list={}, current_m_ν={}"
-            #                    "".format(sym_cgc_square_dict_dict, sym_cgc_tuple_list, current_m_ν))
-
             # 保存  # 这里的时间采用平均值来计算
             sym_cgc_speed_time = int(time.time() - sym_cgc_start_time)
             sym_cgc_speed_time_average = int(sym_cgc_speed_time / len(sym_cgc_square_dict_dict_keys))
             sym_cgc_start_time = time.time()
             for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
-                if ϵ_key not in sym_cgc_square_dict_dict_keys:
+                if ϵ_key in sym_cgc_square_dict_dict_keys:
                     continue
-                sym_current_yd_σμν = ϵ_yds_dict[ϵ_key]
-                cgc_tuple = (self.s_n, *sym_current_yd_σμν, τ, current_m_ν) if k4[-1] is False \
-                    else (self.s_n, *sym_current_yd_σμν, τ, current_m_ν_tilde)
+                sym_yd_σμν = ϵ_yds_dict[ϵ_key]
+                cgc_tuple = (self.s_n, *sym_yd_σμν, τ, meta_m_ν) if k4[-1] is False \
+                    else (self.s_n, *sym_yd_σμν, τ, meta_m_ν_tilde)
                 flag, msg = save_cgc(*(*cgc_tuple, sym_cgc_square_dict_dict[ϵ_key], sym_cgc_speed_time_average))
                 if not flag:
                     err_msg = "save_cgc fail by cgc_tuple={}, sym_cgc_square_dict_dict[ϵ_key]={}, ϵ_key={} with " \
@@ -2976,64 +3104,234 @@ class CGCHelper(CalcHelper):
 
         return True, None
 
-    def calc_sym_μ_σ_end_cgc_include_save(self, new_σμν, data_sn, data_st):
+    def calc_symmetry_cgc_include_save(self, meta_ν, τ, data_sn, data_σ_μ):
         """
-        1，利用ISF计算σνμ或νμσ的CGC
-        2，以σνμ或νμσ为起点，对称出同样以μ或σ结尾的CGC
+        利用元CGC和ϵ计算全部对称CGC
+
+        metaCGC循环：(元CGC的标志是ν+τ)
+        5.0，数据准备
+        5.1，根据ϵ1算【[μ][σ][ν]τ】
+        5.2，根据ϵ4算【[σ~][μ~][ν]τ】
+        5.3，根据ϵ14算【[μ~][σ~][ν]τ】
+        5.4，根据ϵ5算【[σ~][μ][ν~]τ】
+        5.5，根据ϵ15算【[μ][σ~][ν~]τ】
+        5.6，根据ϵ6算【[σ][μ~][ν~]τ】
+        5.7，根据ϵ16算【[μ~][σ][ν~]τ】
         """
-        # 准备
-        new_σ, new_μ, new_ν = new_σμν
-        new_data_σ_μ = ΣMDataHelper(self.s_n, new_σ, new_μ, data_sn, data_st)
-        # new_data_σ_μ.hook_meta_ν_list_of_σμ_and_get_ν_st_list_inner_meta_bl()  # 这里按定义没有meta可挂载
-        cg_series_list = new_data_σ_μ.cg_series_list
-        yd_list = data_sn.yd_list
-        new_τ_max = cg_series_list[yd_list.index(new_ν)]  # 预先拿到new_τ_max
-        for new_τ in range(1, new_τ_max + 1):
-            new_τ = None if new_τ_max == 1 else new_τ
-            _, new_ϵ = load_ϵ(*(self.s_n, *new_σμν, new_τ), is_with_flags=True)
-            new_ϵ_dict = new_ϵ["data"]
-            new_ϵ_flags = new_ϵ["flags"]
-            new_data_σ_μ.register_ϵ_dict_and_flags(new_ν, new_τ, new_ϵ_dict, new_ϵ_flags)  # 预先装载ϵ
-        # new_meta_ν的所有St分支，必然包含new_meta_ν的ISF，也必然已经被计算了（指的是ISF中含有new_meta_ν的列）
-        for new_ν_st in data_sn.get_bl_yds(new_ν):
-            _, is_calc_ed = is_isf_exist(*(self.s_n, new_σ, new_μ, new_ν_st))
+        h_ν = data_sn.get_yt_num(meta_ν)
+        meta_ϵ_dict, meta_ϵ_flags = data_σ_μ.get_ϵ_dict_and_flags(meta_ν, τ)
+        for m in range(1, h_ν + 1):
+            m_tilde = h_ν + 1 - m
+            # 5.0，数据准备
+            flag, meta_cgc_square_dict = load_cgc(self.s_n, data_σ_μ.σ, data_σ_μ.μ, meta_ν, τ, m,
+                                                  is_flag_true_if_not_s_n=False)
+            if not flag:
+                err_msg = "load_cgc fail by self.s_n={}, data_σ_μ.σ={}, data_σ_μ.μ={}, meta_ν={}, τ={}, m={}, " \
+                          "with msg={}".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, meta_ν, τ, m, meta_cgc_square_dict)
+                logger.error(err_msg)
+                return False, err_msg
+
+            # 一起算所有CGC太占内存了，所以还是分开算，反正最后的优化方向是这里不算，使用时再现算
+            # 5.1，根据ϵ1算【[μ][σ][ν]τ】
+            cgc_start_time = time.time()
+            cgc1_tuple = (self.s_n, data_σ_μ.μ, data_σ_μ.σ, meta_ν, τ, m)
+            _, is_calc_ed = is_cgc_exist(*cgc1_tuple)
+            if is_calc_ed is False:  # 能进行到这里的ϵ_x必须非None
+                ϵ1 = meta_ϵ_dict["ϵ1"]
+                cgc1_square_dict = self.calc_symmetry_cgc_by_ϵ1(ϵ1, meta_cgc_square_dict)
+                cgc_speed_time = int(time.time() - cgc_start_time)
+                flag, msg = save_cgc(*(*cgc1_tuple, cgc1_square_dict, cgc_speed_time))
+                if not flag:
+                    err_msg = "save_cgc fail by cgc1_tuple={}, cgc1_square_dict={} with " \
+                              "msg={}".format(cgc1_tuple, cgc1_square_dict, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
+
+            # 5.2，根据ϵ4算【[σ~][μ~][ν]τ】
+            cgc_start_time = time.time()
+            cgc4_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.σ), data_sn.get_tilde(data_σ_μ.μ), meta_ν, τ, m)
+            _, is_calc_ed = is_cgc_exist(*cgc4_tuple)
             if is_calc_ed is False:
-                err_msg = "isf must exist but not with s_n={}, new_σμν={}, new_ν_st={}".format(
-                    self.s_n, new_σμν, new_ν_st)
-                logger.error(err_msg)
-                return False, err_msg
-            # 1，利用ISF计算σνμ或νμσ的CGC
-            # 对于partial_isf_square_dict，我们只取用new_ν，有就行。其他部分是否完整并不关心
-            _, new_ν_isf_info_dict = load_isf(self.s_n, new_σ, new_μ, new_ν_st,
-                                              output_mode="all", ex_params=["data", "flags"])
-            if new_ν_isf_info_dict.get("flags", {}).get("finish_cols", None) is None:
-                new_ν_finish_cols = new_ν_isf_info_dict["data"]["cols"]
-            else:
-                new_ν_finish_cols = new_ν_isf_info_dict["flags"]["finish_cols"]
-            new_data_σ_μ.register_isf_square_dict_and_finish_cols_by_ν_st(new_ν_st, new_ν_isf_info_dict["data"],
-                                                                          new_ν_finish_cols)
+                ϵ4 = meta_ϵ_dict["ϵ4"]
+                cgc4_square_dict = self._calc_symmetry_cgc_by_ϵ4(ϵ4, meta_cgc_square_dict, data_sn, data_σ_μ)
+                cgc_speed_time = int(time.time() - cgc_start_time)
+                flag, msg = save_cgc(*(*cgc4_tuple, cgc4_square_dict, cgc_speed_time))
+                if not flag:
+                    err_msg = "save_cgc fail by cgc4_tuple={}, cgc4_square_dict={} with " \
+                              "msg={}".format(cgc4_tuple, cgc4_square_dict, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
 
-            # 这里，我们以多load一次new_σμν所有CGC的代价，复用calc_meta_cgc_include_save
-            flag, msg = self.calc_cgc_by_isf_include_save(new_data_σ_μ, new_ν_st, data_sn, data_st,
-                                                          non_meta_ν_end=new_ν)
-            if not flag:
-                err_msg = "calc_cgc_by_isf_include_save fail by new_data_σ_μ={}, new_ν_st={}, data_sn={}, data_st={}" \
-                          ", non_meta_ν_end={}, with msg={}" \
-                          "".format(new_data_σ_μ, new_ν_st, data_sn, data_st, new_ν, msg)
-                logger.error(err_msg)
-                return False, err_msg
+            # 5.3，根据ϵ14算【[μ~][σ~][ν]τ】
+            cgc_start_time = time.time()
+            cgc14_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.μ), data_sn.get_tilde(data_σ_μ.σ), meta_ν, τ, m)
+            _, is_calc_ed = is_cgc_exist(*cgc14_tuple)
+            if is_calc_ed is False:
+                ϵ14 = meta_ϵ_dict["ϵ14"]
+                cgc14_square_dict = self._calc_symmetry_cgc_by_ϵ14(ϵ14, meta_cgc_square_dict, data_sn, data_σ_μ)
+                cgc_speed_time = int(time.time() - cgc_start_time)
+                flag, msg = save_cgc(*(*cgc14_tuple, cgc14_square_dict, cgc_speed_time))
+                if not flag:
+                    err_msg = "save_cgc fail by cgc14_tuple={}, cgc14_square_dict={} with " \
+                              "msg={}".format(cgc14_tuple, cgc14_square_dict, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
 
-        # 2，以σνμ或νμσ为起点，对称出同样以μ或σ结尾的CGC
-        for new_τ in range(1, new_τ_max + 1):
-            new_τ = None if new_τ_max == 1 else new_τ
-            flag, msg = self.calc_sym_cgc_by_same_end_cgc_include_save(new_data_σ_μ, new_ν, new_τ, data_sn)
-            if not flag:
-                err_msg = "calc_sym_cgc_by_same_end_cgc_include_save fail by new_data_σ_μ={}, new_ν={}, " \
-                          "new_τ={}, data_sn={} with msg={}".format(new_data_σ_μ, new_ν, new_τ, data_sn, msg)
-                logger.error(err_msg)
-                return False, err_msg
+            # 5.4，根据ϵ5算【[σ~][μ][ν~]τ】
+            cgc_start_time = time.time()
+            cgc5_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.σ), data_σ_μ.μ, data_sn.get_tilde(meta_ν), τ, m_tilde)
+            _, is_calc_ed = is_cgc_exist(*cgc5_tuple)
+            if is_calc_ed is False:
+                ϵ5 = meta_ϵ_dict.get("ϵ5")
+                cgc5_square_dict = self._calc_symmetry_cgc_by_ϵ5(ϵ5, meta_cgc_square_dict, meta_ν, m, data_sn, data_σ_μ)
+                cgc_speed_time = int(time.time() - cgc_start_time)
+                flag, msg = save_cgc(*(*cgc5_tuple, cgc5_square_dict, cgc_speed_time))
+                if not flag:
+                    err_msg = "save_cgc fail by cgc5_tuple={}, cgc5_square_dict={} with " \
+                              "msg={}".format(cgc5_tuple, cgc5_square_dict, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
+
+            # 5.5，根据ϵ15算【[μ][σ~][ν~]τ】
+            cgc_start_time = time.time()
+            cgc15_tuple = (self.s_n, data_σ_μ.μ, data_sn.get_tilde(data_σ_μ.σ), data_sn.get_tilde(meta_ν), τ, m_tilde)
+            _, is_calc_ed = is_cgc_exist(*cgc15_tuple)
+            if is_calc_ed is False:
+                ϵ15 = meta_ϵ_dict.get("ϵ15")
+                cgc15_square_dict = self._calc_symmetry_cgc_by_ϵ15(ϵ15, meta_cgc_square_dict, meta_ν, m, data_sn, data_σ_μ)
+                cgc_speed_time = int(time.time() - cgc_start_time)
+                flag, msg = save_cgc(*(*cgc15_tuple, cgc15_square_dict, cgc_speed_time))
+                if not flag:
+                    err_msg = "save_cgc fail by cgc15_tuple={}, cgc15_square_dict={} with " \
+                              "msg={}".format(cgc15_tuple, cgc15_square_dict, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
+
+            # 5.6，根据ϵ6算【[σ][μ~][ν~]τ】
+            cgc_start_time = time.time()
+            cgc6_tuple = (self.s_n, data_σ_μ.σ, data_sn.get_tilde(data_σ_μ.μ), data_sn.get_tilde(meta_ν), τ, m_tilde)
+            _, is_calc_ed = is_cgc_exist(*cgc6_tuple)
+            if is_calc_ed is False:
+                ϵ6 = meta_ϵ_dict.get("ϵ6")
+                cgc6_square_dict = self._calc_symmetry_cgc_by_ϵ6(ϵ6, meta_cgc_square_dict, meta_ν, m, data_sn, data_σ_μ)
+                cgc_speed_time = int(time.time() - cgc_start_time)
+                flag, msg = save_cgc(*(*cgc6_tuple, cgc6_square_dict, cgc_speed_time))
+                if not flag:
+                    err_msg = "save_cgc fail by cgc6_tuple={}, cgc6_square_dict={} with " \
+                              "msg={}".format(cgc6_tuple, cgc6_square_dict, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
+
+            # 5.7，根据ϵ16算【[μ~][σ][ν~]τ】
+            cgc_start_time = time.time()
+            cgc16_tuple = (self.s_n, data_sn.get_tilde(data_σ_μ.μ), data_σ_μ.σ, data_sn.get_tilde(meta_ν), τ, m_tilde)
+            _, is_calc_ed = is_cgc_exist(*cgc16_tuple)
+            if is_calc_ed is False:
+                ϵ16 = meta_ϵ_dict.get("ϵ16")
+                cgc16_square_dict = self._calc_symmetry_cgc_by_ϵ16(ϵ16, meta_cgc_square_dict, meta_ν, m, data_sn, data_σ_μ)
+                cgc_speed_time = int(time.time() - cgc_start_time)
+                flag, msg = save_cgc(*(*cgc16_tuple, cgc16_square_dict, cgc_speed_time))
+                if not flag:
+                    err_msg = "save_cgc fail by cgc16_tuple={}, cgc16_square_dict={} with " \
+                              "msg={}".format(cgc16_tuple, cgc16_square_dict, msg)
+                    logger.error(err_msg)
+                    return False, err_msg
 
         return True, None
+
+    '''
+    在以下计算中，需要注意变量的归属问题。
+    使用data_σ_μ得到的变量，说明它的计算中，参数是CGC_σμντ的
+    而使用ϵ_xxx_tuple的，说明它的计算中，参数是对称目标的
+    
+    另外，用行列式储存CGC，能得到极大的计算速度和简洁性优化；
+    但是，更好的优化是根本不计算它们，只留一个索引，需要调取时，根据索引现场计算，来节省计算和储存资源
+    '''
+    '''下面的calc_symmetry_cgc_by_ϵ_xxx不怕重复，因为验证过后，它们将不会被计算'''
+
+    @staticmethod
+    def calc_symmetry_cgc_by_ϵ1(ϵ1, meta_cgc_square_dict):
+        # 根据ϵ1算【[μ][σ][ν]τ m】
+        cgc1_square_dict = {(k[1], k[0]): ϵ1 * v for k, v in meta_cgc_square_dict.items()}
+        return cgc1_square_dict
+
+    @staticmethod
+    def _calc_symmetry_cgc_by_ϵ4(ϵ4, meta_cgc_square_dict, data_sn, data_σ_μ):
+        # 根据ϵ4算【[σ~][μ~][ν]τ m】
+        cgc4_square_dict = {}
+        h_σ_add_1, h_μ_add_1 = data_sn.get_yt_num(data_σ_μ.σ) + 1, data_sn.get_yt_num(data_σ_μ.μ) + 1
+        phase_factor_list_σ = data_sn.get_phase_factor_list(data_σ_μ.σ)
+        phase_factor_list_μ = data_sn.get_phase_factor_list(data_σ_μ.μ)
+        for (m_σ, m_μ), v in meta_cgc_square_dict.items():
+            Λ_m_σ = phase_factor_list_σ[m_σ - 1]
+            Λ_m_μ = phase_factor_list_μ[m_μ - 1]
+            cgc4_square_dict[(h_σ_add_1 - m_σ, h_μ_add_1 - m_μ)] = ϵ4 * Λ_m_σ * Λ_m_μ * v
+        return cgc4_square_dict
+
+    @staticmethod
+    def _calc_symmetry_cgc_by_ϵ14(ϵ14, meta_cgc_square_dict, data_sn, data_σ_μ):
+        # 根据ϵ14算【[μ~][σ~][ν]τ m】
+        cgc14_square_dict = {}
+        h_σ_add_1, h_μ_add_1 = data_sn.get_yt_num(data_σ_μ.σ) + 1, data_sn.get_yt_num(data_σ_μ.μ) + 1
+        phase_factor_list_σ = data_sn.get_phase_factor_list(data_σ_μ.σ)
+        phase_factor_list_μ = data_sn.get_phase_factor_list(data_σ_μ.μ)
+        for (m_σ, m_μ), v in meta_cgc_square_dict.items():
+            Λ_m_σ = phase_factor_list_σ[m_σ - 1]
+            Λ_m_μ = phase_factor_list_μ[m_μ - 1]
+            cgc14_square_dict[(h_μ_add_1 - m_μ, h_σ_add_1 - m_σ)] = ϵ14 * Λ_m_σ * Λ_m_μ * v
+        return cgc14_square_dict
+
+    @staticmethod
+    def _calc_symmetry_cgc_by_ϵ5(ϵ5, meta_cgc_square_dict, ν, m_ν, data_sn, data_σ_μ):
+        # 根据ϵ5算【[σ~][μ][ν~]τ m~】
+        cgc5_square_dict = {}
+        h_σ_add_1, h_ν_add_1 = data_sn.get_yt_num(data_σ_μ.σ) + 1, data_sn.get_yt_num(ν) + 1
+        phase_factor_list_σ = data_sn.get_phase_factor_list(data_σ_μ.σ)
+        phase_factor_list_ν = data_sn.get_phase_factor_list(ν)
+        Λ_m_ν = phase_factor_list_ν[m_ν - 1]
+        for (m_σ, m_μ), v in meta_cgc_square_dict.items():
+            Λ_m_σ = phase_factor_list_σ[m_σ - 1]
+            cgc5_square_dict[(h_σ_add_1 - m_σ, m_μ)] = ϵ5 * Λ_m_σ * Λ_m_ν * v
+        return cgc5_square_dict
+
+    @staticmethod
+    def _calc_symmetry_cgc_by_ϵ15(ϵ15, meta_cgc_square_dict, ν, m_ν, data_sn, data_σ_μ):
+        # 根据ϵ15算【[μ][σ~][ν~]τ m~】
+        cgc15_square_dict = {}
+        h_σ_add_1, h_ν_add_1 = data_sn.get_yt_num(data_σ_μ.σ) + 1, data_sn.get_yt_num(ν) + 1
+        phase_factor_list_σ = data_sn.get_phase_factor_list(data_σ_μ.σ)
+        phase_factor_list_ν = data_sn.get_phase_factor_list(ν)
+        Λ_m_ν = phase_factor_list_ν[m_ν - 1]
+        for (m_σ, m_μ), v in meta_cgc_square_dict.items():
+            Λ_m_σ = phase_factor_list_σ[m_σ - 1]
+            cgc15_square_dict[(m_μ, h_σ_add_1 - m_σ)] = ϵ15 * Λ_m_σ * Λ_m_ν * v
+        return cgc15_square_dict
+
+    @staticmethod
+    def _calc_symmetry_cgc_by_ϵ6(ϵ6, meta_cgc_square_dict, ν, m_ν, data_sn, data_σ_μ):
+        # 根据ϵ6算【[σ][μ~][ν~]τ m~】
+        cgc6_square_dict = {}
+        h_μ_add_1, h_ν_add_1 = data_sn.get_yt_num(data_σ_μ.μ) + 1, data_sn.get_yt_num(ν) + 1
+        phase_factor_list_μ = data_sn.get_phase_factor_list(data_σ_μ.μ)
+        phase_factor_list_ν = data_sn.get_phase_factor_list(ν)
+        Λ_m_ν = phase_factor_list_ν[m_ν - 1]
+        for (m_σ, m_μ), v in meta_cgc_square_dict.items():
+            Λ_m_μ = phase_factor_list_μ[m_μ - 1]
+            cgc6_square_dict[(m_σ, h_μ_add_1 - m_μ)] = ϵ6 * Λ_m_μ * Λ_m_ν * v
+        return cgc6_square_dict
+
+    @staticmethod
+    def _calc_symmetry_cgc_by_ϵ16(ϵ16, meta_cgc_square_dict, ν, m_ν, data_sn, data_σ_μ):
+        # 根据ϵ16算【[μ~][σ][ν~]τ m~】
+        cgc16_square_dict = {}
+        h_μ_add_1, h_ν_add_1 = data_sn.get_yt_num(data_σ_μ.μ) + 1, data_sn.get_yt_num(ν) + 1
+        phase_factor_list_μ = data_sn.get_phase_factor_list(data_σ_μ.μ)
+        phase_factor_list_ν = data_sn.get_phase_factor_list(ν)
+        Λ_m_ν = phase_factor_list_ν[m_ν - 1]
+        for (m_σ, m_μ), v in meta_cgc_square_dict.items():
+            Λ_m_μ = phase_factor_list_μ[m_μ - 1]
+            cgc16_square_dict[(h_μ_add_1 - m_μ, m_σ)] = ϵ16 * Λ_m_μ * Λ_m_ν * v
+        return cgc16_square_dict
 
 
 class EHelper(CalcHelper):
@@ -3069,12 +3367,9 @@ class EHelper(CalcHelper):
         h_μ = data_sn.get_yt_num(data_σ_μ.μ)
         h_ν = data_sn.get_yt_num(ν)
 
-        if _debug_condition(data_σ_μ, ν=ν):
-            logger.warning("######## catch meta data_σ_μ={}, ν={}".format(data_σ_μ, ν))
-
         # 1，一些可以简化处理的情况可以走快速通道
         if data_σ_μ.σ == data_σ_μ.μ == ν:
-            # 这里，除了可以由σμν_0，σμν_1对称出所有σμν组合外，也不需要遍历所有m的CGC去凑一些dict了
+            # 这里，除了可以由0，1对称出所有6组σμν外，也不需要遍历所有m的CGC去凑一些dict了
             # 所以，先对m_ν=1、m_ν=h_ν做ϵ，再取对称就可以了
             # 1.1，m_ν=1
             flag, cgc_square_dict = load_cgc(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, 1, is_flag_true_if_not_s_n=False)
@@ -3102,11 +3397,11 @@ class EHelper(CalcHelper):
 
             # 1.3，其他
             for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
-                # 对σμν_0和σμν_1采用两种对称（(1,3), (2,3)），实现全部ϵ
+                # 对0和1采用两种对称（(1,3), (2,3)），实现全部ϵ
                 sym_1_d3, sym_1_k4 = (d3[2], d3[1], d3[0]), (k4[2], k4[1], k4[0])
                 sym_2_d3, sym_2_k4 = (d3[0], d3[2], d3[1]), (k4[0], k4[2], k4[1])
-                sym_1_ϵ_key = data_sn.get_ϵ_key_by_d3_k4(sym_1_d3, sym_1_k4)
-                sym_2_ϵ_key = data_sn.get_ϵ_key_by_d3_k4(sym_2_d3, sym_2_k4)
+                sym_1_ϵ_key = spell_ϵ_key(sym_1_d3, sym_1_k4)
+                sym_2_ϵ_key = spell_ϵ_key(sym_2_d3, sym_2_k4)
                 ϵ_dict[sym_1_ϵ_key], ϵ_flags[sym_1_ϵ_key] = ϵ_dict[ϵ_key], ϵ_flags[ϵ_key]
                 ϵ_dict[sym_2_ϵ_key], ϵ_flags[sym_2_ϵ_key] = ϵ_dict[ϵ_key], ϵ_flags[ϵ_key]
 
@@ -3118,9 +3413,9 @@ class EHelper(CalcHelper):
                           "with ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags)
                 return False, err_msg
 
-        # 2，一般情况，必须要遍历CGC所有的m
+        # 2，必须要遍历所有m的CGC的其他情况
         # 按照m_ν循环：
-        # m_σ=1、m_μ=1、m_σ=h_σ、m_μ=h_μ的4个字典(不需要归一化，因为只需要它们的符号)
+        # m_σ=1、m_μ=1、m_σ=h_σ、m_μ=h_μ的4个字典
         m_μ_1_dict = {}
         m_μ_h_dict = {}
         m_σ_1_dict = {}
@@ -3132,10 +3427,6 @@ class EHelper(CalcHelper):
                           "msg={}".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, m_ν, cgc_square_dict)
                 logger.error(err_msg)
                 return False, err_msg
-
-            if _debug_condition(data_σ_μ, ν=ν):
-                logger.warning("## m_ν={}, cgc_square_dict={}".format(m_ν, cgc_square_dict))
-
             # 2.1，整理6个矩阵中m_σ=1、m_μ=1、m_σ=h_σ、m_μ=h_μ的4个字典
             for (m_σ, m_μ), v in cgc_square_dict.items():
                 if m_μ == 1:
@@ -3158,46 +3449,26 @@ class EHelper(CalcHelper):
                 ϵ_dict.update(adding_ϵ_dict)
                 ϵ_flags.update(adding_ϵ_flags)
 
-            if _debug_condition(data_σ_μ, ν=ν):
-                logger.warning("#0# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
+        # 2.3，单σ=ν或μ=ν还是有简化算法可以榨取
+        if data_σ_μ.σ == ν:
+            for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
+                # 对0和1采用σν对称可以算σμν_4、σμν_5
+                if d3 == (0, 1, 2):  # 表示σμν（不看～）
+                    sym_d3, sym_k4 = (2, 1, 0), (k4[2], k4[1], k4[0])
+                else:  # 这里必然是(1, 0, 2)  # 表示μσν（不看～）
+                    sym_d3, sym_k4 = (1, 2, 0), (k4[0], k4[2], k4[1])
+                sym_ϵ_key = spell_ϵ_key(sym_d3, sym_k4)
+                ϵ_dict[sym_ϵ_key], ϵ_flags[sym_ϵ_key] = ϵ_dict[ϵ_key], ϵ_flags[ϵ_key]
 
-        if _debug_condition(data_σ_μ, ν=ν):
-            logger.warning("## m_μ_1_dict={}, m_μ_h_dict={}, m_σ_1_dict={}, m_σ_h_dict={}, "
-                           "ϵ_dict={}, ϵ_flags={}"
-                           "".format(m_μ_1_dict, m_μ_h_dict, m_σ_1_dict, m_σ_h_dict, ϵ_dict, ϵ_flags))
-
-        # # TODO 这个简化有错误！它没考虑d的所有构型，先注释掉，如果性能提升大，以后再fix
-        # # 2.3，单σ=ν或μ=ν还是有简化算法可以榨取
-        # if data_σ_μ.σ == ν:
-        #     for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
-        #         # 对0和1采用σν对称可以算σμν_4、σμν_5
-        #         if d3 == (0, 1, 2):  # 表示σμν（不看～）
-        #             sym_d3, sym_k4 = (2, 1, 0), (k4[2], k4[1], k4[0])
-        #         else:  # 这里必然是(1, 0, 2)  # 表示μσν（不看～）
-        #             sym_d3, sym_k4 = (1, 2, 0), (k4[0], k4[2], k4[1])
-        #         sym_ϵ_key = data_sn.get_ϵ_key_by_d3_k4(sym_d3, sym_k4)
-        #         ϵ_dict[sym_ϵ_key], ϵ_flags[sym_ϵ_key] = ϵ_dict[ϵ_key], ϵ_flags[ϵ_key]
-        #
-        # if _debug_condition(data_σ_μ, ν=ν):
-        #     logger.warning("#1# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
-        #
-        # if data_σ_μ.μ == ν:
-        #     for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
-        #         # 对0和1采用μν对称可以算σμν_2、σμν_3
-        #         if d3 == (0, 1, 2):  # 表示σμν（不看～）
-        #             sym_d3, sym_k4 = (0, 2, 1), (k4[0], k4[2], k4[1])
-        #         else:  # 这里必然是(1, 0, 2)  # 表示μσν（不看～）
-        #             sym_d3, sym_k4 = (2, 0, 1), (k4[2], k4[1], k4[0])
-        #         sym_ϵ_key = data_sn.get_ϵ_key_by_d3_k4(sym_d3, sym_k4)
-        #         ϵ_dict[sym_ϵ_key], ϵ_flags[sym_ϵ_key] = ϵ_dict[ϵ_key], ϵ_flags[ϵ_key]
-        #         if _debug_condition(data_σ_μ, ν=ν):
-        #             logger.warning("## \nϵ_key={}, d3={}, k4={}, ϵ_dict[ϵ_key]={}, ϵ_flags[ϵ_key]={}\n"
-        #                            "sym_ϵ_key={}, sym_d3={}, sym_k4={}, ϵ_dict[sym_ϵ_key]={}, ϵ_flags[sym_ϵ_key]={}"
-        #                            "".format(ϵ_key, d3, k4, ϵ_dict[ϵ_key], ϵ_flags[ϵ_key],
-        #                                      sym_ϵ_key, sym_d3, sym_k4, ϵ_dict[sym_ϵ_key], ϵ_flags[sym_ϵ_key]))
-
-        if _debug_condition(data_σ_μ, ν=ν):
-            logger.warning("#2# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
+        if data_σ_μ.μ == ν:
+            for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
+                # 对0和1采用μν对称可以算σμν_2、σμν_3
+                if d3 == (0, 1, 2):  # 表示σμν（不看～）
+                    sym_d3, sym_k4 = (0, 2, 1), (k4[0], k4[2], k4[1])
+                else:  # 这里必然是(1, 0, 2)  # 表示μσν（不看～）
+                    sym_d3, sym_k4 = (2, 0, 1), (k4[2], k4[1], k4[0])
+                sym_ϵ_key = spell_ϵ_key(sym_d3, sym_k4)
+                ϵ_dict[sym_ϵ_key], ϵ_flags[sym_ϵ_key] = ϵ_dict[ϵ_key], ϵ_flags[ϵ_key]
 
         # 2.4，计算剩余4组ϵ
         if any(i[0] not in ϵ_dict for i in self.σμν_2):
@@ -3221,9 +3492,6 @@ class EHelper(CalcHelper):
             ϵ_dict.update(adding_ϵ_dict)
             ϵ_flags.update(adding_ϵ_flags)
 
-        if _debug_condition(data_σ_μ, ν=ν):
-            logger.warning("#3# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
-
         if len(ϵ_dict) == len(ϵ_flags) == 24:
             return ϵ_dict, ϵ_flags
         else:
@@ -3231,9 +3499,8 @@ class EHelper(CalcHelper):
                       "with ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags)
             return False, err_msg
 
-    @staticmethod
-    def calc_adding_ϵ(square_dict, data_σ_μ, ν, data_sn, σμν_group=None, m_flags=None):
-        """根据传入的CGC，按照定义计算ϵ
+    def calc_adding_ϵ(self, square_dict, data_σ_μ, ν, data_sn, σμν_group=None, m_flags=None):
+        """根据传入的6个矩阵，按照定义计算ϵ
 
         注意：中文版《群表示论的新途径》这段是错的，应该使用英文版《Group Representation Theory for Physicists》中的对应公式
 
@@ -3257,22 +3524,10 @@ class EHelper(CalcHelper):
         Λ_list_list = [data_sn.get_phase_factor_list(yd) for yd in yd_σμν]
         m_set_list = [set(j[i] for j in square_dict.keys()) if m_flags[i] is None else (m_flags[i],) for i in range(3)]
 
-        if _debug_condition(data_σ_μ, ν=ν):
-            logger.warning("yd_σμν={}, Λ_list_list={}, m_set_list={}, square_dict={}, σμν_group={}, m_flags={}"
-                           "".format(yd_σμν, Λ_list_list, m_set_list, square_dict, σμν_group, m_flags))
-
         for ϵ_key, d3, k4 in σμν_group:
             # ϵ_key是字符串形式的键，p.s. μσ~ν~； d3是组合的数字表示，p.s. (1, 0, 2)； k4是组合的共轭bool，p.s.
-
-            if _debug_condition(data_σ_μ, ν=ν):
-                logger.warning("ϵ_key={}, d3={}, k4={}, adding_ϵ_dict={}"
-                               "".format(ϵ_key, d3, k4, adding_ϵ_dict))
-
             if ϵ_key in adding_ϵ_dict:
                 continue
-
-            if _debug_condition(data_σ_μ, ν=ν) and ϵ_key == "μν~σ~":
-                logger.warning("ϵ_key={}, d3={}, k4={}".format(ϵ_key, d3, k4))
 
             # 下面按顺位缩小范围
             # 第一顺位
@@ -3292,9 +3547,6 @@ class EHelper(CalcHelper):
             m_tmp_list[second_σμν_index] = second_m
             m_tuple = tuple(m_tmp_list)  # 是meta的坐标哦！！！
 
-            if _debug_condition(data_σ_μ, ν=ν) and ϵ_key == "μν~σ~":
-                logger.warning("ϵ_key={}, m_tuple={}".format(ϵ_key, m_tuple))
-
             # 根据前面计算Λ * Λ
             ΛΛ = 1
             for d, k in zip(d3, k4):
@@ -3305,28 +3557,17 @@ class EHelper(CalcHelper):
             adding_ϵ_dict[ϵ_key] = sp.sign(square_dict[square_dict_key]) * ΛΛ
             adding_ϵ_flags[ϵ_key] = m_tuple
 
-            if _debug_condition(data_σ_μ, ν=ν) and ϵ_key == "μν~σ~":
-                logger.warning("adding_ϵ_dict[ϵ_key]={}, square_dict_key={}, square_dict[square_dict_key]={}, ΛΛ={}"
-                               "".format(adding_ϵ_dict[ϵ_key], square_dict_key, square_dict[square_dict_key], ΛΛ))
-
-            # # 一二顺位相等时的简化计算
-            # # TODO 这个简化有错误！它没考虑d的所有构型，先注释掉，如果性能提升大，以后再fix
-            # if yd_σμν[first_σμν_index] == yd_σμν[second_σμν_index]:
-            #     sym_d3, sym_k4 = (d3[1], d3[0], d3[2]), (k4[1], k4[0], k4[2])
-            #     sym_ϵ_key = data_sn.get_ϵ_key_by_d3_k4(sym_d3, sym_k4)
-            #     adding_ϵ_dict[sym_ϵ_key] = adding_ϵ_dict[ϵ_key]
-            #     adding_ϵ_flags[sym_ϵ_key] = adding_ϵ_flags[ϵ_key]
-            #
-            #     if _debug_condition(data_σ_μ, ν=ν):
-            #         logger.warning("sym_ϵ_key={}, adding_ϵ_dict[sym_ϵ_key]={}, adding_ϵ_dict[ϵ_key]={}\n"
-            #                        "first_σμν_index={}, second_σμν_index={}"
-            #                        "".format(sym_ϵ_key, adding_ϵ_dict[sym_ϵ_key], adding_ϵ_dict[ϵ_key],
-            #                                  first_σμν_index, second_σμν_index))
+            # 一二顺位相等时的简化计算
+            if yd_σμν[first_σμν_index] == yd_σμν[second_σμν_index]:
+                sym_d3, sym_k4 = (d3[1], d3[0], d3[2]), (k4[1], k4[0], k4[2])
+                sym_ϵ_key = spell_ϵ_key(sym_d3, sym_k4)
+                adding_ϵ_dict[sym_ϵ_key] = adding_ϵ_dict[ϵ_key]
+                adding_ϵ_flags[sym_ϵ_key] = adding_ϵ_flags[ϵ_key]
 
         return adding_ϵ_dict, adding_ϵ_flags
 
-    def _calc_single_sym_mode_ϵ_by_meta(self, sym_mode, sym_mode_d3, sym_mode_k4, meta_ϵ_dict, meta_ϵ_flags,
-                                        meta_Λ_list_list, sym_Λ_list_list, meta_h_list, data_sn):
+    def _calc_single_sym_mode_by_meta(self, sym_mode, sym_mode_d3, sym_mode_k4, meta_ϵ_dict, meta_ϵ_flags,
+                                      meta_Λ_list_list, sym_Λ_list_list, meta_h_list):
         """
         根据指定的sym_mode求其24个sym_key
 
@@ -3440,7 +3681,7 @@ class EHelper(CalcHelper):
             # 求meta_key
             meta_key_d3 = tuple(sym_mode_d3[i] for i in sym_key_d3)
             meta_key_k4 = tuple(sym_mode_k4[i] is not k for i, k in zip(sym_key_d3, sym_key_k4))
-            meta_key = data_sn.get_ϵ_key_by_d3_k4(meta_key_d3, meta_key_k4)
+            meta_key = spell_ϵ_key(meta_key_d3, meta_key_k4)
             # 3, ϵ(meta_key)
             ϵ_meta_key = meta_ϵ_dict.get(meta_key)
             # 4, ΛΛ_d^meta_key(m｜meta_key cond)
@@ -3476,34 +3717,16 @@ class EHelper(CalcHelper):
         meta_h_list = [data_sn.get_yt_num(yd) for yd in meta_yd_σμν]
         for sym_mode, sym_mode_d3, sym_mode_k4 in \
                 chain(self.σμν_0, self.σμν_1, self.σμν_2, self.σμν_3, self.σμν_4, self.σμν_5):
-
-            # if _debug_condition(meta_data_σ_μ):
-            #     logger.warning("@@@@ meta_data_σ_μ={}, "
-            #                    "sym_mode={}, sym_mode_d3={}, sym_mode_k4={}, "
-            #                    "data_sn.yd_tilde_list={}".format(meta_data_σ_μ, sym_mode, sym_mode_d3, sym_mode_k4,
-            #                                                      data_sn.yd_tilde_list))
-
-            sym_yd_σμν = tuple(meta_yd_σμν[d] if k is False else
-                               data_sn.get_tilde(meta_yd_σμν[d]) for d, k in zip(sym_mode_d3, sym_mode_k4))
-
-            # if _debug_condition(meta_data_σ_μ):
-            #     logger.warning("@@@@ meta_data_σ_μ={}".format(meta_data_σ_μ))
-
+            sym_yd_σμν = (meta_yd_σμν[d] if k is False else
+                          data_sn.get_tilde(meta_yd_σμν[d]) for d, k in zip(sym_mode_d3, sym_mode_k4))
             sym_ϵ_tuple = (self.s_n, *sym_yd_σμν, τ)
             _, is_calc_ed = is_ϵ_exist(*sym_ϵ_tuple)
             if is_calc_ed is True:
                 continue
             sym_Λ_list_list = [data_sn.get_phase_factor_list(yd) for yd in sym_yd_σμν]
-
-            # if _debug_condition(meta_data_σ_μ):
-            #     logger.warning("@@@@ meta_data_σ_μ={}, meta_yd_σμν={}, sym_yd_σμν={}, "
-            #                    "meta_Λ_list_list={}, sym_Λ_list_list={}".format(meta_data_σ_μ, meta_yd_σμν,
-            #                                                                     tuple(sym_yd_σμν),
-            #                                                                     meta_Λ_list_list, sym_Λ_list_list))
-
             sym_ϵ_dict, sym_ϵ_flags = \
-                self._calc_single_sym_mode_ϵ_by_meta(sym_mode, sym_mode_d3, sym_mode_k4, meta_ϵ_dict, meta_ϵ_flags,
-                                                     meta_Λ_list_list, sym_Λ_list_list, meta_h_list, data_sn)
+                self._calc_single_sym_mode_by_meta(sym_mode, sym_mode_d3, sym_mode_k4, meta_ϵ_dict, meta_ϵ_flags,
+                                                   meta_Λ_list_list, sym_Λ_list_list, meta_h_list)
             if len(sym_ϵ_dict) == len(sym_ϵ_flags) == 24:
                 flag, msg = save_ϵ(*(*sym_ϵ_tuple, sym_ϵ_dict, sym_ϵ_flags))
                 if not flag:
@@ -3512,7 +3735,7 @@ class EHelper(CalcHelper):
                     logger.error(err_msg)
                     return False, err_msg
             else:
-                err_msg = "_calc_single_sym_mode_ϵ_by_meta return wrong sym_ϵ_dict={}, sym_ϵ_flags={}".format(
+                err_msg = "_calc_single_sym_mode_by_meta return wrong sym_ϵ_dict={}, sym_ϵ_flags={}".format(
                     sym_ϵ_tuple, sym_ϵ_dict, sym_ϵ_flags)
                 logger.error(err_msg)
                 return False, err_msg

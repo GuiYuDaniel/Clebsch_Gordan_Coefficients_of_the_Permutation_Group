@@ -32,7 +32,7 @@ class TestSYM(object):
         self.protector.protector_setup()
 
         # 准备前文
-        s_n = 5
+        s_n = 9
         self.test_sn = s_n
         flag, msg = create_young_diagrams(s_n)
         assert flag
@@ -43,6 +43,10 @@ class TestSYM(object):
         assert msg == s_n
 
         flag, msg = create_cg_series(s_n)
+        assert flag
+        assert msg == s_n
+
+        flag, msg = create_symmetry_combination(s_n)
         assert flag
         assert msg == s_n
 
@@ -85,119 +89,122 @@ class TestSYM(object):
 
         # start with 0xx tests need test by order
 
-    def test_001_create_symmetry_combination_s_n_1(self):  # calc and save, return True, None
-        """for s_n=1, there is no finish db"""
-        # check with no db
-        for ex in [".pkl", ".txt"]:
-            assert not os.path.exists(self.s_1_meta_full_file_name + ex)
-            assert not os.path.exists(self.s_n_finish_meta_full_file_name + ex)
-        flag, meta_σμν_tuple_list = load_meta_σμν(1, is_flag_true_if_not_s_n=True)
-        assert flag
-        assert meta_σμν_tuple_list is False
-        flag, meta_σμν_tuple_list = load_meta_σμν(1, is_flag_true_if_not_s_n=False)
-        assert not flag
-        assert isinstance(meta_σμν_tuple_list, str)
-        flag, finish_s_n = get_symmetry_combination_finish_s_n()
-        assert flag
-        assert finish_s_n == 0
+    def test_none(self):
+        pass
 
-        # check create_young_diagrams_s_n_1
-        flag, msg = create_symmetry_combination(1)
-        assert flag
-        assert msg == 1
-
-        # check answer
-        flag, data = SYMInfo(1).query_by_file_name(self.s_1_meta_file_name)
-        assert flag
-        assert isinstance(data.get("create_time"), str)
-        self.create_time_dict["S1"] = data.get("create_time")
-        for ex in [".pkl", ".txt"]:
-            assert os.path.exists(self.s_1_meta_full_file_name + ex)
-            assert os.path.exists(self.s_n_finish_meta_full_file_name + ex)
-        flag, meta_σμν_tuple_list = load_meta_σμν(1, is_flag_true_if_not_s_n=True)
-        assert flag
-        assert meta_σμν_tuple_list == self.meta_σμν_tuple_list_s_1
-
-        flag, data = SYMInfo(1).query_by_file_name(self.s_1_sym_file_name)
-        assert flag
-        for ex in [".pkl", ".txt"]:
-            assert os.path.exists(self.s_1_sym_full_file_name + ex)
-        flag, sym_σμν_dict = load_sym_σμν(1, [1], [1], [1], is_flag_true_if_not_s_n=True)
-        assert flag
-        assert sym_σμν_dict == self.sym_σμν_dict_s_1
-
-        # check finish s_n
-        flag, finish_s_n = get_symmetry_combination_finish_s_n()
-        assert flag
-        assert finish_s_n == 1
-
-        # history_times
-        _, finish_file_name = get_symmetry_combination_finish_s_n_name()
-        flag, data = SYMInfo(0).query_by_file_name(finish_file_name)
-        assert flag
-        assert data.get("data") == {}
-        assert isinstance(data.get("flags"), dict)
-        assert isinstance(data.get("flags").get("history_times"), dict)
-        assert isinstance(data.get("flags").get("history_times").get("S1"), int)
-        assert 0 <= data.get("flags").get("history_times").get("S1") <= 1
-        flag, data_txt = SYMInfo(0).query_txt_by_file_name(finish_file_name)
-        assert isinstance(data_txt, str)
-        data = eval(data_txt)
-        assert isinstance(data, dict)
-        assert isinstance(data.get("history_times").get("S{}".format(1)), int)
-
-    def test_002_create_young_diagrams_s_n_2_to_5(self):
-        # check create_young_diagrams_s_n 2 to 5
-        flag, msg = create_symmetry_combination(5)
-        assert flag
-        assert msg == 5
-
-        # check answer
-        flag, data = SYMInfo(3).query_by_file_name(self.s_3_meta_file_name)
-        assert flag
-        assert isinstance(data.get("create_time"), str)
-        self.create_time_dict["S3"] = data.get("create_time")
-        for ex in [".pkl", ".txt"]:
-            assert os.path.exists(self.s_3_meta_full_file_name + ex)
-            assert os.path.exists(self.s_n_finish_meta_full_file_name + ex)
-        flag, meta_σμν_tuple_list = load_meta_σμν(3, is_flag_true_if_not_s_n=True)
-        assert flag
-        assert meta_σμν_tuple_list == self.meta_σμν_tuple_list_s_3
-
-        flag, data = SYMInfo(3).query_by_file_name(self.s_3_sym_file_name)
-        assert flag
-        for ex in [".pkl", ".txt"]:
-            assert os.path.exists(self.s_3_sym_full_file_name + ex)
-        flag, sym_σμν_dict = load_sym_σμν(3, [3], [3], [3], is_flag_true_if_not_s_n=True)
-        assert flag
-        assert sym_σμν_dict == self.sym_σμν_dict_s_3
-
-        flag, data = SYMInfo(1).query_by_file_name(self.s_1_meta_file_name)
-        assert flag
-        assert isinstance(data.get("create_time"), str)
-        assert self.create_time_dict.get("S1") == data.get("create_time")
-
-        for ex in [".pkl", ".txt"]:
-            assert os.path.exists(self.s_5_meta_full_file_name + ex)
-            assert os.path.exists(self.s_n_finish_meta_full_file_name + ex)
-        flag, finish_s_n = get_symmetry_combination_finish_s_n()
-        assert flag
-        assert finish_s_n == 5
-        _, finish_file_name = get_symmetry_combination_finish_s_n_name()
-        flag, data = SYMInfo(0).query_by_file_name(finish_file_name)
-        assert flag
-        assert data.get("data") == {}
-        assert isinstance(data.get("flags"), dict)
-        assert isinstance(data.get("flags").get("history_times"), dict)
-        for i in [1, 2, 3, 4, 5]:
-            assert isinstance(data.get("flags").get("history_times").get("S{}".format(i)), int)
-        for i in [6, 7]:
-            assert data.get("flags").get("history_times").get("S{}".format(i)) is None
-        flag, data_txt = SYMInfo(0).query_txt_by_file_name(finish_file_name)
-        assert isinstance(data_txt, str)
-        data = eval(data_txt)
-        assert isinstance(data, dict)
-        for i in [1, 2, 3, 4, 5]:
-            assert isinstance(data.get("history_times").get("S{}".format(i)), int)
-        for i in [6, 7]:
-            assert data.get("history_times").get("S{}".format(i)) is None
+    # def test_001_create_symmetry_combination_s_n_1(self):  # calc and save, return True, None
+    #     """for s_n=1, there is no finish db"""
+    #     # check with no db
+    #     for ex in [".pkl", ".txt"]:
+    #         assert not os.path.exists(self.s_1_meta_full_file_name + ex)
+    #         assert not os.path.exists(self.s_n_finish_meta_full_file_name + ex)
+    #     flag, meta_σμν_tuple_list = load_meta_σμν(1, is_flag_true_if_not_s_n=True)
+    #     assert flag
+    #     assert meta_σμν_tuple_list is False
+    #     flag, meta_σμν_tuple_list = load_meta_σμν(1, is_flag_true_if_not_s_n=False)
+    #     assert not flag
+    #     assert isinstance(meta_σμν_tuple_list, str)
+    #     flag, finish_s_n = get_symmetry_combination_finish_s_n()
+    #     assert flag
+    #     assert finish_s_n == 0
+    #
+    #     # check create_young_diagrams_s_n_1
+    #     flag, msg = create_symmetry_combination(1)
+    #     assert flag
+    #     assert msg == 1
+    #
+    #     # check answer
+    #     flag, data = SYMInfo(1).query_by_file_name(self.s_1_meta_file_name)
+    #     assert flag
+    #     assert isinstance(data.get("create_time"), str)
+    #     self.create_time_dict["S1"] = data.get("create_time")
+    #     for ex in [".pkl", ".txt"]:
+    #         assert os.path.exists(self.s_1_meta_full_file_name + ex)
+    #         assert os.path.exists(self.s_n_finish_meta_full_file_name + ex)
+    #     flag, meta_σμν_tuple_list = load_meta_σμν(1, is_flag_true_if_not_s_n=True)
+    #     assert flag
+    #     assert meta_σμν_tuple_list == self.meta_σμν_tuple_list_s_1
+    #
+    #     flag, data = SYMInfo(1).query_by_file_name(self.s_1_sym_file_name)
+    #     assert flag
+    #     for ex in [".pkl", ".txt"]:
+    #         assert os.path.exists(self.s_1_sym_full_file_name + ex)
+    #     flag, sym_σμν_dict = load_sym_σμν(1, [1], [1], [1], is_flag_true_if_not_s_n=True)
+    #     assert flag
+    #     assert sym_σμν_dict == self.sym_σμν_dict_s_1
+    #
+    #     # check finish s_n
+    #     flag, finish_s_n = get_symmetry_combination_finish_s_n()
+    #     assert flag
+    #     assert finish_s_n == 1
+    #
+    #     # history_times
+    #     _, finish_file_name = get_symmetry_combination_finish_s_n_name()
+    #     flag, data = SYMInfo(0).query_by_file_name(finish_file_name)
+    #     assert flag
+    #     assert data.get("data") == {}
+    #     assert isinstance(data.get("flags"), dict)
+    #     assert isinstance(data.get("flags").get("history_times"), dict)
+    #     assert isinstance(data.get("flags").get("history_times").get("S1"), int)
+    #     assert 0 <= data.get("flags").get("history_times").get("S1") <= 1
+    #     flag, data_txt = SYMInfo(0).query_txt_by_file_name(finish_file_name)
+    #     assert isinstance(data_txt, str)
+    #     data = eval(data_txt)
+    #     assert isinstance(data, dict)
+    #     assert isinstance(data.get("history_times").get("S{}".format(1)), int)
+    #
+    # def test_002_create_young_diagrams_s_n_2_to_5(self):
+    #     # check create_young_diagrams_s_n 2 to 5
+    #     flag, msg = create_symmetry_combination(5)
+    #     assert flag
+    #     assert msg == 5
+    #
+    #     # check answer
+    #     flag, data = SYMInfo(3).query_by_file_name(self.s_3_meta_file_name)
+    #     assert flag
+    #     assert isinstance(data.get("create_time"), str)
+    #     self.create_time_dict["S3"] = data.get("create_time")
+    #     for ex in [".pkl", ".txt"]:
+    #         assert os.path.exists(self.s_3_meta_full_file_name + ex)
+    #         assert os.path.exists(self.s_n_finish_meta_full_file_name + ex)
+    #     flag, meta_σμν_tuple_list = load_meta_σμν(3, is_flag_true_if_not_s_n=True)
+    #     assert flag
+    #     assert meta_σμν_tuple_list == self.meta_σμν_tuple_list_s_3
+    #
+    #     flag, data = SYMInfo(3).query_by_file_name(self.s_3_sym_file_name)
+    #     assert flag
+    #     for ex in [".pkl", ".txt"]:
+    #         assert os.path.exists(self.s_3_sym_full_file_name + ex)
+    #     flag, sym_σμν_dict = load_sym_σμν(3, [3], [3], [3], is_flag_true_if_not_s_n=True)
+    #     assert flag
+    #     assert sym_σμν_dict == self.sym_σμν_dict_s_3
+    #
+    #     flag, data = SYMInfo(1).query_by_file_name(self.s_1_meta_file_name)
+    #     assert flag
+    #     assert isinstance(data.get("create_time"), str)
+    #     assert self.create_time_dict.get("S1") == data.get("create_time")
+    #
+    #     for ex in [".pkl", ".txt"]:
+    #         assert os.path.exists(self.s_5_meta_full_file_name + ex)
+    #         assert os.path.exists(self.s_n_finish_meta_full_file_name + ex)
+    #     flag, finish_s_n = get_symmetry_combination_finish_s_n()
+    #     assert flag
+    #     assert finish_s_n == 5
+    #     _, finish_file_name = get_symmetry_combination_finish_s_n_name()
+    #     flag, data = SYMInfo(0).query_by_file_name(finish_file_name)
+    #     assert flag
+    #     assert data.get("data") == {}
+    #     assert isinstance(data.get("flags"), dict)
+    #     assert isinstance(data.get("flags").get("history_times"), dict)
+    #     for i in [1, 2, 3, 4, 5]:
+    #         assert isinstance(data.get("flags").get("history_times").get("S{}".format(i)), int)
+    #     for i in [6, 7]:
+    #         assert data.get("flags").get("history_times").get("S{}".format(i)) is None
+    #     flag, data_txt = SYMInfo(0).query_txt_by_file_name(finish_file_name)
+    #     assert isinstance(data_txt, str)
+    #     data = eval(data_txt)
+    #     assert isinstance(data, dict)
+    #     for i in [1, 2, 3, 4, 5]:
+    #         assert isinstance(data.get("history_times").get("S{}".format(i)), int)
+    #     for i in [6, 7]:
+    #         assert data.get("history_times").get("S{}".format(i)) is None
