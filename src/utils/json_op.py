@@ -3,10 +3,6 @@
 
 import os
 import json
-from utils.log import get_logger
-
-
-logger = get_logger(__name__)
 
 
 class Json(object):
@@ -23,20 +19,17 @@ class Json(object):
         """
         if not isinstance(file_path, str):
             err_msg = "file_path={} must be string".format(file_path)
-            logger.error(err_msg)
             raise Exception(err_msg)
         if os.path.exists(file_path) is False or os.path.isfile(file_path) is False:
             err_msg = "file_path={} not exist or not file, pls check".format(file_path)
-            logger.error(err_msg)
             raise Exception(err_msg)
         with open(file_path, 'rt', encoding='UTF-8') as f:
             data = f.read()
             try:
                 json_data = json.loads(data)
+                return json_data
             except json.decoder.JSONDecodeError as e:
-                logger.exception(e)
                 raise e
-        return json_data
 
     @classmethod
     def _remove_comment(cls, json_data):
@@ -89,3 +82,8 @@ class Json(object):
     def file_to_json_without_comments(cls, file_path):
         json_data = cls.file_to_json(file_path)
         return cls._remove_comment(json_data)
+
+
+def load_default_config(default_config_path):
+    default_config = Json.file_to_json_without_comments(default_config_path)
+    return default_config

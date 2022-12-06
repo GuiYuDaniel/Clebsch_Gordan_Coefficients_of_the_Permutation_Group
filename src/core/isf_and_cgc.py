@@ -1662,36 +1662,32 @@ class ISFHelper(CalcHelper):
                       "with msg={}".format(row_index_list, ν_st, data_sn, data_σ_μ, isf_matrix)
             logger.error(err_msg)
             return False, err_msg
-        try:
-            # Return list of triples (eigenval, multiplicity, eigenspace) eigenval升序
-            '''
-            p.s.
-            Matrix([[1, 0, 2], [0, 3, 0], [2, 0, 1]]).eigenvects() return
-            [(-1, 1, [Matrix([[-1], [ 0], [ 1]])]),
-             (3,  2, [Matrix([[0],  [1],  [0]]),
-                      Matrix([[1],  [0],  [1]])])]
-            注意这里的结果：单根是正交未归一的；多根不一定正交，也不归一
-            '''
-            # 到这里isf_matrix是可以通过符号计算，得到无误差的矩阵的。
-            # 但后面，求本征值的时候，理论上不一定还能保持符号计算了（一元五次方程无公式解）
-            # 不用怕，我们这里还有个终极大招，就是用np数值化计算理论上必然是整数的本征值，再回来使用符号计算
-            # 或者，直接用cg_series预先拿到eigenvalues，只计算需要的eigenvectors就可以了!!!
-            eigen_tuple_list = isf_matrix.eigenvects()
-        except Exception as e:
-            logger.error(Exception(e))
-            err_msg = "calc eigenvects meet fail with isf_matrix={} s_n={}".format(isf_matrix, self.s_n)
-            logger.error(err_msg)
-            return False, err_msg
+        logger.debug("isf_matrix={} for data_σ_μ={}, ν_st={}".format(isf_matrix, data_σ_μ, ν_st))
+        # 由于本征值是已知的，直接去算nullspace更简单。所以下面的代码注释掉
+        # try:
+        #     # Return list of triples (eigenval, multiplicity, eigenspace) eigenval升序
+        #     '''
+        #     p.s.
+        #     Matrix([[1, 0, 2], [0, 3, 0], [2, 0, 1]]).eigenvects() return
+        #     [(-1, 1, [Matrix([[-1], [ 0], [ 1]])]),
+        #      (3,  2, [Matrix([[0],  [1],  [0]]),
+        #               Matrix([[1],  [0],  [1]])])]
+        #     注意这里的结果：单根是正交未归一的；多根不一定正交，也不归一
+        #     '''
+        #     # 到这里isf_matrix是可以通过符号计算，得到无误差的矩阵的。
+        #     # 但后面，求本征值的时候，理论上不一定还能保持符号计算了（一元五次方程无公式解）
+        #     # 不用怕，我们这里还有个终极大招，就是用np数值化计算理论上必然是整数的本征值，再回来使用符号计算
+        #     # 或者，直接用cg_series预先拿到eigenvalues，只计算需要的eigenvectors就可以了!!!
+        #     eigen_tuple_list = isf_matrix.eigenvects()
+        # except Exception as e:
+        #     logger.error(Exception(e))
+        #     err_msg = "calc eigenvects meet fail with isf_matrix={} s_n={}".format(isf_matrix, self.s_n)
+        #     logger.error(err_msg)
+        #     return False, err_msg
 
         λ_ν_st = data_st.get_eigenvalue(ν_st)
 
-        # if _debug_condition(data_σ_μ, ν_st):
-        #     logger.warning("@@@@ isf_matrix={} with data_σ_μ={}".format(isf_matrix, data_σ_μ))
-        #     logger.warning("@@@@ row_index_list={}".format(row_index_list))
-        #     logger.warning("@@@@ ν_st={}, λ_ν_st={}".format(ν_st, λ_ν_st))
-        #     logger.warning("@@@@ eigen_tuple_list={}".format(eigen_tuple_list))
-
-        # 下面的代码改成先有col了，用λ(col)点名eigen_tuple_list，以后如果有需要，甚至可以不解矩阵，直接用mat+λ求eigenvectors
+        # 下面的代码改成先有col了，用λ(col)点名eigen_tuple_list，就可以不解矩阵，直接用mat+λ求eigenvectors
         if old_isf_info_dict is not False:
             meta_isf_square_dict = copy.deepcopy(old_isf_info_dict["data"])  # 这里浪费一点点，可以确保入参不会被改
             col_index_list = meta_isf_square_dict.get("cols")
@@ -1717,16 +1713,28 @@ class ISFHelper(CalcHelper):
                 
             λ_ν = data_sn.get_eigenvalue(ν)
             e_value = λ_ν - λ_ν_st  # 这里就不用怕同λ的ν冲突了，因为col已经把不合理ν排除了
-            (e_value, τ_max, e_vectors) = list(filter(lambda x: x[0] == e_value, eigen_tuple_list))[0]
+            e_vectors = self._calc_eigenspace_by_eigenvalue(isf_matrix, e_value)
+            τ_max = len(e_vectors)
+            # (e_value, τ_max, e_vectors) = list(filter(lambda x: x[0] == e_value, eigen_tuple_list))[0]
             if τ_max > 1:
-                logger.debug("meet multiplicity free cases with data_σ_μ={}, ν={}, ν_st={}, "
-                             "e_value={}, τ_max={}, e_vectors={}".format(data_σ_μ, ν, ν_st, e_value, τ_max, e_vectors))
+                logger.debug("τ_max={} case with σ_μ_ν=({}{}{}), ν_st={} "
+                             "\nand e_value={}, e_vectors={}, λ_ν={} - λ_ν_st={}"
+                             "".format(τ_max, data_σ_μ.σ, data_σ_μ.μ, ν, ν_st, e_value, e_vectors, λ_ν, λ_ν_st))
 
             # 这里是用[::-1]倒序而不是正序就是为了对齐书中给的多重根自由度选择
+            # TODO 可惜的是，就算如此，都无法保证soe_vectors与前人在相位上一致，原因有2：
+            # 1，多自由度情况下，前人以什么顺序开展正交化是不确定的
+            # 2，前人的位相可能是它的整体旋转，这样，任何一个e_vectors中的分量，都不在结果中
             soe_vectors = self._calc_schmidt_orthogonalization_tricky(e_vectors)[::-1] if τ_max > 1 \
                 else [self._calc_orthogonalization_vector(e_vectors[0])]
+            if τ_max > 1:
+                logger.debug("soe_vectors={}".format(soe_vectors))
 
             # 注意，τ_tmp_list, isf_phase_vector_list不仅可以带None占位，它还可以不是升序的，因为它对应着soe_vectors顺序
+
+            logger.debug("data_σ_μ={}, ν={}, ν_st={}, row_index_list={}, τ_max={}"
+                         "".format(data_σ_μ, ν, ν_st, row_index_list, τ_max))
+
             flag, τ_tmp_list, isf_phase_vector_list = \
                 self._calc_isf_τ_and_phase_vector_list(soe_vectors, ν, ν_st, row_index_list, τ_max,
                                                        data_sn, data_st, data_σ_μ)
@@ -1738,6 +1746,8 @@ class ISFHelper(CalcHelper):
                                           data_sn, data_st, data_σ_μ, τ_tmp_list)
                 logger.error(err_msg)
                 return False, err_msg
+            if τ_max > 1:
+                logger.debug("τ_tmp_list={}, isf_phase_vector_list={}".format(τ_tmp_list, isf_phase_vector_list))
 
             # 按照升序填空
             for τ_tmp in range(1, τ_max + 1):  # 因为按照soe_vectors对应的τ乱序了，所以需要正序
@@ -1779,6 +1789,20 @@ class ISFHelper(CalcHelper):
                 return False, err_msg
 
         return True, None
+
+    @staticmethod
+    def _calc_eigenspace_by_eigenvalue(mat, eigenvalue):
+        """
+        从sympy源码摘抄并简化的一段，用来计算eigenspace
+        Get a basis for the eigenspace for a particular eigenvalue
+        """
+        m = mat - sp.eye(mat.rows) * eigenvalue
+        ret = m.nullspace()
+        # the nullspace for a real eigenvalue should be non-trivial.
+        if len(ret) == 0:
+            raise NotImplementedError(
+                "Can't evaluate eigenvector for eigenvalue %s" % eigenvalue)
+        return ret
 
     def _calc_isf_τ_and_phase_vector_list(self, soe_vectors, ν, ν_st, row_index_list, τ_max,
                                           data_sn, data_st, data_σ_μ):
@@ -1933,12 +1957,13 @@ class ISFHelper(CalcHelper):
                             logger.error(err_msg)
                             return False, err_msg, None
                         else:  # 有自由度情况，遇到一次不相等，则推翻这次的自由度，采用4-195c正算
-                            msg = "isf_fbl_another_square_abs={} not in isf_fbl_square_abs_diff_set={}, pls check" \
-                                  "with isf_fbl_another={}, row={}, soe_vector={}, data_sn={}, data_st={}, " \
-                                  "data_σ_μ={}".format(isf_fbl_another_square_abs, isf_fbl_square_abs_diff_set,
-                                                       isf_fbl_another, row, soe_vector, data_sn, data_st, data_σ_μ)
-                            logger.debug(msg)
-                            logger.debug("will break and use 4-195c to calc")
+                            # msg = "isf_fbl_another_square_abs={} not in isf_fbl_square_abs_diff_set={}", \
+                            #       "with σ_μ_ν=({}{}{}), ν_st={}, and isf_fbl_another={}, row={} " \
+                            #       "using soe_vector={}" \
+                            #       "".format(isf_fbl_another_square_abs, isf_fbl_square_abs_diff_set,
+                            #                 data_σ_μ.σ, data_σ_μ.μ, ν, ν_st, isf_fbl_another, row, soe_vector)
+                            # logger.debug(msg)
+                            logger.debug("will break and use 4-195c to calc(1)")
                             flag_soe = False
                             break
                     # 缩小τ范围
@@ -2021,13 +2046,14 @@ class ISFHelper(CalcHelper):
                                 logger.error(err_msg)
                                 return False, err_msg, None
                             else:  # 有自由度情况，遇到一次不相等，则推翻这次的自由度，采用4-195c正算
-                                msg = "isf_fbl_another_square_abs={} not eq abs(first_no_0_isf_fbl_square)={}, pls check" \
-                                      "with isf_fbl_another={}, first_no_0_isf_fbl_row={}, soe_vector={}, " \
-                                      "data_sn={}, data_st={}, data_σ_μ={}".format(
-                                    isf_fbl_another_square_abs, first_no_0_isf_fbl_square,
-                                    isf_fbl_another, first_no_0_isf_fbl_row, soe_vector, data_sn, data_st, data_σ_μ)
+                                msg = "isf_fbl_another_square_abs={} not eq abs(first_no_0_isf_fbl_square)={}", \
+                                      "with σ_μ_ν=({}{}{}), ν_st={} and isf_fbl_another={}, first_no_0_isf_fbl_row={}" \
+                                      "using soe_vector={}" \
+                                      "".format(isf_fbl_another_square_abs, first_no_0_isf_fbl_square,
+                                                data_σ_μ.σ, data_σ_μ.μ, ν, ν_st,
+                                                isf_fbl_another, first_no_0_isf_fbl_row, soe_vector)
                                 logger.debug(msg)
-                                logger.debug("will break and use 4-195c to calc")
+                                logger.debug("will break and use 4-195c to calc(2)")
                                 flag_soe = False
                                 break
                         # TODO 这里应该是拿待定相位的τ算出来的isf_fbl_another和确定的isf_fbl_another比较啊
@@ -2089,7 +2115,7 @@ class ISFHelper(CalcHelper):
                         err_msg = "first_isf_fbl_square={}, isf_fbl_another={}".format(
                             first_isf_fbl_square, isf_fbl_another)
                         logger.error(err_msg)
-                logger.warning("$$$$ 回推成立！")
+                logger.warning("$$$$ 回推成立！with σ_μ_ν=({}{}{}), ν_st={}".format(data_σ_μ.σ, data_σ_μ.μ, ν, ν_st))
 
         return True, τ_tmp_list, phase_vector_list
 
@@ -2175,7 +2201,10 @@ class ISFHelper(CalcHelper):
     @staticmethod
     def _calc_schmidt_orthogonalization_tricky(multi_vectors):
         """使用GramSchmidt得到正交归一的多重根本征矢量
-        这里，为了使存在自由度的结果对齐《群表示论的新途径》，使用了一个tricky的技巧，就是取分母之和表示复杂度，返回复杂度最小的一组"""
+        这里，为了使存在自由度的结果对齐《群表示论的新途径》，选用一个tricky的技巧:
+        method1：就是取分母之和表示复杂度，返回复杂度最小的一组
+        method2：取
+        """
         soe_1 = sp.GramSchmidt(multi_vectors, True)
         soe_2 = sp.GramSchmidt(multi_vectors[::-1], True)
         soe_1_denominator, soe_2_denominator = 0, 0
@@ -2183,6 +2212,13 @@ class ISFHelper(CalcHelper):
             soe_1_denominator += sum(i.as_numer_denom()[1] for i in mat_1)  # 0的'分母'会被取为1，不影响计算啦
             soe_2_denominator += sum(i.as_numer_denom()[1] for i in mat_2)
         rst = soe_1 if soe_1_denominator <= soe_2_denominator else soe_2
+
+        if rst == soe_1:
+            logger.warning("kill soe_2={} with soe_1_denominator={} <= soe_2_denominator={}"
+                           "".format(soe_2, soe_1_denominator, soe_2_denominator))
+        else:
+            logger.warning("kill soe_1={} with soe_1_denominator={} > soe_2_denominator={}"
+                           "".format(soe_1, soe_1_denominator, soe_2_denominator))
 
         return rst
 
@@ -3069,8 +3105,8 @@ class EHelper(CalcHelper):
         h_μ = data_sn.get_yt_num(data_σ_μ.μ)
         h_ν = data_sn.get_yt_num(ν)
 
-        if _debug_condition(data_σ_μ, ν=ν):
-            logger.warning("######## catch meta data_σ_μ={}, ν={}".format(data_σ_μ, ν))
+        # if _debug_condition(data_σ_μ, ν=ν):
+        #     logger.warning("######## catch meta data_σ_μ={}, ν={}".format(data_σ_μ, ν))
 
         # 1，一些可以简化处理的情况可以走快速通道
         if data_σ_μ.σ == data_σ_μ.μ == ν:
@@ -3133,8 +3169,8 @@ class EHelper(CalcHelper):
                 logger.error(err_msg)
                 return False, err_msg
 
-            if _debug_condition(data_σ_μ, ν=ν):
-                logger.warning("## m_ν={}, cgc_square_dict={}".format(m_ν, cgc_square_dict))
+            # if _debug_condition(data_σ_μ, ν=ν):
+            #     logger.warning("## m_ν={}, cgc_square_dict={}".format(m_ν, cgc_square_dict))
 
             # 2.1，整理6个矩阵中m_σ=1、m_μ=1、m_σ=h_σ、m_μ=h_μ的4个字典
             for (m_σ, m_μ), v in cgc_square_dict.items():
@@ -3158,13 +3194,13 @@ class EHelper(CalcHelper):
                 ϵ_dict.update(adding_ϵ_dict)
                 ϵ_flags.update(adding_ϵ_flags)
 
-            if _debug_condition(data_σ_μ, ν=ν):
-                logger.warning("#0# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
-
-        if _debug_condition(data_σ_μ, ν=ν):
-            logger.warning("## m_μ_1_dict={}, m_μ_h_dict={}, m_σ_1_dict={}, m_σ_h_dict={}, "
-                           "ϵ_dict={}, ϵ_flags={}"
-                           "".format(m_μ_1_dict, m_μ_h_dict, m_σ_1_dict, m_σ_h_dict, ϵ_dict, ϵ_flags))
+        #     if _debug_condition(data_σ_μ, ν=ν):
+        #         logger.warning("#0# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
+        #
+        # if _debug_condition(data_σ_μ, ν=ν):
+        #     logger.warning("## m_μ_1_dict={}, m_μ_h_dict={}, m_σ_1_dict={}, m_σ_h_dict={}, "
+        #                    "ϵ_dict={}, ϵ_flags={}"
+        #                    "".format(m_μ_1_dict, m_μ_h_dict, m_σ_1_dict, m_σ_h_dict, ϵ_dict, ϵ_flags))
 
         # # TODO 这个简化有错误！它没考虑d的所有构型，先注释掉，如果性能提升大，以后再fix
         # # 2.3，单σ=ν或μ=ν还是有简化算法可以榨取
@@ -3196,8 +3232,8 @@ class EHelper(CalcHelper):
         #                            "".format(ϵ_key, d3, k4, ϵ_dict[ϵ_key], ϵ_flags[ϵ_key],
         #                                      sym_ϵ_key, sym_d3, sym_k4, ϵ_dict[sym_ϵ_key], ϵ_flags[sym_ϵ_key]))
 
-        if _debug_condition(data_σ_μ, ν=ν):
-            logger.warning("#2# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
+        # if _debug_condition(data_σ_μ, ν=ν):
+        #     logger.warning("#2# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
 
         # 2.4，计算剩余4组ϵ
         if any(i[0] not in ϵ_dict for i in self.σμν_2):
@@ -3221,8 +3257,8 @@ class EHelper(CalcHelper):
             ϵ_dict.update(adding_ϵ_dict)
             ϵ_flags.update(adding_ϵ_flags)
 
-        if _debug_condition(data_σ_μ, ν=ν):
-            logger.warning("#3# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
+        # if _debug_condition(data_σ_μ, ν=ν):
+        #     logger.warning("#3# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
 
         if len(ϵ_dict) == len(ϵ_flags) == 24:
             return ϵ_dict, ϵ_flags
@@ -3257,22 +3293,22 @@ class EHelper(CalcHelper):
         Λ_list_list = [data_sn.get_phase_factor_list(yd) for yd in yd_σμν]
         m_set_list = [set(j[i] for j in square_dict.keys()) if m_flags[i] is None else (m_flags[i],) for i in range(3)]
 
-        if _debug_condition(data_σ_μ, ν=ν):
-            logger.warning("yd_σμν={}, Λ_list_list={}, m_set_list={}, square_dict={}, σμν_group={}, m_flags={}"
-                           "".format(yd_σμν, Λ_list_list, m_set_list, square_dict, σμν_group, m_flags))
+        # if _debug_condition(data_σ_μ, ν=ν):
+        #     logger.warning("yd_σμν={}, Λ_list_list={}, m_set_list={}, square_dict={}, σμν_group={}, m_flags={}"
+        #                    "".format(yd_σμν, Λ_list_list, m_set_list, square_dict, σμν_group, m_flags))
 
         for ϵ_key, d3, k4 in σμν_group:
             # ϵ_key是字符串形式的键，p.s. μσ~ν~； d3是组合的数字表示，p.s. (1, 0, 2)； k4是组合的共轭bool，p.s.
 
-            if _debug_condition(data_σ_μ, ν=ν):
-                logger.warning("ϵ_key={}, d3={}, k4={}, adding_ϵ_dict={}"
-                               "".format(ϵ_key, d3, k4, adding_ϵ_dict))
+            # if _debug_condition(data_σ_μ, ν=ν):
+            #     logger.warning("ϵ_key={}, d3={}, k4={}, adding_ϵ_dict={}"
+            #                    "".format(ϵ_key, d3, k4, adding_ϵ_dict))
 
             if ϵ_key in adding_ϵ_dict:
                 continue
 
-            if _debug_condition(data_σ_μ, ν=ν) and ϵ_key == "μν~σ~":
-                logger.warning("ϵ_key={}, d3={}, k4={}".format(ϵ_key, d3, k4))
+            # if _debug_condition(data_σ_μ, ν=ν) and ϵ_key == "μν~σ~":
+            #     logger.warning("ϵ_key={}, d3={}, k4={}".format(ϵ_key, d3, k4))
 
             # 下面按顺位缩小范围
             # 第一顺位
@@ -3292,8 +3328,8 @@ class EHelper(CalcHelper):
             m_tmp_list[second_σμν_index] = second_m
             m_tuple = tuple(m_tmp_list)  # 是meta的坐标哦！！！
 
-            if _debug_condition(data_σ_μ, ν=ν) and ϵ_key == "μν~σ~":
-                logger.warning("ϵ_key={}, m_tuple={}".format(ϵ_key, m_tuple))
+            # if _debug_condition(data_σ_μ, ν=ν) and ϵ_key == "μν~σ~":
+            #     logger.warning("ϵ_key={}, m_tuple={}".format(ϵ_key, m_tuple))
 
             # 根据前面计算Λ * Λ
             ΛΛ = 1
@@ -3305,9 +3341,9 @@ class EHelper(CalcHelper):
             adding_ϵ_dict[ϵ_key] = sp.sign(square_dict[square_dict_key]) * ΛΛ
             adding_ϵ_flags[ϵ_key] = m_tuple
 
-            if _debug_condition(data_σ_μ, ν=ν) and ϵ_key == "μν~σ~":
-                logger.warning("adding_ϵ_dict[ϵ_key]={}, square_dict_key={}, square_dict[square_dict_key]={}, ΛΛ={}"
-                               "".format(adding_ϵ_dict[ϵ_key], square_dict_key, square_dict[square_dict_key], ΛΛ))
+            # if _debug_condition(data_σ_μ, ν=ν) and ϵ_key == "μν~σ~":
+            #     logger.warning("adding_ϵ_dict[ϵ_key]={}, square_dict_key={}, square_dict[square_dict_key]={}, ΛΛ={}"
+            #                    "".format(adding_ϵ_dict[ϵ_key], square_dict_key, square_dict[square_dict_key], ΛΛ))
 
             # # 一二顺位相等时的简化计算
             # # TODO 这个简化有错误！它没考虑d的所有构型，先注释掉，如果性能提升大，以后再fix

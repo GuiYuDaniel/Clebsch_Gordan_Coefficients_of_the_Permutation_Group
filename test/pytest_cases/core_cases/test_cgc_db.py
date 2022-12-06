@@ -14,20 +14,19 @@ import shutil
 import time
 import numpy as np
 import sympy as sp
-from sympy import Rational as Ra
-from conf.cgc_config import top_path, cgc_rst_folder, default_s_n
+from conf.cgc_config import cgc_db_name, default_s_n
 from core.cgc_utils.cgc_local_db import CGCLocalDb
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo, BranchingLawInfo, YoungTableInfo
 from core.cgc_utils.cgc_db_typing import YamanouchiMatrixInfo, CharacterAndGiInfo, CGSeriesInfo
 from core.cgc_utils.cgc_db_typing import EigenvaluesInfo, ISFInfo, CGCInfo, EInfo
 from db.local_db_protector import DBProtector
+from utils.config import singleton_config
 from utils.log import get_logger
 
 
 logger = get_logger(__name__)
 
 
-# TODO delete all pytest.mark.skip("pass")
 class TmpTyping(CGCLocalDb):
 
     def __init__(self, s_n):
@@ -42,17 +41,17 @@ class TmpTyping(CGCLocalDb):
         self._init_cgc_static_db_folder()
 
 
-@pytest.mark.skip("pass")
+# @pytest.mark.skip("pass")
 class TestCGCLocalDb(object):
     """
     test class CGCLocalDb functions
     """
     def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
     def setup(self):
-        self.db_static_folder = os.path.join(top_path, cgc_rst_folder, "tmp_info")
+        self.db_static_folder = os.path.join(singleton_config.result_folder, cgc_db_name, "tmp_info")
         if os.path.exists(self.db_static_folder):
             shutil.rmtree(self.db_static_folder)
         self.file_name = "S_3/sigma[1, 1, 1]_mu[2, 1]"  # 故意不带.pkl的
@@ -396,7 +395,7 @@ class TestCGCLocalDb(object):
         assert not os.path.exists(self.file_name_txt)
 
 
-@pytest.mark.skip("pass")
+# @pytest.mark.skip("pass")
 class TestYoungDiagramInfo(object):
     """
     test python file cgc_db_typing.py:YoungDiagramInfo class
@@ -404,7 +403,7 @@ class TestYoungDiagramInfo(object):
     """
 
     def setup(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         self.fake_finish_s_n = 1000
@@ -567,7 +566,7 @@ class TestYoungDiagramInfo(object):
         assert data is False
 
 
-@pytest.mark.skip("pass")
+# @pytest.mark.skip("pass")
 class TestBranchingLawInfo(object):
     """
     test python file cgc_db_typing.py:BranchingLawInfo class
@@ -575,7 +574,7 @@ class TestBranchingLawInfo(object):
     """
 
     def setup(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         self.fake_finish_s_n = 1000
@@ -751,7 +750,7 @@ class TestYoungTableInfo(object):
     """
 
     def setup(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         self.fake_finish_s_n = 1000
@@ -1003,7 +1002,7 @@ class TestYoungTableInfo(object):
         assert data_3 is False
 
 
-@pytest.mark.skip("pass")
+# @pytest.mark.skip("pass")
 class TestYamanouchiMatrixInfo(object):
     """
     test python file cgc_db_typing.py:YamanouchiMatrixInfo class
@@ -1011,7 +1010,7 @@ class TestYamanouchiMatrixInfo(object):
     """
 
     def setup(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         self.fake_finish_s_n = 1000
@@ -1020,7 +1019,7 @@ class TestYamanouchiMatrixInfo(object):
         self.fake_file_name = "S{}/{}/ij{}".format(self.fake_finish_s_n, self.fake_nu, self.fake_ij)
         self.fake_table = {
             "file_name": self.fake_file_name,
-            "data": np.array([[-0.5, 0.8660254037844386], [0.8660254037844386, 0.5]]),
+            "data": sp.Matrix([[sp.Rational(-1)/2, sp.sqrt(3)/2], [sp.sqrt(3)/2, sp.Rational(1)/2]]),
             "flags": {"speed_time": 0,
                       "total_num": 2}
         }
@@ -1177,7 +1176,7 @@ class TestYamanouchiMatrixInfo(object):
         assert data is False
 
 
-@pytest.mark.skip("pass")
+# @pytest.mark.skip("pass")
 class TestCharacterAndGiInfo(object):
     """
     test python file cgc_db_typing.py:CharacterAndGiInfo class
@@ -1185,7 +1184,7 @@ class TestCharacterAndGiInfo(object):
     """
 
     def setup(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         self.fake_finish_s_n = 1000
@@ -1353,7 +1352,7 @@ class TestCharacterAndGiInfo(object):
         assert data is False
 
 
-@pytest.mark.skip("pass")
+# @pytest.mark.skip("pass")
 class TestCGSeriesInfo(object):
     """
     test python file cgc_db_typing.py:CGSeriesInfo class
@@ -1361,7 +1360,7 @@ class TestCGSeriesInfo(object):
     """
 
     def setup(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         self.fake_finish_s_n = 1000
@@ -1526,7 +1525,7 @@ class TestCGSeriesInfo(object):
         assert data is False
 
 
-@pytest.mark.skip("pass")
+# @pytest.mark.skip("pass")
 class TestEigenvaluesInfo(object):
     """
     test python file cgc_db_typing.py:EigenvaluesInfo class
@@ -1534,7 +1533,7 @@ class TestEigenvaluesInfo(object):
     """
 
     def setup(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         self.fake_finish_s_n = 1000
@@ -1699,6 +1698,7 @@ class TestEigenvaluesInfo(object):
         assert data is False
 
 
+# @pytest.mark.skip("pass")
 class TestISFInfo(object):
     """
     test python file cgc_db_typing.py:ISFInfo class
@@ -1706,7 +1706,7 @@ class TestISFInfo(object):
     """
 
     def setup(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         self.fake_finish_s_n = 1000
@@ -1873,6 +1873,7 @@ class TestISFInfo(object):
         assert data is False
 
 
+# @pytest.mark.skip("pass")
 class TestCGCInfo(object):
     """
     test python file cgc_db_typing.py:CGCInfo class
@@ -1880,7 +1881,7 @@ class TestCGCInfo(object):
     """
 
     def setup(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         self.fake_finish_s_n = 1000
@@ -2043,6 +2044,7 @@ class TestCGCInfo(object):
         assert data is False
 
 
+# @pytest.mark.skip("pass")
 class TestEInfo(object):
     """
     test python file cgc_db_typing.py:EInfo class
@@ -2050,7 +2052,7 @@ class TestEInfo(object):
     """
 
     def setup(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         self.fake_finish_s_n = 1000

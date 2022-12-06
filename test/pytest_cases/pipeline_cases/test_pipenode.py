@@ -9,6 +9,7 @@ import pytest
 import shutil
 from db.local_db_protector import DBProtector
 from db.typing import PipeNodeInfo
+from utils.config import singleton_config
 from utils.log import get_logger
 from utils.io import Path
 from utils.json_op import Json
@@ -21,12 +22,14 @@ logger = get_logger(__name__)
 class TestPipeNode(object):
 
     def setup_class(self):
-        self.protector = DBProtector("results", extension_name=".test_ppn_protected")
+        self.result_folder = singleton_config.result_folder
+        self.sys_db_name = singleton_config.sys_db_name
+
+        self.protector = DBProtector(self.sys_db_name, extension_name=".test_db_protected")
         self.protector.protector_setup()
 
         # 这段是为了准备新建ppn
-        self.top_path = Path._get_full_path()
-        self.fake_path = Path._get_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
+        self.fake_path = Path.get_project_full_path(relative_path="fake", base_path_type="test")
         self.whereami_file_path = os.path.join(self.fake_path, "fake_workflow_whereami.json")
         self.workflow_conf_dict = Json.file_to_json(self.whereami_file_path)[0]
         self.workflow_conf_dict["prep_nodes"] = []
@@ -41,7 +44,7 @@ class TestPipeNode(object):
                                         "outputs_r": {},
                                         "flags": []}
         # 这段是为了准备load ppn
-        self.pipenode_db_folder = os.path.join(self.top_path, "results", "pipenode_info")
+        self.pipenode_db_folder = os.path.join(self.result_folder, self.sys_db_name, "pipenode_info")
         self.pipenode_id = "test_load_pipenode_id"
         self.fake_pipenode_pkl_path = os.path.join(self.fake_path,
                                                    "test_results", "fake_pipenode_info", "test_load_pipenode_id.pkl")

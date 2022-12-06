@@ -16,7 +16,7 @@ class TestJson(object):
     """
 
     def setup_class(self):
-        self.fake_path = Path._get_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
+        self.fake_path = Path.get_project_full_path(relative_path="fake", base_path_type="test")
         self.whereami_file_path = os.path.join(self.fake_path, "fake_workflow_whereami.json")
         self.answer_whereami = [{"name": "first_node",
                                  "func": ["None.test.fake.fake_core", "where_am_i", ""],

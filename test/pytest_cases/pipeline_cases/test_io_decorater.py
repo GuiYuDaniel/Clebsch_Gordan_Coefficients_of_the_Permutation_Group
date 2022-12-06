@@ -113,11 +113,11 @@ class TestDecoraterExample(object):
         assert isinstance(rst_2, str)
 
 
-class TestIODecorater(object):
-    """test decoraters in io.py"""
-
-    def setup_class(self):
-        pass
-
-    def teardown_class(self):
-        pass
+# class TestIODecorater(object):
+#     """test decoraters in io.py"""
+#
+#     def setup_class(self):
+#         pass
+#
+#     def teardown_class(self):
+#         pass

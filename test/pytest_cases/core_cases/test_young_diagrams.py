@@ -9,7 +9,7 @@ core/young_diagrams.py
 import os
 import pytest
 import time
-from conf.cgc_config import default_s_n, cgc_rst_folder
+from conf.cgc_config import default_s_n, cgc_db_name
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo
 from core.cgc_utils.cgc_local_db import get_young_diagrams_file_name, get_young_diagrams_finish_s_n_name
 from core.young_diagrams import calc_single_young_diagrams, create_young_diagrams
@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 class TestYoungDiagrams(object):
 
     def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_young_diagrams_protected")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_young_diagrams_protected")
         self.protector.protector_setup()
 
         self.young_diagrams_s_1 = [[1]]

@@ -15,7 +15,7 @@ from sympy import Rational as Ra
 from sympy import sqrt
 import pytest
 from itertools import chain, product
-from conf.cgc_config import cgc_rst_folder
+from conf.cgc_config import cgc_db_name
 from core.young_diagrams import create_young_diagrams, load_young_diagrams
 from core.branching_laws import create_branching_laws
 from core.young_tableaux import create_young_tableaux
@@ -31,8 +31,6 @@ from core.cgc_utils.cgc_local_db import get_ϵ_file_name, get_ϵ_finish_s_n_name
 from core.isf_and_cgc import create_isf_and_cgc, load_isf, load_ϵ, load_cgc, load_cgc_with_m1
 from core.isf_and_cgc import get_isf_finish_s_n, get_cgc_finish_s_n, get_ϵ_finish_s_n
 from core.isf_and_cgc import ΣMDataHelper, DataHelper, CalcHelper, ISFHelper, CGCHelper
-# from core.isf_and_cgc import create_isf_and_cgc, load_isf, load_cgc, load_cgc_with_m1
-# from core.isf_and_cgc import get_isf_finish_s_n, get_cgc_finish_s_n
 from db.local_db_protector import DBProtector
 from utils.log import get_logger
 
@@ -765,15 +763,15 @@ class Data(EData, ISFData, CGCData):
         CGCData.__init__(self)
 
 
-@pytest.mark.skip("pass")
+# @pytest.mark.skip("pass")
 class TestISFAndCGC(object):
 
     def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_isf_and_cgc_protected")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_isf_and_cgc_protected")
         self.protector.protector_setup()
 
         # 准备前文
-        s_n = 6
+        s_n = 4
         self.test_sn = s_n
         flag, msg = create_young_diagrams(s_n)
         assert flag
@@ -1201,10 +1199,10 @@ class TestISFAndCGC(object):
         for i in range(1, cgc_finish_s_n + 1):
             assert isinstance(data.get("history_times").get("S{}".format(i)), int)
 
-    # @pytest.mark.skip("pass")
+    @pytest.mark.skip("pass")
     def test_004_create_isf_and_cgc_s_n_5_to_6(self):  # beta  # 005就该优化7～9了 放在benchmark里
         start_sn = 5
-        end_sn = 6
+        end_sn = 7
         flag, isf_finish_s_n = get_isf_finish_s_n()
         assert flag
         assert isf_finish_s_n == start_sn - 1
@@ -1643,6 +1641,86 @@ class TestISFAndCGC(object):
         print("all len={} done: len(+)={}, len(-)={}".format(len(e_dict), num, len(e_dict) - num))
         
     '''
+    '''
+    不同method时，与书中soe不同相位的σμν
+    
+    method1：(带！的表示前人选择了被弃掉的相位，
+            带@的表示前人所选相位不在任意仅仅调换顺序e_vectors，就能得到的施密特相位中，
+            带¥的表示虽然不在正反两组施密特相位中，但是，调换e_vectors顺序，就能利用施密特正交化手续得出)
+    ##@ σ_μ_ν=([5, 1][3, 2, 1][3, 2, 1]), ν_st=[2, 2, 1]
+    isf_matrix=Matrix([[-2/5, 3/2, 3*sqrt(30)/10, -3/10], 
+                       [3/2, -7/4, 0, -3/4], 
+                       [3*sqrt(30)/10, 0, 1/2, sqrt(30)/10], 
+                       [-3/10, -3/4, sqrt(30)/10, 33/20]])
+    e_value=2, e_vectors=[Matrix([[ sqrt(30)/6], [sqrt(30)/15], [          1], [          0]]), 
+                          Matrix([[-1/3], [-1/3], [   0], [   1]])]
+    with soe_1_denominator=1319 > soe_2_denominator=363
+    soe_vectors=[Matrix([[ 4*sqrt(66)/55],[   sqrt(66)/44],[   sqrt(55)/10],[7*sqrt(66)/220]]), 
+                 Matrix([[ -sqrt(11)/11],[ -sqrt(11)/11],[            0],[3*sqrt(11)/11]])]
+    isf_phase_vector_list=[Matrix([[-2*sqrt(2)/5],[  -sqrt(2)/4],[-sqrt(15)/10],[9*sqrt(2)/20]]), 
+                           Matrix([[  sqrt(3)/5],[          0],[ sqrt(10)/5],[2*sqrt(3)/5]])]  # ？
+                           
+    ##@ σ_μ_ν=([4, 2][4, 1, 1][3, 2, 1]), ν_st=[2, 2, 1]
+    isf_matrix=Matrix([[2/3, 2*sqrt(30)/5, -2*sqrt(5)/15], 
+                       [2*sqrt(30)/5, -8/5, sqrt(6)/5], 
+                       [-2*sqrt(5)/15, sqrt(6)/5, 29/15]])
+    e_value=2, e_vectors=[Matrix([[3*sqrt(30)/10],[            1],[            0]]), 
+                          Matrix([[-sqrt(5)/10],[          0],[          1]])]
+    with soe_1_denominator=830 > soe_2_denominator=118
+    soe_vectors=[Matrix([[2*sqrt(210)/35],[     sqrt(7)/5],[   sqrt(42)/35]]), 
+                 Matrix([[  -sqrt(21)/21],[             0],[2*sqrt(105)/21]])]
+    isf_phase_vector_list=[Matrix([[ -sqrt(6)/3],[ -sqrt(5)/5],[sqrt(30)/15]]), 
+                           Matrix([[ sqrt(15)/15],[   sqrt(2)/5],[8*sqrt(3)/15]])]  # 这个值其实也有怀疑
+    
+    ##¥ σ_μ_ν=([4, 2][3, 2, 1][3, 2, 1]), ν_st=[3, 1, 1]  
+    isf_matrix=Matrix([[-1/6, 5*sqrt(6)/12, 0, sqrt(5)/12, -3*sqrt(2)/4, -2*sqrt(3)/3, -3*sqrt(5)/4], 
+                       [5*sqrt(6)/12, 0, -5*sqrt(6)/12, -sqrt(30)/12, 5*sqrt(3)/6, 0, sqrt(30)/12], 
+                       [0, -5*sqrt(6)/12, 1/6, 3*sqrt(5)/4, -3*sqrt(2)/4, 2*sqrt(3)/3, -sqrt(5)/12], 
+                       [sqrt(5)/12, -sqrt(30)/12, 3*sqrt(5)/4, -4/3, 0, -sqrt(15)/6, 0], 
+                       [-3*sqrt(2)/4, 5*sqrt(3)/6, -3*sqrt(2)/4, 0, 0, -sqrt(6)/6, 0], 
+                       [-2*sqrt(3)/3, 0, 2*sqrt(3)/3, -sqrt(15)/6, -sqrt(6)/6, 0, sqrt(15)/6], 
+                       [-3*sqrt(5)/4, sqrt(30)/12, -sqrt(5)/12, 0, 0, sqrt(15)/6, 4/3]])
+    e_value=0, e_vectors=[Matrix([[ sqrt(2)/12],[  sqrt(3)/2],[3*sqrt(2)/4],[ sqrt(10)/3],[ 1],[ 0],[ 0]]), 
+                          Matrix([[3*sqrt(3)/8],[7*sqrt(2)/8],[3*sqrt(3)/8],[ 0],[ 0],[ 1],[ 0]]), 
+                          Matrix([[    sqrt(5)/2],[3*sqrt(30)/10],[    sqrt(5)/2],[ 1],[ 0],[ 0],[ 1]])]
+    with soe_1_denominator=270 > soe_2_denominator=146
+    soe_vectors=[Matrix([[ -1/3],[ 0],[ 1/3],[ sqrt(5)/6],[ sqrt(2)/2],[ 0],[-sqrt(5)/6]]), 
+                 Matrix([[ 1/12],[5*sqrt(6)/36],[ 1/12],[  -sqrt(5)/6],[ 0],[ 4*sqrt(3)/9],[  -sqrt(5)/6]]), 
+                 Matrix([[ 5/12],[sqrt(6)/4],[ 5/12],[sqrt(5)/6],[ 0],[ 0],[sqrt(5)/6]])]
+    isf_phase_vector_list=[Matrix([[ -1/3],[ 0],[ 1/3],[ sqrt(5)/6],[ sqrt(2)/2],[ 0],[-sqrt(5)/6]]), 
+                           Matrix([[ -sqrt(2)/6],[ -sqrt(3)/9],[ -sqrt(2)/6],
+                                   [-sqrt(10)/6],[ 0],[2*sqrt(6)/9],[-sqrt(10)/6]]), 
+                           Matrix([[   sqrt(2)/4],[7*sqrt(3)/18],[   sqrt(2)/4],[ 0],[ 0],[ 2*sqrt(6)/9],[ 0]])]
+                           !!!!## 但它是用vectors = (e_vectors[1], e_vectors[2], e_vectors[0])直接算出来的
+                           
+    ## σ_μ_ν=([4, 1, 1][3, 2, 1][3, 2, 1]), ν_st=[3, 1, 1]
+    with soe_1_denominator=3972 <= soe_2_denominator=73670
+    
+    ##! with σ_μ_ν=([4, 1, 1][3, 2, 1][3, 2, 1]), ν_st=[2, 2, 1]
+    with soe_1_denominator=12344 <= soe_2_denominator=23162
+    
+    ## σ_μ_ν=([3, 3][3, 2, 1][3, 2, 1]), ν_st=[3, 1, 1]
+    isf_matrix=Matrix([[0, 0, sqrt(15)/2, 0], 
+                       [0, 0, sqrt(6)/2, 0], 
+                       [sqrt(15)/2, sqrt(6)/2, 0, -sqrt(15)/2], 
+                       [0, 0, -sqrt(15)/2, 0]])
+    e_value=0, e_vectors=[Matrix([[-sqrt(10)/5],[          1],[          0],[          0]]), 
+                          Matrix([[1],[0],[0],[1]])]
+    with soe_1_denominator=107 > soe_2_denominator=25 
+    soe_vectors=[Matrix([[-sqrt(3)/6],[sqrt(30)/6],[         0],[ sqrt(3)/6]]), 
+                 Matrix([[sqrt(2)/2],[        0],[        0],[sqrt(2)/2]])]
+    isf_phase_vector_list=[Matrix([[5*sqrt(21)/42],[ sqrt(210)/42],[            0],[   sqrt(21)/6]]), 
+                           Matrix([[-sqrt(14)/7],[ sqrt(35)/7],[          0],[          0]])]
+                           
+    ## σ_μ_ν=([3, 3][3, 2, 1][3, 2, 1]), ν_st=[2, 2, 1]
+    with soe_1_denominator=33 <= soe_2_denominator=123
+    
+    ## with σ_μ_ν=([3, 2, 1][3, 2, 1][3, 2, 1]), ν_st=[3, 1, 1]
+    with soe_1_denominator=28837 > soe_2_denominator=13432
+    
+    ##@ σ_μ_ν=([3, 2, 1][3, 2, 1][3, 2, 1]), ν_st=[2, 2, 1]
+    with soe_1_denominator=19839 > soe_2_denominator=9549
+    '''
 
 
 # @pytest.mark.skip("pass")
@@ -1652,7 +1730,7 @@ class TestResultsWithoutCalc(object):
         # 它不改变数据库，所以不需要保护
 
         # 检查范围
-        self.test_sn = 6  # 需要匹配现有数据和answer数据
+        self.test_sn = 4  # 需要匹配现有数据和answer数据
 
         # answer数据
         self.data = Data()

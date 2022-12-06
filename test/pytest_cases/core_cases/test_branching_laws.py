@@ -8,7 +8,7 @@ core/branching_laws.py
 
 import copy
 import pytest
-from conf.cgc_config import cgc_rst_folder
+from conf.cgc_config import cgc_db_name
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo, BranchingLawInfo
 from core.cgc_utils.cgc_local_db import get_branching_laws_file_name, get_branching_laws_finish_s_n_name
 from core.branching_laws import calc_single_branching_law, create_branching_laws
@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 class TestBranchingLaws(object):
 
     def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_branching_laws_protected")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_branching_laws_protected")
         self.protector.protector_setup()
 
         # regular BL

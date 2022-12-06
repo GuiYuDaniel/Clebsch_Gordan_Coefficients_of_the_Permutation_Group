@@ -19,10 +19,10 @@ class TestDBProtectorInFunc(object):
 
     def setup(self):
         # create test db
-        self.top_path = singleton_config.top_path
-        self.tmp_1_path = os.path.join(self.top_path, "tmp_1")
+        self.result_folder = singleton_config.result_folder
+        self.tmp_1_path = os.path.join(self.result_folder, "tmp_1")
         self.tmp_2_path = os.path.join(self.tmp_1_path, "tmp_2")
-        self.fake_path = Path._get_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
+        self.fake_path = Path.get_project_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
         self.fake_results_folder = os.path.join(self.fake_path, "test_results")
         self.fake_pipenode_pkl_folder = os.path.join(self.fake_results_folder, "fake_pipenode_info")
         self.fake_pipeline_pkl_folder = os.path.join(self.fake_results_folder, "fake_pipeline_info")
@@ -100,10 +100,10 @@ class TestDBProtectorInClassMV(object):
 
     def setup(self):
         # create test db
-        self.top_path = singleton_config.top_path
-        self.tmp_1_path = os.path.join(self.top_path, "tmp_1")
+        self.result_folder = singleton_config.result_folder
+        self.tmp_1_path = os.path.join(self.result_folder, "tmp_1")
         self.tmp_2_path = os.path.join(self.tmp_1_path, "tmp_2")
-        self.fake_path = Path._get_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
+        self.fake_path = Path.get_project_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
         self.fake_results_folder = os.path.join(self.fake_path, "test_results")
         self.fake_pipenode_pkl_folder = os.path.join(self.fake_results_folder, "fake_pipenode_info")
         self.fake_pipeline_pkl_folder = os.path.join(self.fake_results_folder, "fake_pipeline_info")
@@ -158,10 +158,10 @@ class TestDBProtectorInClassCP(object):
 
     def setup(self):
         # create test db
-        self.top_path = singleton_config.top_path
-        self.tmp_1_path = os.path.join(self.top_path, "tmp_1")
+        self.result_folder = singleton_config.result_folder
+        self.tmp_1_path = os.path.join(self.result_folder, "tmp_1")
         self.tmp_2_path = os.path.join(self.tmp_1_path, "tmp_2")
-        self.fake_path = Path._get_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
+        self.fake_path = Path.get_project_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
         self.fake_results_folder = os.path.join(self.fake_path, "test_results")
         self.fake_pipenode_pkl_folder = os.path.join(self.fake_results_folder, "fake_pipenode_info")
         self.fake_pipeline_pkl_folder = os.path.join(self.fake_results_folder, "fake_pipeline_info")
@@ -232,10 +232,10 @@ class TestDBProtectorInClassMVWithNoDB(object):
 
     def setup(self):
         # create test db
-        self.top_path = singleton_config.top_path
-        self.tmp_1_path = os.path.join(self.top_path, "tmp_1")
+        self.result_folder = singleton_config.result_folder
+        self.tmp_1_path = os.path.join(self.result_folder, "tmp_1")
         self.tmp_2_path = os.path.join(self.tmp_1_path, "tmp_2")
-        self.fake_path = Path._get_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
+        self.fake_path = Path.get_project_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
         self.fake_results_folder = os.path.join(self.fake_path, "test_results")
         self.fake_pipenode_pkl_folder = os.path.join(self.fake_results_folder, "fake_pipenode_info")
         self.fake_pipeline_pkl_folder = os.path.join(self.fake_results_folder, "fake_pipeline_info")

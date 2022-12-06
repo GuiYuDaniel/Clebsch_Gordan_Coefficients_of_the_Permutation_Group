@@ -17,7 +17,7 @@ import os
 import time
 import math
 import numpy as np
-from conf.cgc_config import cgc_rst_folder
+from conf.cgc_config import cgc_db_name
 from core.branching_laws import create_branching_laws
 from core.young_diagrams import create_young_diagrams, load_young_diagrams, calc_young_diagram_tilde
 from core.characters_and_gi import CharacterData, GiData
@@ -37,7 +37,7 @@ class TestCharacterData(object):
     """关于录入数据，必须尽所有可能去检查！"""
 
     def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_characters_protected")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_characters_protected")
         self.protector.protector_setup()
         self.new_data_cls = CharacterData()
         self.new_gi_cls = GiData()
@@ -152,7 +152,7 @@ class TestCharacterData(object):
 class TestCharacters(object):
 
     def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_characters_protected")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_characters_protected")
         self.protector.protector_setup()
 
         # 准备前文

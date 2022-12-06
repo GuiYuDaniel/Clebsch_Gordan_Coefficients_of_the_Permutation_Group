@@ -10,24 +10,29 @@ TODO 也可以把log注入StreamHandler，主动触发的时候才写log，手�
 import time
 import os
 import logging
-from logging import config  # 这个地方有点没明白，为什么logging不把config暴露出来，难道是不推荐这么用么(python3.6.x)
+from logging import config
 from functools import lru_cache
 from conf.logging_config import logging_config
+from utils.config import singleton_config
 
-log_name = logging_config.get("handlers", {}).get("file_handler", {}).get("filename", None)
-abs_path = os.path.abspath(__file__)
-# p.s. /Users/guiyu/PycharmProjects/Clebsch_Gordan_Coefficients_of_the_Permutation_Group/src/utils/log.py
-log_name = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(abs_path))), log_name)
-
-log_folder = os.path.dirname(log_name)
+log_name = logging_config.get("handlers", {}).get("file_handler", {}).get("filename", None)  # "logs/log.txt"
+log_folder = singleton_config.log_folder
 if not os.path.exists(log_folder):
-    os.makedirs(log_folder)
-
+    raise FileExistsError("can not find log_folder={}, pls check".format(log_folder))
+log_name = os.path.join(log_folder, log_name)  # p.s. /Users/guiyu/Workspace/CGC/LOG/logs/log.txt
+if not os.path.exists(os.path.dirname(log_name)):
+    os.makedirs(os.path.dirname(log_name))
 if log_name.endswith("txt"):
     # hard code to join time mark in log filename
     log_start_time = time.asctime().replace(" ", "_")
     logging_config["handlers"]["file_handler"]["filename"] = \
         log_name.replace("txt", "txt.{}".format(log_start_time))
+
+if singleton_config.log_level not in ["DEBUG", "INFO"]:
+    raise NameError("log_level={} must in ['DEBUG', 'INFO'] but not, pls check config.json"
+                    "".format(singleton_config.log_level))
+logging_config["loggers"][""]["level"] = singleton_config.log_level
+
 logging.config.dictConfig(logging_config)
 
 

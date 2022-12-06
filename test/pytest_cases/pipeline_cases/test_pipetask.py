@@ -11,6 +11,7 @@ from db.local_db_protector import DBProtector
 from db.typing import PipeNodeInfo, PipeTaskInfo
 from pipeline.pipeline import PipeLine
 from pipeline.pipetask import PipeTask
+from utils.config import singleton_config
 from utils.log import get_logger
 from utils.io import Path
 from utils.json_op import Json
@@ -28,10 +29,13 @@ class TestPipeTask(object):
     """
 
     def setup_class(self):
-        self.protector = DBProtector("results", extension_name=".test_ppt_protected")
+        self.result_folder = singleton_config.result_folder
+        self.sys_db_name = singleton_config.sys_db_name
+
+        self.protector = DBProtector(self.sys_db_name, extension_name=".test_db_protected")
         self.protector.protector_setup()
 
-        self.fake_path = Path._get_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
+        self.fake_path = Path.get_project_full_path(relative_path="fake", base_path_type="test")
         self.fake_dag_workflow_file_path = os.path.join(self.fake_path, "fake_dag_workflow.json")
         self.fake_workflow_conf = Json.file_to_json_without_comments(self.fake_dag_workflow_file_path)
         self.finish_node_list_before_start = []
@@ -46,11 +50,10 @@ class TestPipeTask(object):
         self.appeared_ppl_id_list = []
         self.appeared_ppn_id_list = []
         self.appeared_ppt_id_list = []
-        self.top_path = Path._get_full_path()
         # 先删
-        self.pipeline_db_folder = os.path.join(self.top_path, "results", "pipeline_info")
-        self.pipenode_db_folder = os.path.join(self.top_path, "results", "pipenode_info")
-        self.pipetask_db_folder = os.path.join(self.top_path, "results", "pipetask_info")
+        self.pipeline_db_folder = os.path.join(self.result_folder, self.sys_db_name, "pipeline_info")
+        self.pipenode_db_folder = os.path.join(self.result_folder, self.sys_db_name, "pipenode_info")
+        self.pipetask_db_folder = os.path.join(self.result_folder, self.sys_db_name, "pipetask_info")
 
         if os.path.exists(self.pipenode_db_folder):
             all_file_name_list = os.listdir(self.pipenode_db_folder)
@@ -243,7 +246,13 @@ class TestSpecialWorkflow(object):
     """
 
     def setup_class(self):
-        self.fake_path = Path._get_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
+        self.result_folder = singleton_config.result_folder
+        self.sys_db_name = singleton_config.sys_db_name
+
+        self.protector = DBProtector(self.sys_db_name, extension_name=".test_db_protected")
+        self.protector.protector_setup()
+
+        self.fake_path = Path.get_project_full_path(relative_path="fake", base_path_type="test")
         self.fake_wfl_output_str = os.path.join(self.fake_path, "fake_workflow_output_str.json")
         self.fake_wfl_output_str_conf = Json.file_to_json_without_comments(self.fake_wfl_output_str)
         # self.fake_wfl_output_str = os.path.join(self.fake_path, "fake_workflow_output_str.json")
@@ -251,53 +260,54 @@ class TestSpecialWorkflow(object):
         self.appeared_ppl_id_list = []
         self.appeared_ppn_id_list = []
         self.appeared_ppt_id_list = []
-        self.top_path = Path._get_full_path()
-        self.pipeline_db_folder = os.path.join(self.top_path, "results", "pipeline_info")
-        self.pipenode_db_folder = os.path.join(self.top_path, "results", "pipenode_info")
-        self.pipetask_db_folder = os.path.join(self.top_path, "results", "pipetask_info")
-        all_file_name_list = os.listdir(self.pipenode_db_folder)
-        all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-        for test_file in all_test_ahead_list:
-            os.remove(os.path.join(self.pipenode_db_folder, test_file))
-        all_file_name_list = os.listdir(self.pipeline_db_folder)
-        all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-        for test_file in all_test_ahead_list:
-            os.remove(os.path.join(self.pipeline_db_folder, test_file))
-        all_file_name_list = os.listdir(self.pipetask_db_folder)
-        all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-        for test_file in all_test_ahead_list:
-            os.remove(os.path.join(self.pipetask_db_folder, test_file))
+        self.pipeline_db_folder = os.path.join(self.result_folder, self.sys_db_name, "pipeline_info")
+        self.pipenode_db_folder = os.path.join(self.result_folder, self.sys_db_name, "pipenode_info")
+        self.pipetask_db_folder = os.path.join(self.result_folder, self.sys_db_name, "pipetask_info")
+        # all_file_name_list = os.listdir(self.pipenode_db_folder)
+        # all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+        # for test_file in all_test_ahead_list:
+        #     os.remove(os.path.join(self.pipenode_db_folder, test_file))
+        # all_file_name_list = os.listdir(self.pipeline_db_folder)
+        # all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+        # for test_file in all_test_ahead_list:
+        #     os.remove(os.path.join(self.pipeline_db_folder, test_file))
+        # all_file_name_list = os.listdir(self.pipetask_db_folder)
+        # all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+        # for test_file in all_test_ahead_list:
+        #     os.remove(os.path.join(self.pipetask_db_folder, test_file))
 
     def teardown_class(self):
         # 删除粘贴过去的文件
-        all_file_name_list = os.listdir(self.pipenode_db_folder)
-        all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-        for test_file in all_test_ahead_list:
-            os.remove(os.path.join(self.pipenode_db_folder, test_file))
-        all_file_name_list = os.listdir(self.pipeline_db_folder)
-        all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-        for test_file in all_test_ahead_list:
-            os.remove(os.path.join(self.pipeline_db_folder, test_file))
-        all_file_name_list = os.listdir(self.pipetask_db_folder)
-        all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
-        for test_file in all_test_ahead_list:
-            os.remove(os.path.join(self.pipetask_db_folder, test_file))
-        # 防止delete失败，尝试删除所有测试中产生的id
-        for appeared_id in self.appeared_ppn_id_list:
-            file_path = os.path.join(self.pipenode_db_folder, appeared_id + ".pkl")
-            if os.path.exists(file_path):
-                # logger.warning("find ppn_id={} still exists, remove it".format(appeared_id))
-                os.remove(file_path)
-        for appeared_id in self.appeared_ppl_id_list:
-            file_path = os.path.join(self.pipeline_db_folder, appeared_id + ".pkl")
-            if os.path.exists(file_path):
-                # logger.warning("find ppl_id={} still exists, remove it".format(appeared_id))
-                os.remove(file_path)
-        for appeared_id in self.appeared_ppt_id_list:
-            file_path = os.path.join(self.pipetask_db_folder, appeared_id + ".pkl")
-            if os.path.exists(file_path):
-                # logger.warning("find ppt_id={} still exists, remove it".format(appeared_id))
-                os.remove(file_path)
+        # all_file_name_list = os.listdir(self.pipenode_db_folder)
+        # all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+        # for test_file in all_test_ahead_list:
+        #     os.remove(os.path.join(self.pipenode_db_folder, test_file))
+        # all_file_name_list = os.listdir(self.pipeline_db_folder)
+        # all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+        # for test_file in all_test_ahead_list:
+        #     os.remove(os.path.join(self.pipeline_db_folder, test_file))
+        # all_file_name_list = os.listdir(self.pipetask_db_folder)
+        # all_test_ahead_list = [i for i in all_file_name_list if i.startswith("test_")]
+        # for test_file in all_test_ahead_list:
+        #     os.remove(os.path.join(self.pipetask_db_folder, test_file))
+        # # 防止delete失败，尝试删除所有测试中产生的id
+        # for appeared_id in self.appeared_ppn_id_list:
+        #     file_path = os.path.join(self.pipenode_db_folder, appeared_id + ".pkl")
+        #     if os.path.exists(file_path):
+        #         # logger.warning("find ppn_id={} still exists, remove it".format(appeared_id))
+        #         os.remove(file_path)
+        # for appeared_id in self.appeared_ppl_id_list:
+        #     file_path = os.path.join(self.pipeline_db_folder, appeared_id + ".pkl")
+        #     if os.path.exists(file_path):
+        #         # logger.warning("find ppl_id={} still exists, remove it".format(appeared_id))
+        #         os.remove(file_path)
+        # for appeared_id in self.appeared_ppt_id_list:
+        #     file_path = os.path.join(self.pipetask_db_folder, appeared_id + ".pkl")
+        #     if os.path.exists(file_path):
+        #         # logger.warning("find ppt_id={} still exists, remove it".format(appeared_id))
+        #         os.remove(file_path)
+
+        self.protector.protector_teardown()
 
     def test_output_str_func(self):
         ppl = PipeLine(workflow_conf=self.fake_wfl_output_str_conf, ppl_id="test_output_str_id")

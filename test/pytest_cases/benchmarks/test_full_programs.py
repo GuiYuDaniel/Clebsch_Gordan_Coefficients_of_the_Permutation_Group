@@ -10,7 +10,7 @@ import time
 import math
 import numpy as np
 import pytest
-from conf.cgc_config import cgc_rst_folder
+from conf.cgc_config import cgc_db_name
 from core.young_diagrams import create_young_diagrams
 from core.branching_laws import create_branching_laws
 from core.young_tableaux import create_young_tableaux
@@ -39,7 +39,7 @@ logger = get_logger(__name__)
 class TestISFAndCGC(object):
 
     def setup(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_isf_and_cgc_protected")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_isf_and_cgc_protected")
         self.protector.protector_setup()
 
     def teardown(self):

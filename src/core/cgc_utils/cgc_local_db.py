@@ -10,10 +10,9 @@ import copy
 import os
 import shutil
 import sys
-from conf.cgc_config import (
-    top_path, cgc_rst_folder
-)
+from conf.cgc_config import cgc_db_name
 from db.local_db import LocalDb
+from utils.config import singleton_config
 from utils.io import Save, Load, Delete
 from utils.log import get_logger
 
@@ -34,7 +33,8 @@ class CGCLocalDb(LocalDb):
     def __init__(self):
         """定义connect路径，必要参数等等"""
         super(CGCLocalDb, self).__init__()
-        self.db_folder = os.path.join(top_path, cgc_rst_folder, "{}", "{}")  # <top_path>/cgc_results/{}/{}
+        # db_folder waiting format {table_type} {xxx_id.file_type}
+        self.db_folder = os.path.join(singleton_config.result_folder, cgc_db_name, "{}", "{}")
         self.design_table_type.update({
             "file_name": str,
             "flags": None
@@ -46,17 +46,17 @@ class CGCLocalDb(LocalDb):
 
     def _get_file_path_without_type_by_condition(self, condition: dict):
         # 只管拼，不管检查，使用者自行检查
-        # <top_path>/cgc_results/xxx_info/file_name
+        # <RESULT>/cgc_db/xxx_info/file_name
         # file_name中是可以包含多层次级目录的，但是不包含文件扩展名
         return super(CGCLocalDb, self)._get_file_path_by_condition(condition, file_type="")
 
     def _init_cgc_static_db_folder(self):
         """供类继承者创建静态目录，到xxx_info级别"""
         super(CGCLocalDb, self)._init_db_folder()
-        # 将ResultsNote copy到cgc_rst_folder
-        if not os.path.exists(os.path.join(top_path, cgc_rst_folder, "ResultsNote.md")):
-            shutil.copyfile(os.path.join(top_path, "CGCReadMe", "ResultsNote.md"),
-                            os.path.join(top_path, cgc_rst_folder, "ResultsNote.md"))
+        # 将ResultsNote copy到cgc_db_name
+        if not os.path.exists(os.path.dirname(self.db_folder.format("ResultsNote.md", ""))):
+            shutil.copyfile(os.path.join(singleton_config.top_path, "CGCReadMe", "ResultsNote.md"),
+                            os.path.join(os.path.dirname(self.db_folder.format("ResultsNote.md", ""))))
 
     def folder_exist(self, folder_name):
         if not isinstance(folder_name, str):
@@ -259,7 +259,7 @@ class CGCLocalDb(LocalDb):
             sys._getframe().f_code.co_name, self.__class__.__name__)
         logger.error(err_msg)
         raise err_msg
-
+    
 
 def _get_xxx_finish_s_n_name(is_full_path=False, xxx_info_name=None):
     """this function is a factory function"""
@@ -276,28 +276,28 @@ def _get_xxx_finish_s_n_name(is_full_path=False, xxx_info_name=None):
     if not is_full_path:
         return True, general_finish_sn_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, xxx_info_name, general_finish_sn_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, xxx_info_name, general_finish_sn_name)
         return True, full_path
 
 
 # young_diagrams
 def get_young_diagrams_file_name(s_n: int, is_full_path=False):
     """
-    Sn or <top_path>/cgc_results/young_diagrams_info/Sn
-    p.s. S7 or <top_path>/cgc_results/young_diagrams_info/S7
+    Sn or <RESULT>/cgc_db/young_diagrams_info/Sn
+    p.s. S7 or <RESULT>/cgc_db/young_diagrams_info/S7
     """
     from conf.cgc_config import young_diagrams_file_name_format
     file_name = young_diagrams_file_name_format.format(str(s_n))  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "young_diagrams_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "young_diagrams_info", file_name)
         return True, full_path
 
 
 def get_young_diagrams_finish_s_n_name(is_full_path=False):
     """
-    Finish_Sn or <top_path>/cgc_results/young_diagrams_info/Finish_Sn
+    Finish_Sn or <RESULT>/cgc_db/young_diagrams_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="young_diagrams_info")
 
@@ -305,21 +305,21 @@ def get_young_diagrams_finish_s_n_name(is_full_path=False):
 # branching_laws
 def get_branching_laws_file_name(s_n: int, yd: list, is_full_path=False):
     """
-    Sn/[ν_i] or <top_path>/cgc_results/branching_laws_info/Sn/[ν_i]
-    p.s. S3/[2, 1] or <top_path>/cgc_results/branching_laws_info/S3/[2, 1]
+    Sn/[ν_i] or <RESULT>/cgc_db/branching_laws_info/Sn/[ν_i]
+    p.s. S3/[2, 1] or <RESULT>/cgc_db/branching_laws_info/S3/[2, 1]
     """
     from conf.cgc_config import branching_laws_file_name_format
     file_name = branching_laws_file_name_format.format(s_n, yd)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "branching_laws_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "branching_laws_info", file_name)
         return True, full_path
 
 
 def get_branching_laws_finish_s_n_name(is_full_path=False):
     """
-    Finish_Sn or <top_path>/cgc_results/branching_laws_info/Finish_Sn
+    Finish_Sn or <RESULT>/cgc_db/branching_laws_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="branching_laws_info")
 
@@ -327,49 +327,49 @@ def get_branching_laws_finish_s_n_name(is_full_path=False):
 # young_tableaux
 def get_young_tableaux_file_name(s_n: int, yd: list, is_full_path=False):
     """
-    Sn/[ν_i] or <top_path>/cgc_results/young_tableaux_info/Sn/[ν_i]
-    p.s. S3/[2, 1] or <top_path>/cgc_results/young_tableaux_info/S3/[2, 1]
+    Sn/[ν_i] or <RESULT>/cgc_db/young_tableaux_info/Sn/[ν_i]
+    p.s. S3/[2, 1] or <RESULT>/cgc_db/young_tableaux_info/S3/[2, 1]
     """
     from conf.cgc_config import young_tableaux_file_name_format
     file_name = young_tableaux_file_name_format.format(s_n, yd)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "young_tableaux_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "young_tableaux_info", file_name)
         return True, full_path
 
 
 def get_young_tableaux_num_file_name(s_n: int, yd: list, is_full_path=False):
     """
-    Sn/[ν_i]_num or <top_path>/cgc_results/young_tableaux_info/Sn/[ν_i]_num
-    p.s. S3/[2, 1]_num or <top_path>/cgc_results/young_tableaux_info/S3/[2, 1]_num
+    Sn/[ν_i]_num or <RESULT>/cgc_db/young_tableaux_info/Sn/[ν_i]_num
+    p.s. S3/[2, 1]_num or <RESULT>/cgc_db/young_tableaux_info/S3/[2, 1]_num
     """
     from conf.cgc_config import young_tableaux_num_file_name_format
     file_name = young_tableaux_num_file_name_format.format(s_n, yd)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "young_tableaux_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "young_tableaux_info", file_name)
         return True, full_path
 
 
 def get_young_tableaux_phase_factor_file_name(s_n: int, yd: list, is_full_path=False):
     """
-    Sn/[ν_i]_Λ or <top_path>/cgc_results/young_tableaux_info/Sn/[ν_i]_Λ
-    p.s. S3/[2, 1]_Λ or <top_path>/cgc_results/young_tableaux_info/S3/[2, 1]_Λ
+    Sn/[ν_i]_Λ or <RESULT>/cgc_db/young_tableaux_info/Sn/[ν_i]_Λ
+    p.s. S3/[2, 1]_Λ or <RESULT>/cgc_db/young_tableaux_info/S3/[2, 1]_Λ
     """
     from conf.cgc_config import young_tableaux_phase_factor_file_name_format
     file_name = young_tableaux_phase_factor_file_name_format.format(s_n, yd)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "young_tableaux_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "young_tableaux_info", file_name)
         return True, full_path
 
 
 def get_young_tableaux_finish_s_n_name(is_full_path=False):
     """
-    Finish_Sn or <top_path>/cgc_results/young_tableaux_info/Finish_Sn
+    Finish_Sn or <RESULT>/cgc_db/young_tableaux_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="young_tableaux_info")
 
@@ -377,23 +377,23 @@ def get_young_tableaux_finish_s_n_name(is_full_path=False):
 # yamanouchi_matrix
 def get_yamanouchi_matrix_file_name(s_n: int, yd: list, ix: tuple, mode=None, is_full_path=False):
     """
-    Sn/[ν_i]/ij(i,j) or <top_path>/cgc_results/yamanouchi_matrix_info/Sn/[ν_i]/ij(i,j)
-    Sn/[ν_i]/in(i,n) or <top_path>/cgc_results/yamanouchi_matrix_info/Sn/[ν_i]/in(i,n)
-    p.s. S3/[2, 1]/ij(1, 2) or <top_path>/cgc_results/yamanouchi_matrix_info/S3/[2, 1]/ij(1, 2)
-    p.s. S3/[2, 1]/in(1, 3) or <top_path>/cgc_results/yamanouchi_matrix_info/S3/[2, 1]/in(1, 3)
+    Sn/[ν_i]/ij(i,j) or <RESULT>/cgc_db/yamanouchi_matrix_info/Sn/[ν_i]/ij(i,j)
+    Sn/[ν_i]/in(i,n) or <RESULT>/cgc_db/yamanouchi_matrix_info/Sn/[ν_i]/in(i,n)
+    p.s. S3/[2, 1]/ij(1, 2) or <RESULT>/cgc_db/yamanouchi_matrix_info/S3/[2, 1]/ij(1, 2)
+    p.s. S3/[2, 1]/in(1, 3) or <RESULT>/cgc_db/yamanouchi_matrix_info/S3/[2, 1]/in(1, 3)
     """
     from conf.cgc_config import yamanouchi_matrix_file_name_format
     file_name = yamanouchi_matrix_file_name_format.format(s_n, yd, mode, ix)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "yamanouchi_matrix_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "yamanouchi_matrix_info", file_name)
         return True, full_path
 
 
 def get_yamanouchi_matrix_finish_s_n_name(is_full_path=False):
     """
-    Finish_Sn or <top_path>/cgc_results/yamanouchi_matrix_info/Finish_Sn
+    Finish_Sn or <RESULT>/cgc_db/yamanouchi_matrix_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="yamanouchi_matrix_info")
 
@@ -401,21 +401,21 @@ def get_yamanouchi_matrix_finish_s_n_name(is_full_path=False):
 # characters and gi
 def get_characters_and_gi_file_name(s_n: int, is_full_path=False):
     """
-    Sn or <top_path>/cgc_results/characters_and_gi_info/Sn
-    p.s. S3 or <top_path>/cgc_results/characters_and_gi_info/S3
+    Sn or <RESULT>/cgc_db/characters_and_gi_info/Sn
+    p.s. S3 or <RESULT>/cgc_db/characters_and_gi_info/S3
     """
     from conf.cgc_config import characters_and_gi_file_name_format
     file_name = characters_and_gi_file_name_format.format(s_n)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "characters_and_gi_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "characters_and_gi_info", file_name)
         return True, full_path
 
 
 def get_characters_and_gi_finish_s_n_name(is_full_path=False):
     """
-    Finish_Sn or <top_path>/cgc_results/characters_and_gi_info/Finish_Sn
+    Finish_Sn or <RESULT>/cgc_db/characters_and_gi_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="characters_and_gi_info")
 
@@ -423,21 +423,21 @@ def get_characters_and_gi_finish_s_n_name(is_full_path=False):
 # cg_series
 def get_cg_series_file_name(s_n: int, yd_1: list, yd_2: list, is_full_path=False):
     """
-    Sn or <top_path>/cgc_results/cg_series_info/Sn/[σ]_[μ]
-    p.s. S3 or <top_path>/cgc_results/cg_series_info/S3/[3]_[2, 1]
+    Sn or <RESULT>/cgc_db/cg_series_info/Sn/[σ]_[μ]
+    p.s. S3 or <RESULT>/cgc_db/cg_series_info/S3/[3]_[2, 1]
     """
     from conf.cgc_config import cg_series_file_name_format
     file_name = cg_series_file_name_format.format(s_n, yd_1, yd_2)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "cg_series_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "cg_series_info", file_name)
         return True, full_path
 
 
 def get_cg_series_finish_s_n_name(is_full_path=False):
     """
-    Finish_Sn or <top_path>/cgc_results/cg_series_info/Finish_Sn
+    Finish_Sn or <RESULT>/cgc_db/cg_series_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="cg_series_info")
 
@@ -445,21 +445,21 @@ def get_cg_series_finish_s_n_name(is_full_path=False):
 # eigenvalues
 def get_eigenvalues_file_name(s_n: int, is_full_path=False):
     """
-    Sn or <top_path>/cgc_results/eigenvalues_info/Sn
-    p.s. S6 or <top_path>/cgc_results/eigenvalues_info/S6
+    Sn or <RESULT>/cgc_db/eigenvalues_info/Sn
+    p.s. S6 or <RESULT>/cgc_db/eigenvalues_info/S6
     """
     from conf.cgc_config import eigenvalues_file_name_format
     file_name = eigenvalues_file_name_format.format(s_n)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "eigenvalues_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "eigenvalues_info", file_name)
         return True, full_path
 
 
 def get_eigenvalues_finish_s_n_name(is_full_path=False):
     """
-    Finish_Sn or <top_path>/cgc_results/eigenvalues_info/Finish_Sn
+    Finish_Sn or <RESULT>/cgc_db/eigenvalues_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="eigenvalues_info")
 
@@ -467,21 +467,21 @@ def get_eigenvalues_finish_s_n_name(is_full_path=False):
 # isf
 def get_isf_file_name(s_n: int, sigma, mu, nu_st, is_full_path=False):
     """
-    Sn/[σ]_[μ]/[ν]_τ__[ν’]_τ’ or <top_path>/cgc_results/isf_info/Sn/[σ]_[μ]/[ν]_τ__[ν’]_τ’
-    p.s. S4/[2, 1]_[2, 1]/[2, 1]_1__[1, 1]'_1' or <top_path>/cgc_results/isf_info/S4/[2, 1]_[2, 1]/[2, 1]_1__[1, 1]'_1'
+    Sn/[σ]_[μ]/[ν]_τ__[ν’]_τ’ or <RESULT>/cgc_db/isf_info/Sn/[σ]_[μ]/[ν]_τ__[ν’]_τ’
+    p.s. S4/[2, 1]_[2, 1]/[2, 1]_1__[1, 1]'_1' or <RESULT>/cgc_db/isf_info/S4/[2, 1]_[2, 1]/[2, 1]_1__[1, 1]'_1'
     """
     from conf.cgc_config import isf_file_name_format
     file_name = isf_file_name_format.format(s_n, sigma, mu, nu_st)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "isf_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "isf_info", file_name)
         return True, full_path
 
 
 def get_isf_finish_s_n_name(is_full_path=False):
     """
-    Finish_Sn or <top_path>/cgc_results/isf_info/Finish_Sn
+    Finish_Sn or <RESULT>/cgc_db/isf_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="isf_info")
 
@@ -489,8 +489,8 @@ def get_isf_finish_s_n_name(is_full_path=False):
 # ϵ
 def get_ϵ_file_name(s_n: int, sigma: list, mu: list, nu: list, τ: (None, int), is_full_path=False):
     """
-    Sn/[σ]_[μ]/[ν]_τ or <top_path>/cgc_results/ϵ_info/Sn/[σ]_[μ]/[ν]_τ  无多重性，则去掉τ
-    p.s. S4/[2, 2]_[3, 1]/[2, 1, 1] or <top_path>/cgc_results/ϵ_info/S4/[2, 2]_[3, 1]/[2, 1, 1]
+    Sn/[σ]_[μ]/[ν]_τ or <RESULT>/cgc_db/ϵ_info/Sn/[σ]_[μ]/[ν]_τ  无多重性，则去掉τ
+    p.s. S4/[2, 2]_[3, 1]/[2, 1, 1] or <RESULT>/cgc_db/ϵ_info/S4/[2, 2]_[3, 1]/[2, 1, 1]
     """
     from conf.cgc_config import ϵ_file_name_format, ϵ_file_name_format_none
     if τ is None:  # 没有多重性的τ将会被省略
@@ -500,13 +500,13 @@ def get_ϵ_file_name(s_n: int, sigma: list, mu: list, nu: list, τ: (None, int),
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "ϵ_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "ϵ_info", file_name)
         return True, full_path
 
 
 def get_ϵ_finish_s_n_name(is_full_path=False):
     """
-    Finish_Sn or <top_path>/cgc_results/ϵ_info/Finish_Sn
+    Finish_Sn or <RESULT>/cgc_db/ϵ_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="ϵ_info")
 
@@ -514,8 +514,8 @@ def get_ϵ_finish_s_n_name(is_full_path=False):
 # cgc
 def get_cgc_file_name(s_n: int, sigma: list, mu: list, nu: list, τ: (None, int), m: int, is_full_path=False):
     """
-    Sn/[σ]_[μ]/[ν]_τ_m or <top_path>/cgc_results/cgc_info/Sn/[σ]_[μ]/[ν]_τ_m  无多重性，则去掉τ
-    p.s. S4/[2, 2]_[3, 1]/[2, 1, 1]_1_m2 or <top_path>/cgc_results/cgc_info/S4/[2, 2]_[3, 1]/[2, 1, 1]_1_m2
+    Sn/[σ]_[μ]/[ν]_τ_m or <RESULT>/cgc_db/cgc_info/Sn/[σ]_[μ]/[ν]_τ_m  无多重性，则去掉τ
+    p.s. S4/[2, 2]_[3, 1]/[2, 1, 1]_1_m2 or <RESULT>/cgc_db/cgc_info/S4/[2, 2]_[3, 1]/[2, 1, 1]_1_m2
     """
     from conf.cgc_config import cgc_file_name_format, cgc_file_name_format_none
     if τ is None:  # 没有多重性的τ将会被省略
@@ -525,13 +525,13 @@ def get_cgc_file_name(s_n: int, sigma: list, mu: list, nu: list, τ: (None, int)
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "cgc_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "cgc_info", file_name)
         return True, full_path
 
 
 def get_cgc_finish_s_n_name(is_full_path=False):
     """
-    Finish_Sn or <top_path>/cgc_results/cgc_info/Finish_Sn
+    Finish_Sn or <RESULT>/cgc_db/cgc_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="cgc_info")
 
@@ -539,34 +539,34 @@ def get_cgc_finish_s_n_name(is_full_path=False):
 # symmetry_info
 def get_meta_σμν_file_name(s_n: int, is_full_path=False):
     """
-    Sn/meta_σμν or <top_path>/cgc_results/symmetry_info/Sn/meta_σμν
-    p.s. S3/meta_σμν or <top_path>/cgc_results/symmetry_info/S3/meta_σμν
+    Sn/meta_σμν or <RESULT>/cgc_db/symmetry_info/Sn/meta_σμν
+    p.s. S3/meta_σμν or <RESULT>/cgc_db/symmetry_info/S3/meta_σμν
     """
     from conf.cgc_config import meta_σμν_file_name_format
     file_name = meta_σμν_file_name_format.format(s_n)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "symmetry_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "symmetry_info", file_name)
         return True, full_path
 
 
 def get_sym_σμν_file_name(s_n: int, sigma: list, mu: list, nu: list, is_full_path=False):
     """
-    Sn/[σ][μ][ν]_symmetries or <top_path>/cgc_results/symmetry_info/Sn/[σ][μ][ν]_symmetries
-    p.s. S3/[2, 1][2, 1][2, 1]_symmetries or <top_path>/cgc_results/symmetry_info/S3/[2, 1][2, 1][2, 1]_symmetries
+    Sn/[σ][μ][ν]_symmetries or <RESULT>/cgc_db/symmetry_info/Sn/[σ][μ][ν]_symmetries
+    p.s. S3/[2, 1][2, 1][2, 1]_symmetries or <RESULT>/cgc_db/symmetry_info/S3/[2, 1][2, 1][2, 1]_symmetries
     """
     from conf.cgc_config import sym_σμν_file_name_format
     file_name = sym_σμν_file_name_format.format(s_n, sigma, mu, nu)  # 检查交给调用者
     if not is_full_path:
         return True, file_name
     else:
-        full_path = os.path.join(top_path, cgc_rst_folder, "symmetry_info", file_name)
+        full_path = os.path.join(singleton_config.result_folder, cgc_db_name, "symmetry_info", file_name)
         return True, full_path
 
 
 def get_symmetry_combination_finish_s_n_name(is_full_path=False):
     """
-    Finish_Sn or <top_path>/cgc_results/symmetry_info/Finish_Sn
+    Finish_Sn or <RESULT>/cgc_db/symmetry_info/Finish_Sn
     """
     return _get_xxx_finish_s_n_name(is_full_path=is_full_path, xxx_info_name="symmetry_info")

@@ -42,7 +42,7 @@ class DBProtector(object):
         self._relative_db_path = relative_db_path
 
         if full_path_ahead is None:
-            self._full_path_ahead = singleton_config.top_path
+            self._full_path_ahead = singleton_config.result_folder
         else:
             if not isinstance(full_path_ahead, str):
                 err_msg = "full_path_ahead={} must be str".format(full_path_ahead)
@@ -76,10 +76,10 @@ class DBProtector(object):
         检查被保护的目录是否存在
         检查临时存放目录不存在
         """
-        if singleton_config.top_path not in self._full_src or singleton_config.top_path == self._full_src:
-            err_msg = "the db path={} must under top_path={}".format(self._full_src, singleton_config.top_path)
-            logger.error(err_msg)
-            raise Exception(err_msg)
+        # if singleton_config.top_path not in self._full_src or singleton_config.top_path == self._full_src:
+        #     err_msg = "the db path={} must under top_path={}".format(self._full_src, singleton_config.top_path)
+        #     logger.error(err_msg)
+        #     raise Exception(err_msg)
         ban_str_list = ["..", "*"]  # 这些字符不可以出现在目录中
         for ban_path in ban_str_list:
             if ban_path in self._full_src or ban_path in self._full_dst:
@@ -87,13 +87,10 @@ class DBProtector(object):
                     self._full_src, self._full_dst, ban_path)
                 logger.error(err_msg)
                 raise Exception(err_msg)
-        ban_path_head_list = ["logs", "memos", "src", "test"]  # 这些是程序体，不可以作为头
-        for ban_path in ban_path_head_list:
-            ban_full_head = os.path.join(singleton_config.top_path, ban_path)
-            if self._full_src.startswith(ban_full_head):
-                err_msg = "the db path={} should not startswith {}".format(self._full_src, ban_full_head)
-                logger.error(err_msg)
-                raise Exception(err_msg)
+        if self._full_src.startswith(singleton_config.top_path):
+            err_msg = "the db path={} should not startswith {}".format(self._full_src, singleton_config.top_path)
+            logger.error(err_msg)
+            raise Exception(err_msg)
 
         # 现在生产目录存在/不存在都支持了
         # 如果存在 转移走保护起来 结束后再转移回去

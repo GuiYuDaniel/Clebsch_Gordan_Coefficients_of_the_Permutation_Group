@@ -8,7 +8,7 @@ core/young_tableaux.py
 
 import copy
 import pytest
-from conf.cgc_config import cgc_rst_folder
+from conf.cgc_config import cgc_db_name
 from core.cgc_utils.cgc_db_typing import YoungDiagramInfo, BranchingLawInfo, YoungTableInfo
 from core.cgc_utils.cgc_local_db import get_young_tableaux_file_name, get_young_tableaux_finish_s_n_name
 from core.branching_laws import create_branching_laws
@@ -49,7 +49,7 @@ def normal_calc_phase_factor_list(s_n: int, young_tableaux: dict):
 class TestYoungTableaux(object):
 
     def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_young_tableaux_protected")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_young_tableaux_protected")
         self.protector.protector_setup()
 
         # regular YT
@@ -114,7 +114,7 @@ class TestYoungTableaux(object):
         self.create_time_dict = {}
 
     def teardown_class(self):
-        # self.protector.protector_teardown()
+        self.protector.protector_teardown()
         pass
 
     def test_001_create_young_tableaux_s_n_1_to_2(self):

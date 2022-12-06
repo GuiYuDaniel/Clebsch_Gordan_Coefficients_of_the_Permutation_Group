@@ -10,7 +10,7 @@ import os
 import time
 import math
 import numpy as np
-from conf.cgc_config import cgc_rst_folder
+from conf.cgc_config import cgc_db_name
 from core.young_diagrams import create_young_diagrams
 from core.characters_and_gi import create_characters_and_gi
 from core.cg_series import create_cg_series, save_cg_series, load_cg_series
@@ -27,7 +27,7 @@ logger = get_logger(__name__)
 class TestCGSeries(object):
 
     def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cg_series_protected")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cg_series_protected")
         self.protector.protector_setup()
 
         # 准备前文

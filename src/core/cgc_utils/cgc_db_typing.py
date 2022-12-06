@@ -391,7 +391,7 @@ class YamanouchiMatrixInfo(CGCLocalDb):
     <CG>/yamanouchi_matrix_info/Sn/[ν_i]/in(i,n).pkl     ->
     {
     "file_name": "Sn/[ν_i]/ij(i,j)",
-    "data": matrix_ij 或 matrix_in,         #np.ndarray(float)    #它的维度可以在<CG>/young_tableaux_info/Sn/[ν_i]_num里取得
+    "data": matrix_ij 或 matrix_in,         #sp.Matrix    #它的维度可以在<CG>/young_tableaux_info/Sn/[ν_i]_num里取得
     "flags": {"speed_time": speed_time}
     }
 
@@ -403,8 +403,8 @@ class YamanouchiMatrixInfo(CGCLocalDb):
     speed_time表示计算用时（秒）
 
     例如：
-    S3/[2, 1]/ij(2, 3).pkl: {(2,3): [[-0.5, 0.8660254037844386], [0.8660254037844386, 0.5]]}
-    S3/[2, 1]/in(1, 3).pkl: {(1,3): [[-0.5, -0.8660254037844386], [-0.8660254037844386, 0.5]]}
+    S3/[2, 1]/ij(2, 3).pkl: {(2,3): sp.Matrix([[sp.Rational(-1)/2, sp.sqrt(3)/2], [sp.sqrt(3)/2, sp.Rational(1)/2]])}
+    S3/[2, 1]/in(1, 3).pkl: {(1,3): sp.Matrix([[sp.Rational(-1)/2, -sp.sqrt(3)/2], [-sp.sqrt(3)/2, sp.Rational(1)/2]])}
 
     另存：
     <CG>/yamanouchi_matrix_info/Finish_Sn.pkl ->
@@ -426,7 +426,7 @@ class YamanouchiMatrixInfo(CGCLocalDb):
         self.table_type = "yamanouchi_matrix_info"
         self.map_id = "file_name"
         self.design_table_type.update({
-            "data": (list, np.ndarray, sp.Matrix),
+            "data": (list, sp.Matrix),
             "flags": dict
         })
         self.s_n = s_n

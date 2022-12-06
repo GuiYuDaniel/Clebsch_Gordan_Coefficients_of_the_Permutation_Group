@@ -7,6 +7,8 @@
 import os
 import pickle
 import pytest
+from db.local_db_protector import DBProtector
+from utils.config import singleton_config
 from utils.io import Path, Save, Load, Delete
 from utils.io import _make_file_path_with_lawful_file_type
 
@@ -22,7 +24,7 @@ class TestIOHelper(object):
     """test functions in io.py but not in class"""
 
     def setup_class(self):
-        self.top_path = Path._get_full_path()
+        self.top_path = singleton_config.top_path
         self.root_path = "/"
         self.readme_path = os.path.join(self.top_path, "README.md")
         self.gitignore_path = os.path.join(self.top_path, ".gitignore")
@@ -124,22 +126,21 @@ class TestIO(object):
     """
 
     def setup_class(self):
-        self.fake_path = Path._get_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
+        self.result_folder = singleton_config.result_folder
+        self.sys_db_name = singleton_config.sys_db_name
+
+        self.protector = DBProtector(self.sys_db_name, extension_name=".test_db_protected")
+        self.protector.protector_setup()
+
+        self.fake_path = os.path.join(self.result_folder, self.sys_db_name, "fake", "test")
         self.file_path_without_ext = os.path.join(self.fake_path, "test_results", "fake_cgc", "fake_rst")
         # 注意，使用save/load/delete _ pkl/txt 这些方法时可以写明扩展名，也可以不写
         self.file_path_pkl = self.file_path_without_ext + ".pkl"
         self.file_path_txt = self.file_path_without_ext + ".txt"
         self.test_data = {"peace": "love"}
-        if os.path.exists(self.file_path_pkl):
-            os.remove(self.file_path_pkl)
-        if os.path.exists(self.file_path_txt):
-            os.remove(self.file_path_txt)
 
     def teardown_class(self):
-        if os.path.exists(self.file_path_pkl):
-            os.remove(self.file_path_pkl)
-        if os.path.exists(self.file_path_txt):
-            os.remove(self.file_path_txt)
+        self.protector.protector_teardown()
 
     def test_pickle_save_load_and_delete_pkl(self):
         # save

@@ -11,7 +11,7 @@ import pytest
 import random
 import time
 from itertools import product
-from conf.cgc_config import cgc_rst_folder
+from conf.cgc_config import cgc_db_name
 from core.cgc_utils.cgc_db_typing import YamanouchiMatrixInfo
 from db.local_db_protector import DBProtector
 from pytest_cases.benchmarks.utils import get_run_function_n_times as run_func_n_times
@@ -111,7 +111,7 @@ class TestISFMatrixElementOpt(object):
     """
 
     def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         logger.info("@" * 20)

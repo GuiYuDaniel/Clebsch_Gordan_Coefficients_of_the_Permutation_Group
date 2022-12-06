@@ -13,7 +13,7 @@ import uuid
 from db.local_db import LocalDb
 from db.local_db_protector import DBProtector
 from db.typing import PipeTaskInfo, PipeNodeInfo, PipeLineInfo
-from utils.io import Path
+from utils.config import singleton_config
 from utils.log import get_logger
 from utils.utils import PipeTaskStatus
 
@@ -51,11 +51,13 @@ class TestLocalDb(object):
     """
 
     def setup(self):
-        self.protector = DBProtector("results", extension_name=".test_db_protected")
+        self.result_folder = singleton_config.result_folder
+        self.sys_db_name = singleton_config.sys_db_name
+
+        self.protector = DBProtector(self.sys_db_name, extension_name=".test_db_protected")
         self.protector.protector_setup()
 
-        self.top_path = Path._get_full_path(relative_path="", base_path_type="top")  # 此处没使用config避免循环引用
-        self.db_folder = os.path.join(self.top_path, "results", "tmp_info")
+        self.db_folder = os.path.join(self.result_folder, self.sys_db_name, "tmp_info")
         self.test_data = {
             "id": str(uuid.uuid4()),
 
@@ -402,11 +404,13 @@ class TestTyping(object):
     """
 
     def setup_class(self):
-        self.protector = DBProtector("results", extension_name=".test_db_protected")
+        self.result_folder = singleton_config.result_folder
+        self.sys_db_name = singleton_config.sys_db_name
+
+        self.protector = DBProtector(self.sys_db_name, extension_name=".test_db_protected")
         self.protector.protector_setup()
 
-        self.fake_path = Path._get_full_path(relative_path="", base_path_type="top")  # 此处没使用config避免循环引用
-        self.db_folder = os.path.join(self.fake_path, "results", "{}")
+        self.db_folder = os.path.join(self.result_folder, self.sys_db_name, "{}")
         self.db_folder_list = [self.db_folder.format(i) for i in ["pipeline_info", "pipenode_info", "pipetask_info"]]
         for db_folder in self.db_folder_list:
             if os.path.exists(db_folder):

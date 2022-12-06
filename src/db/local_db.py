@@ -26,7 +26,7 @@ class LocalDb(object):
     def __init__(self):
         """定义connect路径，必要参数等等"""
         # db_folder waiting format {table_type} {xxx_id.file_type}
-        self.db_folder = os.path.join(singleton_config.top_path, singleton_config.result_folder, "{}", "{}")
+        self.db_folder = os.path.join(singleton_config.result_folder, singleton_config.sys_db_name, "{}", "{}")
         self.table_type = None
         self.design_table_type = {"create_time": str,
                                   "last_write_time": str}
@@ -39,13 +39,13 @@ class LocalDb(object):
                 self.table_type, self.map_id, condition.get(self.map_id))
             logger.error(err_msg)
             return False, err_msg
-        # <top_path>/results/ppx_info/xxx_id.pkl
+        # <RESULT_FOLDER>/sys_db/ppx_info/xxx_id.pkl
         file_path = self.db_folder.format(self.table_type, condition.get(self.map_id)) + file_type
         return True, file_path
 
     def _init_db_folder(self):
         """供类继承者创建db目录"""
-        db_folder = os.path.dirname(self.db_folder.format(self.table_type, "_"))  # <top_path>/results/ppx_info
+        db_folder = os.path.dirname(self.db_folder.format(self.table_type, "_"))  # <RESULT_FOLDER>/sys_db/ppx_info
         if not os.path.exists(db_folder):
             logger.info("init db folder: {}".format(db_folder))
             os.makedirs(db_folder)

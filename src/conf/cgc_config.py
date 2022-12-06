@@ -6,7 +6,6 @@ using these config as global params by python import
 
 
 import os
-from itertools import product
 from utils.config import singleton_config
 
 
@@ -20,9 +19,6 @@ calculate params
 # Sn 置换群阶数
 default_s_n = 7
 
-# 符号计算/数值计算标志
-default_symbolic_calculation = True
-
 
 """
 system params
@@ -32,8 +28,8 @@ system params
 """
 # <CGC>
 top_path = singleton_config.top_path
-# <CGC>/cgc_results = <CGC_rst>
-cgc_rst_folder = "cgc_results"
+# <DEFAULT_RESULT_FOLDER>/cgc_db_name = <CGC_rst>
+cgc_db_name = "cgc_db"
 calculated_tables_txt_limit = -1  # -1表示永远存txt
 
 # db table name

@@ -8,16 +8,13 @@ core/eigenvalues.py
 
 import os
 import time
-import math
-import numpy as np
-from conf.cgc_config import cgc_rst_folder
+from conf.cgc_config import cgc_db_name
 from core.young_diagrams import create_young_diagrams, load_young_diagrams
-from core.characters_and_gi import create_characters_and_gi
 from core.cgc_utils.cgc_db_typing import EigenvaluesInfo
 from core.cgc_utils.cgc_local_db import get_eigenvalues_file_name, get_eigenvalues_finish_s_n_name
 from core.eigenvalues import calc_eigenvalues_of_2_cycle_class_of_s_n, _calc_single_eigenvalue_of_2_cycle_class_of_yd
-from core.eigenvalues import create_eigenvalues, save_eigenvalues, load_eigenvalues
-from core.eigenvalues import save_eigenvalues_finish_s_n, get_eigenvalues_finish_s_n
+from core.eigenvalues import create_eigenvalues, load_eigenvalues
+from core.eigenvalues import get_eigenvalues_finish_s_n
 from db.local_db_protector import DBProtector
 from utils.log import get_logger
 
@@ -40,7 +37,7 @@ def geteigenvalue(r):
 class TestEigenvalues(object):
 
     def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_eigenvalues_protected")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_eigenvalues_protected")
         self.protector.protector_setup()
 
         # 准备前文

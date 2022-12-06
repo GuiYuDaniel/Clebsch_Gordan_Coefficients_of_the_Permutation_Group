@@ -16,7 +16,7 @@ class TestTopo(object):
     """
 
     def setup_class(self):
-        self.fake_path = Path._get_full_path(relative_path="fake", base_path_type="test")  # 此处没使用config避免循环引用
+        self.fake_path = Path.get_project_full_path(relative_path="fake", base_path_type="test")
         self.fake_dag_workflow_file_path = os.path.join(self.fake_path, "fake_dag_workflow.json")
         self.fake_workflow_conf = Json.file_to_json_without_comments(self.fake_dag_workflow_file_path)
         self.answer_calc_dag = {"f1": {"next_nodes": ["f2"], "prep_nodes": []},

@@ -17,7 +17,7 @@ import pytest
 import random
 import time
 from itertools import product
-from conf.cgc_config import cgc_rst_folder, cgc_file_name_format_none
+from conf.cgc_config import cgc_db_name, cgc_file_name_format_none
 from core.isf_and_cgc import save_cgc
 from core.cgc_utils.cgc_local_db import get_cgc_file_name
 from db.local_db_protector import DBProtector
@@ -46,7 +46,7 @@ class TestCGCDataType(object):
     """
 
     def setup_class(self):
-        self.protector = DBProtector(cgc_rst_folder, extension_name=".test_cgc_db.protector")
+        self.protector = DBProtector(cgc_db_name, extension_name=".test_cgc_db.protector")
         self.protector.protector_setup()
 
         logger.info("@" * 20)

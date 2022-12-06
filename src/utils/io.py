@@ -4,7 +4,8 @@
 
 import os
 import pickle
-from functools import lru_cache, wraps, partial
+from functools import wraps, partial
+from utils.config import singleton_config
 from utils.log import get_logger
 
 
@@ -13,12 +14,10 @@ logger = get_logger(__name__)
 
 class Path(object):
 
-    @classmethod
-    def _get_full_path(cls, relative_path="", base_path_type="top"):
+    @staticmethod
+    def get_project_full_path(relative_path="", base_path_type="top"):
         """
-        不开放这段代码了，将top，src，test的dirpath登记到Config里，使用时从conf拿更合适
-        join the base_path and the relative_path, which base_path was auto fond
-        不检查结果，因为外部使用exist调用很方便
+        返回项目里文件的全目录
         :param relative_path: should be a relative folder or file path(str)
         such as conf, conf/config.json
         :param base_path_type: [top, src, test](str)
@@ -36,34 +35,11 @@ class Path(object):
             err_msg = "base_path_type={} should be in {}".format(base_path_type, list(base_path_type_dict.keys()))
             logger.error(err_msg)
             raise Exception(err_msg)
-        base_path = cls._get_top_path()
+        base_path = singleton_config.top_path
         # 除去""的目的是避免join("/xxx", "")返回"/xxx/"这样的结果
         real_partial_path_list = [i for i in [base_path, base_path_type_dict.get(base_path_type), relative_path] if i]
         full_path = os.path.join(*tuple(real_partial_path_list))
         return full_path
-
-    @staticmethod
-    @lru_cache()
-    def _get_top_path():
-        """
-        guess from abspath
-        :return: the path of <CGC_of_Sn>(str)
-        """
-        abs_path = os.path.abspath(__file__)  # <CGC_of_Sn>/src/utils/io.py
-        if "src/utils/io.py" in abs_path:
-            top_path = os.path.dirname(os.path.dirname(os.path.dirname(abs_path)))
-            logger.debug("top path is {} lru cached".format(top_path))
-        else:
-            logger.warning('Cannot get top_path from abs_path={}'.format(abs_path))
-            top_path = None
-        return top_path
-
-    def _check_top_path(self, python_path, abs_path):
-        """
-
-        :return:
-        """
-        pass
 
 
 def _make_file_path_with_lawful_file_type(file_path, file_type):
