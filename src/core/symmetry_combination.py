@@ -407,3 +407,32 @@ def calc_ϵ_map_dicts():
         ϵ_key2groups_dict[ϵ_key] = (d3, k4)
         groups2ϵ_key_dict[(d3, k4)] = ϵ_key
     return ϵ_key2groups_dict, groups2ϵ_key_dict
+
+
+def calc_inverse_d3_k4(d3, k4):
+    """根据d3, k4，计算它们逆的inverse_d3, inverse_k4"""
+    inverse_d3 = []
+    inverse_k4 = []
+    for i in range(len(d3)):
+        inverse_d3.append(d3.index(i))
+        inverse_k4.append(k4[d3.index(i)])
+    return inverse_d3, inverse_k4
+
+
+def calc_ϵ_inverse_dicts():
+    """计算全部24种ϵ的逆"""
+    '''{
+    'σμν': 'σμν', 'σ~μ~ν': 'σ~μ~ν', 'σ~μν~': 'σ~μν~', 'σμ~ν~': 'σμ~ν~', 
+    'μσν': 'μσν', 'μ~σ~ν': 'μ~σ~ν', 'μ~σν~': 'μσ~ν~', 'μσ~ν~': 'μ~σν~',
+    'νμσ': 'νμσ', 'ν~μ~σ': 'νμ~σ~', 'ν~μσ~': 'ν~μσ~', 'νμ~σ~': 'ν~μ~σ',
+    'σνμ': 'σνμ', 'σ~ν~μ': 'σ~νμ~', 'σ~νμ~': 'σ~ν~μ', 'σν~μ~': 'σν~μ~',
+    'νσμ': 'μνσ', 'ν~σ~μ': 'μ~νσ~', 'ν~σμ~': 'μν~σ~', 'νσ~μ~': 'μ~ν~σ',
+    'μνσ': 'νσμ', 'μ~ν~σ': 'νσ~μ~', 'μ~νσ~': 'ν~σ~μ', 'μν~σ~': 'ν~σμ~'}
+    '''
+    ϵ_inverse_dict = {}  # {meta: inverse}  # {"σμν": "σμν", "σ~νμ~": "σ~ν~μ", "μνσ": "νσμ", ...}
+    for d3, k4 in product(group_d3, group_k4):
+        ϵ_key = spell_ϵ_key(d3, k4)
+        inverse_d3, inverse_k4 = calc_inverse_d3_k4(d3, k4)
+        inverse_ϵ_key = spell_ϵ_key(inverse_d3, inverse_k4)
+        ϵ_inverse_dict[ϵ_key] = inverse_ϵ_key
+    return ϵ_inverse_dict

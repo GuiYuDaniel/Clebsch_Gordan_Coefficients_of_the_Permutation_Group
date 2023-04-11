@@ -16,6 +16,9 @@ and provide a function to calc eigenvalue2yds
 
 import copy
 import time
+import sympy as sp
+from sympy import Rational as Ra
+from sympy import sqrt
 from conf.cgc_config import default_s_n, min_s_n_of_eigenvalue
 from core.young_diagrams import load_young_diagrams, is_young_diagram
 from core.cgc_utils.cgc_db_typing import EigenvaluesInfo
@@ -326,3 +329,73 @@ def calc_eigenvalues_of_2_cycle_class_of_s_n(yd_list: list):
         return False, err_msg
 
     return True, eigenvalues_list
+
+
+def is_eigenvalue(eigenvalue: int, isf_matrix: sp.Matrix):
+    """检查一个int是否是一个matrix的本征值"""
+    if not isinstance(eigenvalue, int):
+        err_msg = "eigenvalue={} with type={} must be int".format(eigenvalue, type(eigenvalue))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(isf_matrix, sp.Matrix):
+        err_msg = "isf_matrix={} with type={} must be sp.Matrix".format(isf_matrix, type(isf_matrix))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isf_matrix.is_hermitian:
+        err_msg = "isf_matrix={} must be hermitian".format(isf_matrix)
+        logger.error(err_msg)
+        return False, err_msg
+
+    eigenvals_dict = isf_matrix.eigenvals()
+    if eigenvalue in eigenvals_dict.keys():
+        return True, True
+    else:
+        return True, False
+
+
+def _get_first_no_0_number_from_vector(vector):
+    """提取vector中首个非0的数字和index"""
+    for i, number in enumerate(vector):
+        if number != 0:
+            return i, number
+    return None, None
+
+
+def is_eigenvector(eigenvector: sp.Matrix, isf_matrix: sp.Matrix):
+    """检查一个vector是否是一个matrix的本征矢量"""
+    if not isinstance(eigenvector, sp.Matrix):
+        err_msg = "eigenvalue={} with type={} must be sp.Matrix".format(eigenvector, type(eigenvector))
+        logger.error(err_msg)
+        return False, err_msg
+    if all(i == 0 for i in eigenvector):
+        err_msg = "eigenvalue={} must be real".format(eigenvector)
+        logger.error(err_msg)
+        return False, err_msg
+    if not isinstance(isf_matrix, sp.Matrix):
+        err_msg = "isf_matrix={} with type={} must be sp.Matrix".format(isf_matrix, type(isf_matrix))
+        logger.error(err_msg)
+        return False, err_msg
+    if not isf_matrix.is_hermitian:
+        err_msg = "isf_matrix={} must be hermitian".format(isf_matrix)
+        logger.error(err_msg)
+        return False, err_msg
+
+    no_0_index, no_0_element = _get_first_no_0_number_from_vector(eigenvector)
+    left_vector = isf_matrix * eigenvector
+    if all(i == 0 for i in left_vector):
+        flag, is_ev = is_eigenvalue(0, isf_matrix)
+        if flag is True and is_ev is True:
+            logger.debug("\neigenvalue={} is eigenvalues\nleft_vector=\n{}".format(0, left_vector))
+        elif flag is True and is_ev is False:
+            logger.debug("\neigenvalue={} is not not not eigenvalues\nleft_vector=\n{}".format(0, left_vector))
+        return flag, is_ev
+    eigenvalue = left_vector[no_0_index] / no_0_element
+    right_vector = eigenvalue * eigenvector
+    logger.debug("\neigenvalue={}\nleft_vector=\n{}, \nright_vector=\n{}"
+                 "".format(eigenvalue, left_vector, right_vector))
+    if left_vector == right_vector:
+        return True, True
+    else:
+        return True, False
+
+

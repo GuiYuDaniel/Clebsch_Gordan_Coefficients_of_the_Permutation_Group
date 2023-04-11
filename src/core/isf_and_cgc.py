@@ -18,7 +18,7 @@ import time
 # import numpy as np
 import sympy as sp
 from functools import lru_cache, partial
-from itertools import product, combinations, combinations_with_replacement, chain
+from itertools import product, combinations, combinations_with_replacement, chain, permutations
 from conf.cgc_config import default_s_n, group_d3, group_k4
 from conf.cgc_config import min_s_n_of_isf, min_s_n_of_cgc, min_s_n_of_branching_law, min_s_n_of_ϵ
 from core.young_diagrams import load_young_diagrams, calc_young_diagram_tilde
@@ -63,10 +63,14 @@ def _debug_condition(data_σ_μ, ν_st=None, ν=None):
     cond_10 = (sum(data_σ_μ.σ) in [4])
 
     md1 = (data_σ_μ.σ == [3] and data_σ_μ.μ == [2, 1])
-    md2 = (data_σ_μ.σ == [3, 1] and data_σ_μ.μ == [3, 1])
+    md2 = cond_7 and ν == [3, 1]
     md3 = (md2 and ν == [2, 2])
     md4 = (md1 and ν == [2, 1])
-    if md4:
+    md5 = (md2 and ν_st == [2, 1])
+    md6 = (data_σ_μ.σ == [4, 1] and data_σ_μ.μ == [4, 1])
+    md7 = (data_σ_μ.σ == [5, 1, 1] and data_σ_μ.μ == [4, 2, 1] and ν_st == [3, 1, 1, 1])
+    md8 = (data_σ_μ.σ == [3, 2, 1] and data_σ_μ.μ == [3, 2, 1])
+    if md2:
         return True
     return False
 
@@ -1320,6 +1324,8 @@ class ΣMDataHelper(SimpleΣMDataHelper):
         return "σ={}, μ={} data class".format(self.σ, self.μ)
 
     def _add_init_data(self):
+        # TODO, 1, 这个循环也许可以省略掉了（当彻底确立4-193c的时候）
+        # TODO, 2, 那时，这个load也可以放在DataSn里了
         # 4, (in) matrix，计算的越早，重复的次数越少
         in_matrix_σ_dict = {}
         for i in range(1, self.s_n):  # 这个i是交换矩阵（in）中的i
@@ -1425,6 +1431,8 @@ class DataHelper(object):
 
         # 需手动加载
         self.offset_dict_list = None
+        self.yt_st_num_list = None
+        self.yd_st_list = None
 
     def __str__(self):
         return "s_n={} data class".format(self.s_n)
@@ -1530,6 +1538,8 @@ class DataHelper(object):
 
     def add_more_data(self, yt_st_num_list, yd_st_list):
         # 无法仅通过Sn，还需要传入其他参数才能创建的数据
+        self.yt_st_num_list = yt_st_num_list
+        self.yd_st_list = yd_st_list
         # 1, offset表示把m_ν'对应到m_ν的偏移量
         offset_dict_list = []
         for yd in self.yd_list:
@@ -1545,6 +1555,9 @@ class DataHelper(object):
 
     def get_yt_num(self, yd):
         return self.yt_num_list[self.yd_list.index(yd)]
+
+    def get_yt_st_num(self, yd_st):
+        return self.yt_st_num_list[self.yd_st_list.index(yd_st)]
 
     def get_eigenvalue(self, yd):
         return self.eigenvalue_list[self.yd_list.index(yd)]
@@ -1588,7 +1601,7 @@ class DataHelper(object):
 
 
 class CalcHelper(object):
-    """ISFHelper, CGCHelper公有的函数"""
+    """ISFHelper, CGCHelper, EHelper公有的函数"""
 
     def __init__(self):
         self.s_n = None
@@ -1656,13 +1669,83 @@ class ISFHelper(CalcHelper):
             _, msg = save_isf(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν_st, isf_2_square_dict, 0)
             return True, None
 
-        flag, isf_matrix = self._calc_isf_matrix(row_index_list, ν_st, data_sn, data_σ_μ)
+        if _debug_condition(data_σ_μ, ν_st):
+            logger.warning("@@@@ catch isf [5, 1, 1] [4, 2, 1] [3, 1, 1, 1]")
+
+        start_time_4_193a = time.time()
+        flag, isf_matrix_with_4_193a = self._calc_isf_matrix_4_193a(row_index_list, ν_st, data_sn, data_σ_μ, data_st)
         if not flag:
-            err_msg = "get isf_matrix by row_index_list={}, ν_st={}, data_sn={}, data_σ_μ={} fail " \
-                      "with msg={}".format(row_index_list, ν_st, data_sn, data_σ_μ, isf_matrix)
+            err_msg = "_calc_isf_matrix_4_193a by row_index_list={}, ν_st={}, data_sn={}, data_σ_μ={} fail " \
+                      "with msg={}".format(row_index_list, ν_st, data_sn, data_σ_μ, isf_matrix_with_4_193a)
             logger.error(err_msg)
             return False, err_msg
-        logger.debug("isf_matrix={} for data_σ_μ={}, ν_st={}".format(isf_matrix, data_σ_μ, ν_st))
+        speed_time_4_193a = int(time.time() - start_time_4_193a)
+        isf_matrix = isf_matrix_with_4_193a
+        # logger.debug("@@isf_matrix={} for data_σ_μ={}, ν_st={} is isf_matrix_with_4_193a"
+        #              "".format(isf_matrix, data_σ_μ, ν_st))
+
+        start_time_last_m = time.time()
+        flag, isf_matrix_with_last_m = \
+            self._calc_isf_matrix_with_last_m(row_index_list, ν_st, data_sn, data_σ_μ, data_st)
+        if not flag:
+            err_msg = "_calc_isf_matrix_with_last_m by row_index_list={}, ν_st={}, data_sn={}, data_σ_μ={} fail " \
+                      "with msg={}".format(row_index_list, ν_st, data_sn, data_σ_μ, isf_matrix_with_last_m)
+            logger.error(err_msg)
+            return False, err_msg
+        speed_time_last_m = int(time.time() - start_time_last_m)
+        if isf_matrix != isf_matrix_with_last_m:
+            logger.error("@@isf_matrix={} != isf_matrix_with_last_m={} with data_σ_μ={}, ν_st={}"
+                         "".format(isf_matrix, isf_matrix_with_last_m, data_σ_μ, ν_st))
+
+        start_time_first_m = time.time()
+        flag, isf_matrix_with_first_m = self._calc_isf_matrix_with_first_m(row_index_list, ν_st, data_sn, data_σ_μ)
+        if not flag:
+            err_msg = "_calc_isf_matrix_with_first_m by row_index_list={}, ν_st={}, data_sn={}, data_σ_μ={} fail " \
+                      "with msg={}".format(row_index_list, ν_st, data_sn, data_σ_μ, isf_matrix_with_first_m)
+            logger.error(err_msg)
+            return False, err_msg
+        speed_time_first_m = int(time.time() - start_time_first_m)
+        if isf_matrix != isf_matrix_with_first_m:
+            logger.error("isf_matrix={} != isf_matrix_with_first_m={} with data_σ_μ={}, ν_st={}"
+                         "".format(isf_matrix, isf_matrix_with_first_m, data_σ_μ, ν_st))
+
+        if self.s_n >= 6 and speed_time_4_193a != 0 and speed_time_last_m != 0 and speed_time_first_m != 0:
+            logger.debug("isf_matrix_with_4_193a using time={}\n"
+                         "isf_matrix_with_last_m using time={}\n"
+                         "isf_matrix_with_first_m using time={}\n"
+                         "".format(speed_time_4_193a, speed_time_last_m, speed_time_first_m))
+
+        # flag, isf_matrix_with_last_m = \
+        #     self._calc_isf_matrix_with_last_m(row_index_list, ν_st, data_sn, data_σ_μ, data_st)
+        # if not flag:
+        #     err_msg = "_calc_isf_matrix_with_last_m by row_index_list={}, ν_st={}, data_sn={}, data_σ_μ={} fail " \
+        #               "with msg={}".format(row_index_list, ν_st, data_sn, data_σ_μ, isf_matrix_with_last_m)
+        #     logger.error(err_msg)
+        #     return False, err_msg
+        # if isf_matrix != isf_matrix_with_last_m:
+        #     logger.error("isf_matrix={} != isf_matrix_with_last_m={} with data_σ_μ={}, ν_st={}"
+        #                  "".format(isf_matrix, isf_matrix_with_last_m, data_σ_μ, ν_st))
+
+        # flag, isf_matrix_with_4_193a = self._calc_isf_matrix_4_193a(row_index_list, ν_st, data_sn, data_σ_μ, data_st)
+        # if not flag:
+        #     err_msg = "_calc_isf_matrix_4_193a by row_index_list={}, ν_st={}, data_sn={}, data_σ_μ={} fail " \
+        #               "with msg={}".format(row_index_list, ν_st, data_sn, data_σ_μ, isf_matrix)
+        #     logger.error(err_msg)
+        #     return False, err_msg
+        # if isf_matrix != isf_matrix_with_4_193a:
+        #     logger.error("isf_matrix={} != isf_matrix_with_4_193a={} with data_σ_μ={}, ν_st={}"
+        #                  "".format(isf_matrix, isf_matrix_with_4_193a, data_σ_μ, ν_st))
+
+        # flag, isf_matrix_with_4_193d = self._calc_isf_matrix_4_193d(row_index_list, ν_st, data_sn, data_σ_μ, data_st)
+        # if not flag:
+        #     err_msg = "isf_matrix_with_4_193d by row_index_list={}, ν_st={}, data_sn={}, data_σ_μ={} fail " \
+        #               "with msg={}".format(row_index_list, ν_st, data_sn, data_σ_μ, isf_matrix)
+        #     logger.error(err_msg)
+        #     return False, err_msg
+        # if isf_matrix != isf_matrix_with_4_193d:
+        #     logger.error("isf_matrix={} != isf_matrix_with_4_193d={} with data_σ_μ={}, ν_st={}"
+        #                  "".format(isf_matrix, isf_matrix_with_4_193d, data_σ_μ, ν_st))
+
         # 由于本征值是已知的，直接去算nullspace更简单。所以下面的代码注释掉
         # try:
         #     # Return list of triples (eigenval, multiplicity, eigenspace) eigenval升序
@@ -1732,8 +1815,8 @@ class ISFHelper(CalcHelper):
 
             # 注意，τ_tmp_list, isf_phase_vector_list不仅可以带None占位，它还可以不是升序的，因为它对应着soe_vectors顺序
 
-            logger.debug("data_σ_μ={}, ν={}, ν_st={}, row_index_list={}, τ_max={}"
-                         "".format(data_σ_μ, ν, ν_st, row_index_list, τ_max))
+            # logger.debug("data_σ_μ={}, ν={}, ν_st={}, row_index_list={}, τ_max={}"
+            #              "".format(data_σ_μ, ν, ν_st, row_index_list, τ_max))
 
             flag, τ_tmp_list, isf_phase_vector_list = \
                 self._calc_isf_τ_and_phase_vector_list(soe_vectors, ν, ν_st, row_index_list, τ_max,
@@ -1851,6 +1934,7 @@ class ISFHelper(CalcHelper):
             #     logger.warning("@@@@ 相对相位 ν={} 的第一分支不是 ν_st={} 而是 ν_st_fbl={}".format(ν, ν_st, ν_st_fbl))
 
             # 三个m的意义分别是：
+            # TODO 优化 或者解释一下它的本质（利用ν_st_st本质上是去掉Sn和Sn-1，重新生长）
             # 1 m_ν：               令当前ν_st（非ν的第一分支）的m'取1时，ν的m；
             # 2 m_ν_st_fbl：        令当前ν_st的第一分支ν_st_st的m''取1时，ν_st_fbl（ν的第一分支）的m'
             #                       (ν_st_st是ν_st的第一分支，可以证明它也是ν_st_fbl的分支，但不一定是第一分支)
@@ -2003,6 +2087,35 @@ class ISFHelper(CalcHelper):
                             τ_tmp_set, data_sn, data_st, data_σ_μ)
                         logger.error(err_msg)
                         return False, err_msg, None
+
+                        '''
+                         core.isf_and_cgc:isf_and_cgc.py:259 calc_meta_isf_dict_include_save meet error by data_σ_μ=σ=[5, 2], μ=[4, 2, 1] data class, ν_st=[3, 1, 1, 1], isf_row_index_list=[([5, 1], [4, 1, 1]), ([5, 1], [3, 2, 1]), ([4, 2], [4, 2]), ([4, 2], [4, 1, 1]), ([4, 2], [3, 2, 1], 1), ([4, 2], [3, 2, 1], 2)], data_si=s_n=7 data class, data_st=s_n=6 data class, old_isf_info_dict={'data': {'rows': [([5, 1], [4, 1, 1]), ([5, 1], [3, 2, 1]), ([4, 2], [4, 2]), ([4, 2], [4, 1, 1]), ([4, 2], [3, 2, 1], 1), ([4, 2], [3, 2, 1], 2)], 'cols': [([4, 1, 1, 1], 1), ([4, 1, 1, 1], 2), ([3, 2, 1, 1], 1), ([3, 2, 1, 1], 2), ([3, 2, 1, 1], 3), [3, 1, 1, 1, 1]], 'isf': Matrix([
+                        [0, 0, 0, 0, 0,  5/14],
+                        [0, 0, 0, 0, 0, -5/28],
+                        [0, 0, 0, 0, 0, 27/70],
+                        [0, 0, 0, 0, 0,  1/14],
+                        [0, 0, 0, 0, 0,     0],
+                        [0, 0, 0, 0, 0, 1/140]])}, 'flags': {'speed_time': 0, 'finish_cols': [[3, 1, 1, 1, 1]]}} with msg=_calc_isf_τ_and_phase_vector_list meet error with soe_vectors=[Matrix([
+                        [            0],
+                        [         -1/2],
+                        [   -sqrt(6)/5],
+                        [2*sqrt(10)/15],
+                        [   sqrt(10)/6],
+                        [        -7/30]]), Matrix([
+                        [          0],
+                        [  sqrt(6)/4],
+                        [       1/10],
+                        [ sqrt(15)/5],
+                        [          0],
+                        [-sqrt(6)/20]]), Matrix([
+                        [ sqrt(3)/3],
+                        [sqrt(6)/12],
+                        [      -1/2],
+                        [         0],
+                        [         0],
+                        [ sqrt(6)/4]])], ν=[3, 2, 1, 1], ν_st=[3, 1, 1, 1], row_index_list=[([5, 1], [4, 1, 1]), ([5, 1], [3, 2, 1]), ([4, 2], [4, 2]), ([4, 2], [4, 1, 1]), ([4, 2], [3, 2, 1], 1), ([4, 2], [3, 2, 1], 2)], τ_max=3 data_sn=s_n=7 data class, data_st=s_n=6 data class, data_σ_μ=σ=[5, 2], μ=[4, 2, 1] data class, msg=find τ_tmp_set=set() not union with data_sn=s_n=7 data class, data_st=s_n=6 data class, data_σ_μ=σ=[5, 2], μ=[4, 2, 1] data class
+                        '''
+
                     τ_tmp = list(τ_tmp_set)[0]
                     τ_tmp_list.append(τ_tmp)
                     # 补漏phase
@@ -2123,7 +2236,7 @@ class ISFHelper(CalcHelper):
                                u_isf_row, u_ν_st, u_m_ν_st, u_m_ν_by_k_m_ν_st,
                                ν, data_sn, data_σ_μ):
         """
-        根据式4-195c，根据已知ISF计算未知
+        根据式4-195c(英文书4-195b)，根据已知ISF计算未知
 
         其中，正算为：
         由确定相位的第一分支(k_isf)全部，逐个直接推导准确的其余分支(u_isf)
@@ -2136,6 +2249,7 @@ class ISFHelper(CalcHelper):
         第二行：u独有参数
         第三行：公有参数
         """
+        # TODO 应该也可以用4-193a的思想优化
         u_σ_st, u_μ_st, u_τ_st = u_isf_row if len(u_isf_row) == 3 else (u_isf_row[0], u_isf_row[1], None)
         flag, u_cgc_square_st_dict = load_cgc(self.s_t, u_σ_st, u_μ_st, u_ν_st, u_τ_st, u_m_ν_st,
                                               is_flag_true_if_not_s_n=False)
@@ -2181,7 +2295,8 @@ class ISFHelper(CalcHelper):
                       "msg={}".format(self.s_n, ν, (self.s_t, self.s_n,), in_matrix_ν)
             logger.error(err_msg)
             return False, err_msg
-        in_matrix_ν_m_m_element = in_matrix_ν[k_m_ν - 1, u_m_ν_by_k_m_ν_st - 1]
+        # in_matrix_ν_m_m_element = in_matrix_ν[k_m_ν - 1, u_m_ν_by_k_m_ν_st - 1]
+        in_matrix_ν_m_m_element = in_matrix_ν[u_m_ν_by_k_m_ν_st - 1, k_m_ν - 1]  # 这个改动其实没变化，因为in矩阵是对称的
         u_isf_element = sum_3_loop / in_matrix_ν_m_m_element
         return True, u_isf_element
 
@@ -2203,24 +2318,111 @@ class ISFHelper(CalcHelper):
         """使用GramSchmidt得到正交归一的多重根本征矢量
         这里，为了使存在自由度的结果对齐《群表示论的新途径》，选用一个tricky的技巧:
         method1：就是取分母之和表示复杂度，返回复杂度最小的一组
-        method2：取
+        method2：取分母平方和
+        method3：取分子分母各自的平方和
         """
-        soe_1 = sp.GramSchmidt(multi_vectors, True)
-        soe_2 = sp.GramSchmidt(multi_vectors[::-1], True)
-        soe_1_denominator, soe_2_denominator = 0, 0
-        for mat_1, mat_2 in zip(soe_1, soe_2):
-            soe_1_denominator += sum(i.as_numer_denom()[1] for i in mat_1)  # 0的'分母'会被取为1，不影响计算啦
-            soe_2_denominator += sum(i.as_numer_denom()[1] for i in mat_2)
-        rst = soe_1 if soe_1_denominator <= soe_2_denominator else soe_2
+        # soe_1 = sp.GramSchmidt(multi_vectors, True)
+        # soe_2 = sp.GramSchmidt(multi_vectors[::-1], True)
+        # soe_1_denominator, soe_2_denominator = 0, 0
+        # for mat_1, mat_2 in zip(soe_1, soe_2):
+        #     soe_1_denominator += sum(i.as_numer_denom()[1] for i in mat_1)  # 0的'分母'会被取为1，不影响计算啦
+        #     soe_2_denominator += sum(i.as_numer_denom()[1] for i in mat_2)
+        # rst = soe_1 if soe_1_denominator <= soe_2_denominator else soe_2
+        #
+        # if rst == soe_1:
+        #     logger.warning("kill soe_2={} with soe_1_denominator={} <= soe_2_denominator={}"
+        #                    "".format(soe_2, soe_1_denominator, soe_2_denominator))
+        # else:
+        #     logger.warning("kill soe_1={} with soe_1_denominator={} > soe_2_denominator={}"
+        #                    "".format(soe_1, soe_1_denominator, soe_2_denominator))
+        # return rst
 
-        if rst == soe_1:
-            logger.warning("kill soe_2={} with soe_1_denominator={} <= soe_2_denominator={}"
-                           "".format(soe_2, soe_1_denominator, soe_2_denominator))
-        else:
-            logger.warning("kill soe_1={} with soe_1_denominator={} > soe_2_denominator={}"
-                           "".format(soe_1, soe_1_denominator, soe_2_denominator))
+        # soe_default = sp.GramSchmidt(multi_vectors, True)
+        # soe_default_denominator = sum(sum(i.as_numer_denom()[1] for i in single_vector)
+        #                               for single_vector in soe_default)  # 0的'分母'都会被取为1，所以不影响比较
+        # if len(multi_vectors) > 2:
+        #     logger.warning("%%%%%%%% " + "{}".format(len(multi_vectors)) * 10)
+        soe = None
+        soe_denominator = None
+        soe_permutation = None
+        diff_kill = []
+        same_kill = []
 
-        return rst
+        vectors_index_permutations = list(permutations(range(len(multi_vectors)), len(multi_vectors)))
+        for vector_index in vectors_index_permutations:
+            vector_candidate = [multi_vectors[i] for i in vector_index]
+            soe_candidate = sp.GramSchmidt(vector_candidate, True)
+            soe_candidate_denominator = sum(sum(i.as_numer_denom()[1] for i in single_vector)
+                                            for single_vector in soe_candidate)  # 0的'分母'都会被取为1，所以不影响比较
+
+            if soe_denominator is None:  # 初始化
+                soe = soe_candidate
+                soe_denominator = soe_candidate_denominator
+                soe_permutation = vector_index
+
+            elif soe_candidate_denominator < soe_denominator:  # 替换  # 还要把当前的same_kill剪切到diff_kill中
+                # logger.warning("replace larger_soe={} with old_denominator={} "
+                #                "to smaller_soe={} with new_denominator={} by method1, "
+                #                "the new vector_index={} "
+                #                "".format(soe, soe_denominator, soe_candidate, soe_candidate_denominator,
+                #                          soe_permutation))
+                # 先剪切
+                diff_kill.append(soe_denominator)
+                for k in same_kill:
+                    diff_kill.append(k[1])
+                same_kill = []
+                # 再把当前的放到kill_list里
+                diff_kill.append(soe_candidate_denominator)  # 抛弃，并记录到diff_kill中
+                # logger.warning("kill vector_candidate={} with {}>{} by method1"
+                #                "".format(soe_candidate, soe_candidate_denominator, soe_denominator))
+                # 最后替换
+                soe_denominator = soe_candidate_denominator
+                soe = soe_candidate
+                soe_permutation = vector_index
+
+            elif soe_candidate_denominator == soe_denominator:  # 抛弃，但记录到same_kill中
+                # logger.warning("kill vector_candidate={} with {}=={} by method1"
+                #                "".format(soe_candidate, soe_candidate_denominator, soe_denominator))
+                same_kill.append([soe_candidate, soe_candidate_denominator, vector_index])
+            else:
+                diff_kill.append(soe_candidate_denominator)  # 抛弃，并记录到diff_kill中
+                # logger.warning("kill vector_candidate={} with {}>{} by method1"
+                #                "".format(soe_candidate, soe_candidate_denominator, soe_denominator))
+
+            # 下面这段到else为止，是错误的，故意反过来判断
+            # elif soe_candidate_denominator > soe_denominator:  # 替换  # 还要把当前的same_kill剪切到diff_kill中
+            #     logger.warning("replace larger_soe={} with old_denominator={} "
+            #                    "to smaller_soe={} with new_denominator={} by method1, "
+            #                    "the new vector_index={} "
+            #                    "".format(soe, soe_denominator, soe_candidate, soe_candidate_denominator,
+            #                              soe_permutation))
+            #     # 先剪切
+            #     diff_kill.append(soe_denominator)
+            #     for k in same_kill:
+            #         diff_kill.append(k[1])
+            #     same_kill = []
+            #     # 后替换
+            #     soe_denominator = soe_candidate_denominator
+            #     soe = soe_candidate
+            #     soe_permutation = vector_index
+            #
+            # elif soe_candidate_denominator == soe_denominator:  # 抛弃，但记录到same_kill中
+            #     logger.warning("kill vector_candidate={} with {}=={} by method1"
+            #                    "".format(soe_candidate, soe_candidate_denominator, soe_denominator))
+            #     same_kill.append([soe_candidate, soe_candidate_denominator, vector_index])
+            # else:
+            #     diff_kill.append(soe_candidate_denominator)  # 抛弃，并记录到diff_kill中
+            #     logger.warning("kill vector_candidate={} with {}<{} by method1"
+            #                    "".format(soe_candidate, soe_candidate_denominator, soe_denominator))
+
+        logger.warning("len of vectors_index_permutations={}".format(len(vectors_index_permutations)))
+        logger.warning("diff kill len={}, min={} and larger_list={}"
+                       "".format(len(diff_kill), soe_denominator, sorted(diff_kill)))
+        logger.warning("same kill len={}, list={}".format(len(same_kill), same_kill))
+        logger.warning("$$min soe={} with soe_denominator={}, soe_permutation={} by method1"
+                       "".format(soe, soe_denominator, soe_permutation))
+
+        return soe
 
     # @staticmethod
     # def _calc_ν_by_λ_and_bl(λ_ν, eigenvalue_list, yd_list, bl_yd_list_dict, ν_st):
@@ -2327,7 +2529,111 @@ class ISFHelper(CalcHelper):
 
         return True, rst_dict
 
-    def _calc_isf_matrix_element(self, cgc_st_tuple_left, cgc_st_tuple_right, data_sn, data_σ_μ):
+    # def _calc_isf_matrix_element(self, cgc_st_tuple_left, cgc_st_tuple_right, data_sn, data_σ_μ, ν_st=None):
+    #     """计算ISF本征矩阵的矩阵元，其中主对角元可适当优化"""
+    #     matrix_element = 0
+    #     # 将St的cgc根据分支律上升到Sn，并整形成py序
+    #     # 左
+    #     _, factor_cgc_left_dict = self._cgc_st_2_cgc_m_dict(cgc_st_tuple_left, data_sn, data_σ_μ)
+    #     left_tmp_dict = {}
+    #     for left_key, factor_cgc_left in factor_cgc_left_dict.items():
+    #         left_tmp = sp.sign(factor_cgc_left) * sp.sqrt(abs(factor_cgc_left))
+    #         left_tmp_dict[left_key] = left_tmp
+    #     # 右
+    #     if cgc_st_tuple_right == cgc_st_tuple_left:  # 如果相等，则直接使用left结果，无需重复计算
+    #         right_tmp_dict = left_tmp_dict
+    #     else:
+    #         _, factor_cgc_right_dict = self._cgc_st_2_cgc_m_dict(cgc_st_tuple_right, data_sn, data_σ_μ)
+    #         right_tmp_dict = {}
+    #         for right_key, factor_cgc_right in factor_cgc_right_dict.items():
+    #             right_tmp = sp.sign(factor_cgc_right) * sp.sqrt(abs(factor_cgc_right))
+    #             right_tmp_dict[right_key] = right_tmp
+    #
+    #     if _debug_condition(data_σ_μ, ν_st):
+    #         logger.warning("@@@@ left_tmp_dict={} with cgc_st_tuple_left={}, and factor_cgc_left_dict={}, "
+    #                        "right_tmp_dict={} with cgc_st_tuple_right={}"
+    #                        "".format(left_tmp_dict, cgc_st_tuple_left, factor_cgc_left_dict,
+    #                                  right_tmp_dict, cgc_st_tuple_right))
+    #
+    #     # 计算matrix_element
+    #     for (m_σ_left, m_μ_left), left_tmp in left_tmp_dict.items():
+    #         for (m_σ_right, m_μ_right), right_tmp in right_tmp_dict.items():
+    #             in_element_sum = 0
+    #             for i in range(1, self.s_n):  # 这个i是交换矩阵（in）中的i
+    #                 σ_in_element = data_σ_μ.in_matrix_σ_dict[(i, self.s_n)][m_σ_left - 1, m_σ_right - 1]  # m-1得到py序
+    #                 μ_in_element = data_σ_μ.in_matrix_μ_dict[(i, self.s_n)][m_μ_left - 1, m_μ_right - 1]
+    #                 in_element_sum += σ_in_element * μ_in_element
+    #
+    #                 if _debug_condition(data_σ_μ, ν_st):
+    #                     logger.warning("@@@@ ({},{}), m_σ_left={}, m_σ_right={}, σ_in_element={}, "
+    #                                    "m_μ_left={}, m_μ_right={}, μ_in_element={}"
+    #                                    "".format(i, self.s_n, m_σ_left, m_σ_right, σ_in_element,
+    #                                              m_μ_left, m_μ_right, μ_in_element))
+    #
+    #             if _debug_condition(data_σ_μ, ν_st):
+    #                 logger.warning("@@@@ in_element_sum={}, left_tmp={}, right_tmp={}"
+    #                                "".format(in_element_sum, left_tmp, right_tmp))
+    #
+    #             matrix_element += in_element_sum * left_tmp * right_tmp
+    #
+    #     return True, matrix_element
+    #
+    # def _calc_isf_matrix(self, row_index_list, ν_st, data_sn, data_σ_μ):
+    #     """计算ISF的本征矩阵
+    #     """
+    #     matrix_div = len(row_index_list)
+    #     isf_matrix = sp.zeros(matrix_div)
+    #
+    #     if _debug_condition(data_σ_μ, ν_st):
+    #         logger.warning("_calc_isf_matrix")
+    #         for i in range(1, self.s_n):
+    #             logger.warning("σ_({},{})={}".format(i, self.s_n, data_σ_μ.in_matrix_σ_dict[(i, self.s_n)]))
+    #             logger.warning("μ_({},{})={}".format(i, self.s_n, data_σ_μ.in_matrix_μ_dict[(i, self.s_n)]))
+    #
+    #     # 构建主对角元
+    #     for i, row in enumerate(row_index_list):
+    #         cgc_st_tuple = (row[0], row[1], ν_st, None, 1) if len(row) == 2 else (row[0], row[1], ν_st, row[2], 1)
+    #         flag, isf_matrix_element = \
+    #             self._calc_isf_matrix_element(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ, ν_st)
+    #         if not flag:
+    #             err_msg = "get isf_matrix_element by cgc_st_tuple={}, cgc_st_tuple={}, data_sn={}, data_σ_μ={}" \
+    #                       "with msg={}".format(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ, isf_matrix_element)
+    #             logger.error(err_msg)
+    #             return False, err_msg
+    #
+    #         if _debug_condition(data_σ_μ, ν_st):
+    #             logger.warning("@@@@ i={}, i={}, isf_matrix_element={}"
+    #                            "".format(i, i, isf_matrix_element))
+    #
+    #         isf_matrix[i, i] = isf_matrix_element
+    #
+    #     # 构建其他矩阵元素
+    #     if matrix_div >= 2:
+    #         for (left_i, left_st), (right_i, right_st) in combinations(enumerate(row_index_list), 2):
+    #             cgc_st_tuple_left = (left_st[0], left_st[1], ν_st, None, 1) if len(left_st) == 2 \
+    #                 else (left_st[0], left_st[1], ν_st, left_st[2], 1)
+    #             cgc_st_tuple_right = (right_st[0], right_st[1], ν_st, None, 1) if len(right_st) == 2 \
+    #                 else (right_st[0], right_st[1], ν_st, right_st[2], 1)
+    #             flag, isf_matrix_element = self._calc_isf_matrix_element(cgc_st_tuple_left, cgc_st_tuple_right,
+    #                                                                      data_sn, data_σ_μ, ν_st)
+    #             if not flag:
+    #                 err_msg = "get isf_matrix_element by cgc_st_tuple_left={}, cgc_st_tuple_right={}, " \
+    #                           "data_sn={}, data_σ_μ={} " \
+    #                           "with msg={}".format(cgc_st_tuple_left, cgc_st_tuple_right, data_sn,
+    #                                                data_σ_μ, isf_matrix_element)
+    #                 logger.error(err_msg)
+    #                 return False, err_msg
+    #
+    #             if _debug_condition(data_σ_μ, ν_st):
+    #                 logger.warning("@@@@ left_i={}, right_i={}, isf_matrix_element={}"
+    #                                "".format(left_i, right_i, isf_matrix_element))
+    #
+    #             isf_matrix[left_i, right_i] = isf_matrix_element
+    #             isf_matrix[right_i, left_i] = isf_matrix_element  # 因为ISF的本征矩阵共轭
+    #
+    #     return True, isf_matrix
+
+    def _calc_isf_matrix_element(self, cgc_st_tuple_left, cgc_st_tuple_right, data_sn, data_σ_μ, ν_st=None, i_n=None):
         """计算ISF本征矩阵的矩阵元，其中主对角元可适当优化"""
         matrix_element = 0
         # 将St的cgc根据分支律上升到Sn，并整形成py序
@@ -2347,52 +2653,583 @@ class ISFHelper(CalcHelper):
                 right_tmp = sp.sign(factor_cgc_right) * sp.sqrt(abs(factor_cgc_right))
                 right_tmp_dict[right_key] = right_tmp
 
+        # if _debug_condition(data_σ_μ, ν_st):
+        #     logger.warning("@@@@ left_tmp_dict={} with cgc_st_tuple_left={}, and factor_cgc_left_dict={}, "
+        #                    "right_tmp_dict={} with cgc_st_tuple_right={}"
+        #                    "".format(left_tmp_dict, cgc_st_tuple_left, factor_cgc_left_dict,
+        #                              right_tmp_dict, cgc_st_tuple_right))
+
         # 计算matrix_element
         for (m_σ_left, m_μ_left), left_tmp in left_tmp_dict.items():
             for (m_σ_right, m_μ_right), right_tmp in right_tmp_dict.items():
-                in_element_sum = 0
-                for i in range(1, self.s_n):  # 这个i是交换矩阵（in）中的i
-                    σ_in_element = data_σ_μ.in_matrix_σ_dict[(i, self.s_n)][m_σ_left - 1, m_σ_right - 1]  # m-1得到py序
-                    μ_in_element = data_σ_μ.in_matrix_μ_dict[(i, self.s_n)][m_μ_left - 1, m_μ_right - 1]
-                    in_element_sum += σ_in_element * μ_in_element
-                matrix_element += in_element_sum * left_tmp * right_tmp
+                σ_in_element = data_σ_μ.in_matrix_σ_dict[i_n][m_σ_left - 1, m_σ_right - 1]  # m-1得到py序
+                μ_in_element = data_σ_μ.in_matrix_μ_dict[i_n][m_μ_left - 1, m_μ_right - 1]
+                matrix_element += σ_in_element * μ_in_element * left_tmp * right_tmp
 
         return True, matrix_element
 
-    def _calc_isf_matrix(self, row_index_list, ν_st, data_sn, data_σ_μ):
-        """计算ISF的本征矩阵"""
+    def _calc_isf_matrix_with_first_m(self, row_index_list, ν_st, data_sn, data_σ_μ):
+        """计算ISF的本征矩阵
+        """
         matrix_div = len(row_index_list)
         isf_matrix = sp.zeros(matrix_div)
 
-        # 构建主对角元
-        for i, row in enumerate(row_index_list):
-            cgc_st_tuple = (row[0], row[1], ν_st, None, 1) if len(row) == 2 else (row[0], row[1], ν_st, row[2], 1)
-            flag, isf_matrix_element = self._calc_isf_matrix_element(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ)
-            if not flag:
-                err_msg = "get isf_matrix_element by cgc_st_tuple={}, cgc_st_tuple={}, data_sn={}, data_σ_μ={}" \
-                          "with msg={}".format(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ, isf_matrix_element)
-                logger.error(err_msg)
-                return False, err_msg
-            isf_matrix[i, i] = isf_matrix_element
+        if _debug_condition(data_σ_μ, ν_st):
+            logger.warning("####_calc_isf_matrix_with_first_m####")
+            # for i in range(1, self.s_n):
+            #     logger.warning("σ_({},{})={}".format(i, self.s_n, data_σ_μ.in_matrix_σ_dict[(i, self.s_n)]))
+            #     logger.warning("μ_({},{})={}".format(i, self.s_n, data_σ_μ.in_matrix_μ_dict[(i, self.s_n)]))
 
-        # 构建其他矩阵元素
-        if matrix_div >= 2:
-            for (left_i, left_st), (right_i, right_st) in combinations(enumerate(row_index_list), 2):
-                cgc_st_tuple_left = (left_st[0], left_st[1], ν_st, None, 1) if len(left_st) == 2 \
-                    else (left_st[0], left_st[1], ν_st, left_st[2], 1)
-                cgc_st_tuple_right = (right_st[0], right_st[1], ν_st, None, 1) if len(right_st) == 2 \
-                    else (right_st[0], right_st[1], ν_st, right_st[2], 1)
-                flag, isf_matrix_element = self._calc_isf_matrix_element(cgc_st_tuple_left, cgc_st_tuple_right,
-                                                                         data_sn, data_σ_μ)
+        for j in range(1, self.s_n):  # 这个i是交换矩阵（in）中的i
+            i_n = (j, self.s_n)
+            sub_isf_matrix = sp.zeros(matrix_div)
+
+            # 构建主对角元
+            for i, row in enumerate(row_index_list):
+                cgc_st_tuple = (row[0], row[1], ν_st, None, 1) if len(row) == 2 else (row[0], row[1], ν_st, row[2], 1)
+                flag, isf_matrix_element = \
+                    self._calc_isf_matrix_element(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ, ν_st, i_n)
                 if not flag:
-                    err_msg = "get isf_matrix_element by cgc_st_tuple_left={}, cgc_st_tuple_right={}, " \
-                              "data_sn={}, data_σ_μ={} " \
-                              "with msg={}".format(cgc_st_tuple_left, cgc_st_tuple_right, data_sn,
-                                                   data_σ_μ, isf_matrix_element)
+                    err_msg = "get isf_matrix_element by cgc_st_tuple={}, cgc_st_tuple={}, data_sn={}, data_σ_μ={}" \
+                              "with msg={}".format(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ, isf_matrix_element)
                     logger.error(err_msg)
                     return False, err_msg
-                isf_matrix[left_i, right_i] = isf_matrix_element
-                isf_matrix[right_i, left_i] = isf_matrix_element  # 因为ISF的本征矩阵共轭
+                sub_isf_matrix[i, i] = isf_matrix_element
+
+            # 构建其他矩阵元素
+            if matrix_div >= 2:
+                for (left_i, left_st), (right_i, right_st) in combinations(enumerate(row_index_list), 2):
+                    cgc_st_tuple_left = (left_st[0], left_st[1], ν_st, None, 1) if len(left_st) == 2 \
+                        else (left_st[0], left_st[1], ν_st, left_st[2], 1)
+                    cgc_st_tuple_right = (right_st[0], right_st[1], ν_st, None, 1) if len(right_st) == 2 \
+                        else (right_st[0], right_st[1], ν_st, right_st[2], 1)
+                    flag, isf_matrix_element = self._calc_isf_matrix_element(cgc_st_tuple_left, cgc_st_tuple_right,
+                                                                             data_sn, data_σ_μ, ν_st, i_n)
+                    if not flag:
+                        err_msg = "get isf_matrix_element by cgc_st_tuple_left={}, cgc_st_tuple_right={}, " \
+                                  "data_sn={}, data_σ_μ={} " \
+                                  "with msg={}".format(cgc_st_tuple_left, cgc_st_tuple_right, data_sn,
+                                                       data_σ_μ, isf_matrix_element)
+                        logger.error(err_msg)
+                        return False, err_msg
+                    sub_isf_matrix[left_i, right_i] = isf_matrix_element
+                    sub_isf_matrix[right_i, left_i] = isf_matrix_element  # 因为ISF的本征矩阵共轭
+
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ i_n={}, sub_isf_matrix={}"
+                               "".format(i_n, sub_isf_matrix))
+
+            isf_matrix += sub_isf_matrix
+
+        return True, isf_matrix
+
+    def _cgc_st_2_cgc_m_dict_with_point_m(self, cgc_st_tuple, data_sn, data_σ_μ):
+        """取得cg_st_dict，并且，根据分支律，将m_st转化为对应的m
+        注意：返回的字典，仅仅是把m_st按照分支律准化成了它的m对应，value仍然是st的cgc"""
+        σ_st, μ_st, ν_st, τ_st, m_st = cgc_st_tuple
+        rst_dict = {}
+        flag, cgc_st_square_dict = load_cgc(self.s_t, *cgc_st_tuple, is_flag_true_if_not_s_n=False)
+        if not flag:
+            err_msg = "load_cgc fail by s_t={}, cgc_st_tuple={} with msg={}".format(
+                self.s_t, cgc_st_tuple, cgc_st_square_dict)
+            logger.error(err_msg)
+            return False, err_msg
+        offset_σ = data_sn.get_offset(σ_st, data_σ_μ.σ)
+        offset_μ = data_sn.get_offset(μ_st, data_σ_μ.μ)
+        for (m_σ_st, m_μ_st), cgc_st_square in cgc_st_square_dict.items():
+            m_σ = offset_σ + m_σ_st
+            m_μ = offset_μ + m_μ_st
+            rst_dict[(m_σ, m_μ,)] = cgc_st_square
+
+        return True, rst_dict
+
+    # def _calc_isf_matrix_element_with_last_m(self, cgc_st_tuple_left, cgc_st_tuple_right, data_sn, data_σ_μ, ν_st=None):
+    #     """计算ISF本征矩阵的矩阵元，其中主对角元可适当优化"""
+    #     matrix_element = 0
+    #     # 将St的cgc根据分支律上升到Sn，并整形成py序
+    #     # 左
+    #     _, factor_cgc_left_dict = self._cgc_st_2_cgc_m_dict_with_point_m(cgc_st_tuple_left, data_sn, data_σ_μ)
+    #     left_tmp_dict = {}
+    #     for left_key, factor_cgc_left in factor_cgc_left_dict.items():
+    #         left_tmp = sp.sign(factor_cgc_left) * sp.sqrt(abs(factor_cgc_left))
+    #         left_tmp_dict[left_key] = left_tmp
+    #     # 右
+    #     if cgc_st_tuple_right == cgc_st_tuple_left:  # 如果相等，则直接使用left结果，无需重复计算
+    #         right_tmp_dict = left_tmp_dict
+    #     else:
+    #         _, factor_cgc_right_dict = self._cgc_st_2_cgc_m_dict_with_point_m(cgc_st_tuple_right, data_sn, data_σ_μ)
+    #         right_tmp_dict = {}
+    #         for right_key, factor_cgc_right in factor_cgc_right_dict.items():
+    #             right_tmp = sp.sign(factor_cgc_right) * sp.sqrt(abs(factor_cgc_right))
+    #             right_tmp_dict[right_key] = right_tmp
+    #
+    #     if _debug_condition(data_σ_μ, ν_st):
+    #         logger.warning("@@@@ left_tmp_dict={} with cgc_st_tuple_left={}, and factor_cgc_left_dict={}, "
+    #                        "right_tmp_dict={} with cgc_st_tuple_right={}"
+    #                        "".format(left_tmp_dict, cgc_st_tuple_left, factor_cgc_left_dict,
+    #                                  right_tmp_dict, cgc_st_tuple_right))
+    #
+    #     # 计算matrix_element
+    #     for (m_σ_left, m_μ_left), left_tmp in left_tmp_dict.items():
+    #         for (m_σ_right, m_μ_right), right_tmp in right_tmp_dict.items():
+    #             in_element_sum = 0
+    #             for i in range(1, self.s_n):  # 这个i是交换矩阵（in）中的i
+    #                 σ_in_element = data_σ_μ.in_matrix_σ_dict[(i, self.s_n)][m_σ_left - 1, m_σ_right - 1]  # m-1得到py序
+    #                 μ_in_element = data_σ_μ.in_matrix_μ_dict[(i, self.s_n)][m_μ_left - 1, m_μ_right - 1]
+    #                 in_element_sum += σ_in_element * μ_in_element
+    #
+    #                 if _debug_condition(data_σ_μ, ν_st):
+    #                     logger.warning("@@@@ ({},{}), m_σ_left={}, m_σ_right={}, σ_in_element={}, "
+    #                                    "m_μ_left={}, m_μ_right={}, μ_in_element={}"
+    #                                    "".format(i, self.s_n, m_σ_left, m_σ_right, σ_in_element,
+    #                                              m_μ_left, m_μ_right, μ_in_element))
+    #
+    #             if _debug_condition(data_σ_μ, ν_st):
+    #                 logger.warning("@@@@ in_element_sum={}, left_tmp={}, right_tmp={}"
+    #                                "".format(in_element_sum, left_tmp, right_tmp))
+    #
+    #             matrix_element += in_element_sum * left_tmp * right_tmp
+    #
+    #     return True, matrix_element
+
+    # def _calc_isf_matrix_with_last_m(self, row_index_list, ν_st, data_sn, data_σ_μ, data_st):
+    #     """计算ISF的本征矩阵
+    #     """
+    #     matrix_div = len(row_index_list)
+    #     isf_matrix = sp.zeros(matrix_div)
+    #     h_ν_st = data_st.get_yt_num(ν_st)
+    #
+    #     if _debug_condition(data_σ_μ, ν_st):
+    #         logger.warning("#### _calc_isf_matrix_with_last_m")
+    #         for i in range(1, self.s_n):
+    #             logger.warning("σ_({},{})={}".format(i, self.s_n, data_σ_μ.in_matrix_σ_dict[(i, self.s_n)]))
+    #             logger.warning("μ_({},{})={}".format(i, self.s_n, data_σ_μ.in_matrix_μ_dict[(i, self.s_n)]))
+    #
+    #     # 构建主对角元
+    #     for i, row in enumerate(row_index_list):
+    #         cgc_st_tuple = (row[0], row[1], ν_st, None, h_ν_st) if len(row) == 2 else \
+    #             (row[0], row[1], ν_st, row[2], h_ν_st)
+    #         flag, isf_matrix_element = self._calc_isf_matrix_element_with_last_m(cgc_st_tuple, cgc_st_tuple,
+    #                                                                              data_sn, data_σ_μ, ν_st)
+    #         if not flag:
+    #             err_msg = "get _calc_isf_matrix_element_with_last_m by cgc_st_tuple={}, cgc_st_tuple={}, " \
+    #                       "data_sn={}, data_σ_μ={} with msg={}" \
+    #                       "".format(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ, isf_matrix_element)
+    #             logger.error(err_msg)
+    #             return False, err_msg
+    #
+    #         if _debug_condition(data_σ_μ, ν_st):
+    #             logger.warning("@@@@ i={}, i={}, isf_matrix_element={}".format(i, i, isf_matrix_element))
+    #
+    #         isf_matrix[i, i] = isf_matrix_element
+    #
+    #     # 构建其他矩阵元素
+    #     if matrix_div >= 2:
+    #         for (left_i, left_st), (right_i, right_st) in combinations(enumerate(row_index_list), 2):
+    #             cgc_st_tuple_left = (left_st[0], left_st[1], ν_st, None, h_ν_st) if len(left_st) == 2 \
+    #                 else (left_st[0], left_st[1], ν_st, left_st[2], h_ν_st)
+    #             cgc_st_tuple_right = (right_st[0], right_st[1], ν_st, None, h_ν_st) if len(right_st) == 2 \
+    #                 else (right_st[0], right_st[1], ν_st, right_st[2], h_ν_st)
+    #             flag, isf_matrix_element = \
+    #                 self._calc_isf_matrix_element_with_last_m(cgc_st_tuple_left, cgc_st_tuple_right,
+    #                                                           data_sn, data_σ_μ, ν_st)
+    #             if not flag:
+    #                 err_msg = "get _calc_isf_matrix_element_with_last_m by cgc_st_tuple_left={}, " \
+    #                           "cgc_st_tuple_right={}, data_sn={}, data_σ_μ={} with msg={}" \
+    #                           "".format(cgc_st_tuple_left, cgc_st_tuple_right, data_sn, data_σ_μ, isf_matrix_element)
+    #                 logger.error(err_msg)
+    #                 return False, err_msg
+    #
+    #             if _debug_condition(data_σ_μ, ν_st):
+    #                 logger.warning("@@@@ left_i={}, right_i={}, isf_matrix_element={}"
+    #                                "".format(left_i, right_i, isf_matrix_element))
+    #
+    #             isf_matrix[left_i, right_i] = isf_matrix_element
+    #             isf_matrix[right_i, left_i] = isf_matrix_element  # 因为ISF的本征矩阵共轭
+    #
+    #     return True, isf_matrix
+    #
+    def _calc_isf_matrix_element_with_last_m(self, cgc_st_tuple_left, cgc_st_tuple_right, data_sn, data_σ_μ,
+                                             ν_st=None, i_n=None):
+        """计算ISF本征矩阵的矩阵元，其中主对角元可适当优化"""
+        matrix_element = 0
+        # 将St的cgc根据分支律上升到Sn，并整形成py序
+        # 左
+        _, factor_cgc_left_dict = self._cgc_st_2_cgc_m_dict_with_point_m(cgc_st_tuple_left, data_sn, data_σ_μ)
+        left_tmp_dict = {}
+        for left_key, factor_cgc_left in factor_cgc_left_dict.items():
+            left_tmp = sp.sign(factor_cgc_left) * sp.sqrt(abs(factor_cgc_left))
+            left_tmp_dict[left_key] = left_tmp
+        # 右
+        if cgc_st_tuple_right == cgc_st_tuple_left:  # 如果相等，则直接使用left结果，无需重复计算
+            right_tmp_dict = left_tmp_dict
+        else:
+            _, factor_cgc_right_dict = self._cgc_st_2_cgc_m_dict_with_point_m(cgc_st_tuple_right, data_sn, data_σ_μ)
+            right_tmp_dict = {}
+            for right_key, factor_cgc_right in factor_cgc_right_dict.items():
+                right_tmp = sp.sign(factor_cgc_right) * sp.sqrt(abs(factor_cgc_right))
+                right_tmp_dict[right_key] = right_tmp
+
+        # if _debug_condition(data_σ_μ, ν_st):
+        #     logger.warning("@@@@ left_tmp_dict={} with cgc_st_tuple_left={}, and factor_cgc_left_dict={}, "
+        #                    "right_tmp_dict={} with cgc_st_tuple_right={}"
+        #                    "".format(left_tmp_dict, cgc_st_tuple_left, factor_cgc_left_dict,
+        #                              right_tmp_dict, cgc_st_tuple_right))
+
+        # 计算matrix_element
+        for (m_σ_left, m_μ_left), left_tmp in left_tmp_dict.items():
+            for (m_σ_right, m_μ_right), right_tmp in right_tmp_dict.items():
+                σ_in_element = data_σ_μ.in_matrix_σ_dict[i_n][m_σ_left - 1, m_σ_right - 1]  # m-1得到py序
+                μ_in_element = data_σ_μ.in_matrix_μ_dict[i_n][m_μ_left - 1, m_μ_right - 1]
+                matrix_element += σ_in_element * μ_in_element * left_tmp * right_tmp
+
+        return True, matrix_element
+
+    def _calc_isf_matrix_with_last_m(self, row_index_list, ν_st, data_sn, data_σ_μ, data_st):
+        """计算ISF的本征矩阵
+        """
+        matrix_div = len(row_index_list)
+        isf_matrix = sp.zeros(matrix_div)
+        h_ν_st = data_st.get_yt_num(ν_st)
+
+        if _debug_condition(data_σ_μ, ν_st):
+            logger.warning("####_calc_isf_matrix_with_last_m####")
+            # for i in range(1, self.s_n):
+            #     logger.warning("σ_({},{})={}".format(i, self.s_n, data_σ_μ.in_matrix_σ_dict[(i, self.s_n)]))
+            #     logger.warning("μ_({},{})={}".format(i, self.s_n, data_σ_μ.in_matrix_μ_dict[(i, self.s_n)]))
+
+        for j in range(1, self.s_n):  # 这个i是交换矩阵（in）中的i
+            i_n = (j, self.s_n)
+            sub_isf_matrix = sp.zeros(matrix_div)
+
+            # 构建主对角元
+            for i, row in enumerate(row_index_list):
+                cgc_st_tuple = (row[0], row[1], ν_st, None, h_ν_st) if len(row) == 2 else \
+                    (row[0], row[1], ν_st, row[2], h_ν_st)
+                flag, isf_matrix_element = self._calc_isf_matrix_element_with_last_m(cgc_st_tuple, cgc_st_tuple,
+                                                                                     data_sn, data_σ_μ, ν_st, i_n)
+                if not flag:
+                    err_msg = "get _calc_isf_matrix_element_with_last_m by cgc_st_tuple={}, cgc_st_tuple={}, " \
+                              "data_sn={}, data_σ_μ={} with msg={}" \
+                              "".format(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ, isf_matrix_element)
+                    logger.error(err_msg)
+                    return False, err_msg
+                sub_isf_matrix[i, i] = isf_matrix_element
+
+            # 构建其他矩阵元素
+            if matrix_div >= 2:
+                for (left_i, left_st), (right_i, right_st) in combinations(enumerate(row_index_list), 2):
+                    cgc_st_tuple_left = (left_st[0], left_st[1], ν_st, None, h_ν_st) if len(left_st) == 2 \
+                        else (left_st[0], left_st[1], ν_st, left_st[2], h_ν_st)
+                    cgc_st_tuple_right = (right_st[0], right_st[1], ν_st, None, h_ν_st) if len(right_st) == 2 \
+                        else (right_st[0], right_st[1], ν_st, right_st[2], h_ν_st)
+                    flag, isf_matrix_element = \
+                        self._calc_isf_matrix_element_with_last_m(cgc_st_tuple_left, cgc_st_tuple_right,
+                                                                  data_sn, data_σ_μ, ν_st, i_n)
+                    if not flag:
+                        err_msg = "get _calc_isf_matrix_element_with_last_m by cgc_st_tuple_left={}, " \
+                                  "cgc_st_tuple_right={}, data_sn={}, data_σ_μ={} with msg={}" \
+                                  "".format(cgc_st_tuple_left, cgc_st_tuple_right, data_sn, data_σ_μ, isf_matrix_element)
+                        logger.error(err_msg)
+                        return False, err_msg
+                    sub_isf_matrix[left_i, right_i] = isf_matrix_element
+                    sub_isf_matrix[right_i, left_i] = isf_matrix_element  # 因为ISF的本征矩阵共轭
+
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ i_n={}, sub_isf_matrix={}"
+                               "".format(i_n, sub_isf_matrix))
+
+            isf_matrix += sub_isf_matrix
+
+        return True, isf_matrix
+
+    def _calc_sub_isf_matrix_element_4_193a(self, cgc_st_tuple_left, cgc_st_tuple_right, data_sn, data_σ_μ, ν_st=None):
+        """计算ISF本征矩阵的矩阵元，其中主对角元可适当优化 选用4-193a优化
+        4-193a的思想是每种m''得到一种值，所以每个m''派一个代表就可以了。它不需要对in求和了"""
+        matrix_element = 0
+        # 将St的cgc根据分支律上升到Sn，并整形成py序
+        # 左
+        _, factor_cgc_left_dict = self._cgc_st_2_cgc_m_dict_with_point_m(cgc_st_tuple_left, data_sn, data_σ_μ)
+        left_tmp_dict = {}
+        for left_key, factor_cgc_left in factor_cgc_left_dict.items():
+            left_tmp = sp.sign(factor_cgc_left) * sp.sqrt(abs(factor_cgc_left))
+            left_tmp_dict[left_key] = left_tmp
+        # 右
+        if cgc_st_tuple_right == cgc_st_tuple_left:  # 如果相等，则直接使用left结果，无需重复计算
+            right_tmp_dict = left_tmp_dict
+        else:
+            _, factor_cgc_right_dict = self._cgc_st_2_cgc_m_dict_with_point_m(cgc_st_tuple_right, data_sn, data_σ_μ)
+            right_tmp_dict = {}
+            for right_key, factor_cgc_right in factor_cgc_right_dict.items():
+                right_tmp = sp.sign(factor_cgc_right) * sp.sqrt(abs(factor_cgc_right))
+                right_tmp_dict[right_key] = right_tmp
+
+        # if _debug_condition(data_σ_μ, ν_st):
+        #     logger.warning("@@@@ left_tmp_dict={} with cgc_st_tuple_left={}, and factor_cgc_left_dict={}, "
+        #                    "right_tmp_dict={} with cgc_st_tuple_right={}"
+        #                    "".format(left_tmp_dict, cgc_st_tuple_left, factor_cgc_left_dict,
+        #                              right_tmp_dict, cgc_st_tuple_right))
+
+        # 计算matrix_element
+        for (m_σ_left, m_μ_left), left_tmp in left_tmp_dict.items():
+            for (m_σ_right, m_μ_right), right_tmp in right_tmp_dict.items():
+                σ_in_element = data_σ_μ.in_matrix_σ_dict[(self.s_t, self.s_n)][m_σ_left - 1, m_σ_right - 1]
+                μ_in_element = data_σ_μ.in_matrix_μ_dict[(self.s_t, self.s_n)][m_μ_left - 1, m_μ_right - 1]
+                matrix_element += σ_in_element * μ_in_element * left_tmp * right_tmp
+
+                # if _debug_condition(data_σ_μ, ν_st):
+                #     logger.warning("@@@@ σ_in_element={}, μ_in_element={}, left_tmp={}, right_tmp={}"
+                #                    "".format(σ_in_element, μ_in_element, left_tmp, right_tmp))
+
+        return True, matrix_element
+
+    def _calc_isf_matrix_4_193a(self, row_index_list, ν_st, data_sn, data_σ_μ, data_st):
+        """计算ISF的本征矩阵 选用4-193a优化
+        4-193a的思想是每种m''得到一种值，所以每个m''派一个代表就可以了"""
+        if self.s_n <= 2:
+            return self._calc_isf_matrix_with_first_m(row_index_list, ν_st, data_sn, data_σ_μ)
+
+        matrix_div = len(row_index_list)
+        isf_matrix = sp.zeros(matrix_div)
+        h_ν_st = data_st.get_yt_num(ν_st)
+
+        if _debug_condition(data_σ_μ, ν_st):
+            logger.warning("####_calc_isf_matrix_4_193a####")
+            # logger.warning("σ_({},{})={}".format(self.s_t, self.s_n, data_σ_μ.in_matrix_σ_dict[(self.s_t, self.s_n)]))
+            # logger.warning("μ_({},{})={}".format(self.s_t, self.s_n, data_σ_μ.in_matrix_μ_dict[(self.s_t, self.s_n)]))
+
+        # ν_st的分支律
+        ν_st_st_list = data_st.get_bl_yds(ν_st)
+        for ν_st_st in ν_st_st_list:
+            m_ν_st_st = 1
+            m_ν_st = data_st.get_offset(ν_st_st, ν_st) + m_ν_st_st
+            h_ν_st_st = data_st.get_yt_st_num(ν_st_st)
+            sub_isf_matrix = sp.zeros(matrix_div)
+
+            # 构建主对角元
+            for i, row in enumerate(row_index_list):
+                cgc_st_tuple = (row[0], row[1], ν_st, None, m_ν_st) if len(row) == 2 else \
+                    (row[0], row[1], ν_st, row[2], m_ν_st)
+                flag, isf_matrix_element = \
+                    self._calc_sub_isf_matrix_element_4_193a(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ, ν_st)
+                if not flag:
+                    err_msg = "_calc_sub_isf_matrix_element_4_193a by cgc_st_tuple={}, cgc_st_tuple={}, " \
+                              "data_sn={}, data_σ_μ={} with msg={}" \
+                              "".format(cgc_st_tuple, cgc_st_tuple, data_sn, data_σ_μ, isf_matrix_element)
+                    logger.error(err_msg)
+                    return False, err_msg
+                sub_isf_matrix[i, i] = isf_matrix_element
+
+            # 构建其他矩阵元素
+            if matrix_div >= 2:
+                for (left_i, left_st), (right_i, right_st) in combinations(enumerate(row_index_list), 2):
+                    cgc_st_tuple_left = (left_st[0], left_st[1], ν_st, None, m_ν_st) if len(left_st) == 2 \
+                        else (left_st[0], left_st[1], ν_st, left_st[2], m_ν_st)
+                    cgc_st_tuple_right = (right_st[0], right_st[1], ν_st, None, m_ν_st) if len(right_st) == 2 \
+                        else (right_st[0], right_st[1], ν_st, right_st[2], m_ν_st)
+                    flag, isf_matrix_element = \
+                        self._calc_sub_isf_matrix_element_4_193a(cgc_st_tuple_left, cgc_st_tuple_right,
+                                                                 data_sn, data_σ_μ, ν_st)
+                    if not flag:
+                        err_msg = "_calc_sub_isf_matrix_element_4_193a by cgc_st_tuple_left={}, " \
+                                  "cgc_st_tuple_right={}, data_sn={}, data_σ_μ={} with msg={}" \
+                                  "".format(cgc_st_tuple_left, cgc_st_tuple_right, data_sn, data_σ_μ,
+                                            isf_matrix_element)
+                        logger.error(err_msg)
+                        return False, err_msg
+                    sub_isf_matrix[left_i, right_i] = isf_matrix_element
+                    sub_isf_matrix[right_i, left_i] = isf_matrix_element  # 因为ISF的本征矩阵共轭
+
+                    if _debug_condition(data_σ_μ, ν_st) and left_i == 3 and right_i == 5:
+                        logger.debug("cgc_st_tuple_left={}, cgc_st_tuple_right={}"
+                                     "".format(cgc_st_tuple_left, cgc_st_tuple_right))
+                        flag, isf_matrix_element_anti = \
+                            self._calc_sub_isf_matrix_element_4_193a(cgc_st_tuple_right, cgc_st_tuple_left,
+                                                                     data_sn, data_σ_μ, ν_st)
+                        logger.debug("isf_matrix_element = {} and isf_matrix_element_anti = {}"
+                                     "".format(isf_matrix_element, isf_matrix_element_anti))
+                        pass
+
+            # 融合
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ ν_st_st={}, h_ν_st_st={}, sub_isf_matrix={}"
+                               "".format(ν_st_st, h_ν_st_st, sub_isf_matrix))
+
+            isf_matrix += h_ν_st_st * sub_isf_matrix
+
+        isf_matrix = isf_matrix * (self.s_n - 1) / h_ν_st
+
+        return True, isf_matrix
+
+    @staticmethod
+    def _get_m_range_by_σμ_st_and_σμ_st_st(σμ_st_st, σμ_st_left, σμ_st_right, σμ, data_sn, data_st):
+        """拿m''的范围去造m的范围（注意，是喂给range的范围），一次出左右两个m（左右st_st相同，st不同）"""
+        last_m_st_st = data_st.get_yt_st_num(σμ_st_st)
+        left_m_offset = data_sn.get_offset(σμ_st_left, σμ) + data_st.get_offset(σμ_st_st, σμ_st_left)
+        right_m_offset = data_sn.get_offset(σμ_st_right, σμ) + data_st.get_offset(σμ_st_st, σμ_st_right)
+        return (left_m_offset + 1, left_m_offset + last_m_st_st + 1), \
+               (right_m_offset + 1, right_m_offset + last_m_st_st + 1)
+
+    def _calc_sub_isf_matrix_element_4_193d(self, isf_st_tuple_left, isf_st_tuple_right, data_sn, data_st, data_σ_μ):
+        """计算ISF本征矩阵的矩阵元，其中主对角元可适当优化 选用4-193d优化
+        4-193d的思想是用ISF代替CGC去构建矩阵"""
+        matrix_element = 0
+        # 将St的cgc根据分支律上升到Sn，并整形成py序
+        # 左
+        _, factor_isf_st_left_dict = load_isf(self.s_t, *isf_st_tuple_left, is_flag_true_if_not_s_n=False)
+        isf_st_left_cols = factor_isf_st_left_dict["cols"]
+        isf_st_left_rows = factor_isf_st_left_dict["rows"]
+        isf_st_left_square = factor_isf_st_left_dict["isf"]
+        # 右
+        if isf_st_tuple_left == isf_st_tuple_right:  # 如果相等，则直接使用left结果，无需重复计算
+            factor_isf_st_right_dict = factor_isf_st_left_dict
+        else:
+            _, factor_isf_st_right_dict = load_isf(self.s_t, *isf_st_tuple_right, is_flag_true_if_not_s_n=False)
+        isf_st_right_cols = factor_isf_st_right_dict["cols"]
+        isf_st_right_rows = factor_isf_st_right_dict["rows"]
+        isf_st_right_square = factor_isf_st_right_dict["isf"]
+
+        # 计算matrix_element
+        for left_i, left_row in enumerate(isf_st_left_rows):
+            σ_st_st_left, μ_st_st_left = left_row[0], left_row[1]  # 暂时不需要τ_st_st_left
+            for right_i, right_row in enumerate(isf_st_right_rows):
+                σ_st_st_right, μ_st_st_right = right_row[0], right_row[1]  # 暂时不需要τ_st_st_left
+                # 必须相等的σ''、μ''、ν''、τ''
+                if σ_st_st_left != σ_st_st_right or μ_st_st_left != μ_st_st_right:
+                    continue  # 用循环看起来会比较对称，其实点名也可以
+
+                # logger.warning("#### σ_st_st_left={}, isf_st_tuple_left[0]={}, isf_st_tuple_right[0]={}, "
+                #                "data_σ_μ.σ={}, data_sn={}, data_st={}"
+                #                "".format(σ_st_st_left, isf_st_tuple_left[0], isf_st_tuple_right[0],
+                #                          data_σ_μ.σ, data_sn, data_st))
+                if _debug_condition(data_σ_μ):
+                    logger.warning("σ_st_st_left,μ_st_st_left={}{}, | σ_st_st_right,μ_st_st_right={}{}"
+                                   "".format(σ_st_st_left, μ_st_st_left, σ_st_st_right, μ_st_st_right))
+
+                m_σ_left_range, m_σ_right_range = \
+                    self._get_m_range_by_σμ_st_and_σμ_st_st(σ_st_st_left, isf_st_tuple_left[0], isf_st_tuple_right[0],
+                                                            data_σ_μ.σ, data_sn, data_st)
+                m_μ_left_range, m_μ_right_range = \
+                    self._get_m_range_by_σμ_st_and_σμ_st_st(μ_st_st_left, isf_st_tuple_left[1], isf_st_tuple_right[1],
+                                                            data_σ_μ.μ, data_sn, data_st)
+
+                if _debug_condition(data_σ_μ):
+                    logger.warning("m_σ_left_range, m_σ_right_range={}{}, | m_μ_left_range, m_μ_right_range={}{}"
+                                   "".format(m_σ_left_range, m_σ_right_range, m_μ_left_range, m_μ_right_range))
+
+                σ_μ_tn_element = 0
+                σ_st_sn = data_σ_μ.in_matrix_σ_dict[(self.s_t, self.s_n)]
+                μ_st_sn = data_σ_μ.in_matrix_μ_dict[(self.s_t, self.s_n)]
+
+                if _debug_condition(data_σ_μ):
+                    logger.warning("σ_st_sn={}, μ_st_sn={}".format(σ_st_sn, μ_st_sn))
+
+                for m_σ_left, m_σ_right, m_μ_left, m_μ_right \
+                        in product(range(*m_σ_left_range), range(*m_σ_right_range),
+                                   range(*m_μ_left_range), range(*m_μ_right_range)):
+
+                    if _debug_condition(data_σ_μ):
+                        logger.warning("m_σ_left={}, m_σ_right={}, m_μ_left={}, m_μ_right={}"
+                                       "".format(m_σ_left, m_σ_right, m_μ_left, m_μ_right))
+
+                    σ_tn_element = σ_st_sn[m_σ_left - 1, m_σ_right - 1]
+                    μ_tn_element = μ_st_sn[m_μ_left - 1, m_μ_right - 1]
+
+                    if _debug_condition(data_σ_μ):
+                        logger.warning("σ_tn_element={}, μ_tn_element={}"
+                                       "".format(σ_tn_element, μ_tn_element))
+
+                    σ_μ_tn_element += σ_tn_element * μ_tn_element
+
+                # σ_tn_element = data_σ_μ.in_matrix_σ_dict[(self.s_t, self.s_n)][m_σ_left - 1, m_σ_right - 1]
+                # μ_tn_element = data_σ_μ.in_matrix_μ_dict[(self.s_t, self.s_n)][m_μ_left - 1, m_μ_right - 1]
+
+                if _debug_condition(data_σ_μ):
+                    logger.warning("σ_μ_tn_element={}".format(σ_μ_tn_element))
+
+                # σ_μ_tn_element = σ_tn_element * μ_tn_element
+                # # τ看似没有拿，但实际已经包含在i, j里了
+                # for left_j, right_j in product(range(len(isf_st_left_cols)), range(len(isf_st_right_cols))):
+                #     isf_left_right = isf_st_left_square[left_i, left_j] * isf_st_right_square[right_i, right_j]
+                #     matrix_element += σ_μ_tn_element * sp.sign(isf_left_right) * sp.sqrt(abs(isf_left_right))
+                # isf_left_right = isf_st_left_square[left_i, right_i] * isf_st_right_square[right_i, left_i]
+                # matrix_element += σ_μ_tn_element * sp.sign(isf_left_right) * sp.sqrt(abs(isf_left_right))
+                isf_left_right = isf_st_left_square[left_i, left_i] * isf_st_right_square[right_i, right_i]
+                matrix_element += σ_μ_tn_element * sp.sign(isf_left_right) * sp.sqrt(abs(isf_left_right))
+
+        return True, matrix_element
+
+    def _calc_isf_matrix_4_193d(self, row_index_list, ν_st, data_sn, data_σ_μ, data_st):
+        """计算ISF的本征矩阵 选用4-193d优化
+        4-193d的思想是用ISF代替CGC去构建矩阵"""
+        if self.s_n <= 2:
+            return self._calc_isf_matrix(row_index_list, ν_st, data_sn, data_σ_μ)
+
+        matrix_div = len(row_index_list)
+        isf_matrix = sp.zeros(matrix_div)
+        h_ν_st = data_st.get_yt_num(ν_st)
+
+        if _debug_condition(data_σ_μ, ν_st):
+            logger.warning("######## _calc_isf_matrix_4_193d")
+            logger.warning("σ_({},{})={}".format(self.s_t, self.s_n, data_σ_μ.in_matrix_σ_dict[(self.s_t, self.s_n)]))
+            logger.warning("μ_({},{})={}".format(self.s_t, self.s_n, data_σ_μ.in_matrix_μ_dict[(self.s_t, self.s_n)]))
+
+        # ν_st的分支律
+        ν_st_st_list = data_st.get_bl_yds(ν_st)
+        for ν_st_st in ν_st_st_list:
+            # m_ν_st_st = 1
+            # m_ν_st = data_st.get_offset(ν_st_st, ν_st) + m_ν_st_st
+            h_ν_st_st = data_st.get_yt_st_num(ν_st_st)
+            sub_isf_matrix = sp.zeros(matrix_div)
+
+            # 构建主对角元
+            for i, row in enumerate(row_index_list):
+                isf_st_tuple = (row[0], row[1], ν_st_st)
+
+                if _debug_condition(data_σ_μ, ν_st):
+                    logger.warning("isf_st_tuple={} for i={}".format(isf_st_tuple, i))
+
+                flag, isf_matrix_element = \
+                    self._calc_sub_isf_matrix_element_4_193d(isf_st_tuple, isf_st_tuple, data_sn, data_st, data_σ_μ)
+                if not flag:
+                    err_msg = "_calc_sub_isf_matrix_element_4_193d by isf_st_tuple={}, isf_st_tuple={}, " \
+                              "data_sn={}, data_σ_μ={} with msg={}" \
+                              "".format(isf_st_tuple, isf_st_tuple, data_sn, data_σ_μ, isf_matrix_element)
+                    logger.error(err_msg)
+                    return False, err_msg
+                sub_isf_matrix[i, i] = isf_matrix_element
+
+            # 构建其他矩阵元素
+            if matrix_div >= 2:
+                for (left_i, left_st), (right_i, right_st) in combinations(enumerate(row_index_list), 2):
+                    isf_st_tuple_left = (left_st[0], left_st[1], ν_st_st)
+                    isf_st_tuple_right = (right_st[0], right_st[1], ν_st_st)
+
+                    if _debug_condition(data_σ_μ, ν_st):
+                        logger.warning("isf_st_tuple_left={}, isf_st_tuple_right={} for left_i={}, right_i={}"
+                                       "".format(isf_st_tuple_left, isf_st_tuple_right, left_i, right_i))
+
+                    flag, isf_matrix_element = \
+                        self._calc_sub_isf_matrix_element_4_193d(isf_st_tuple_left, isf_st_tuple_right,
+                                                                 data_sn, data_st, data_σ_μ)
+                    if not flag:
+                        err_msg = "_calc_sub_isf_matrix_element_4_193d by isf_st_tuple_left={}, " \
+                                  "isf_st_tuple_right={}, data_sn={}, data_σ_μ={} with msg={}" \
+                                  "".format(isf_st_tuple_left, isf_st_tuple_right, data_sn, data_σ_μ,
+                                            isf_matrix_element)
+                        logger.error(err_msg)
+                        return False, err_msg
+                    sub_isf_matrix[left_i, right_i] = isf_matrix_element
+                    sub_isf_matrix[right_i, left_i] = isf_matrix_element  # 因为ISF的本征矩阵共轭
+
+            # 融合
+            if _debug_condition(data_σ_μ, ν_st):
+                logger.warning("@@@@ ν_st_st={}, h_ν_st_st={}, sub_isf_matrix={}"
+                               "".format(ν_st_st, h_ν_st_st, sub_isf_matrix))
+
+            isf_matrix += h_ν_st_st * sub_isf_matrix
+
+        isf_matrix = isf_matrix * (self.s_n - 1) / h_ν_st
 
         return True, isf_matrix
 
@@ -2433,12 +3270,6 @@ class ISFHelper(CalcHelper):
             single_meta_σμν_st = single_s_σμν_st if s_k is False else data_st.get_tilde(single_s_σμν_st)
             meta_σμν_st[s_d] = single_meta_σμν_st
         meta_τ = sym_τ
-        meta_isf_square_dict = meta_data_σ_μ.get_isf_square_dict_by_ν_st(meta_σμν_st[-1])
-
-        if _debug_σμν_cond(*sym_σμν) and _debug_condition(meta_data_σ_μ):
-            logger.warning("@@@@ meta_σμν={}, meta_σμν_st={}, meta_isf_square_dict={}"
-                           "".format(meta_σμν, meta_σμν_st, meta_isf_square_dict))
-
         # 1, h_ν'*h_μ / h_ν*h_μ'
         h_meta_ν = data_sn.get_yt_num(meta_σμν[-1])
         h_meta_ν_st = data_st.get_yt_num(meta_σμν_st[-1])
@@ -2469,6 +3300,11 @@ class ISFHelper(CalcHelper):
             if k is True:
                 ΛΛ *= meta_Λ_list_list[d][meta_m_list[d] - 1] * meta_st_Λ_list_list[d][meta_m_st_list[d] - 1]
         # 4, ISF_σσ'μμ'νν'
+        meta_isf_square_dict = meta_data_σ_μ.get_isf_square_dict_by_ν_st(meta_σμν_st[-1])
+
+        if _debug_σμν_cond(*sym_σμν) and _debug_condition(meta_data_σ_μ):
+            logger.warning("@@@@ meta_σμν={}, meta_σμν_st={}, meta_isf_square_dict={}"
+                           "".format(meta_σμν, meta_σμν_st, meta_isf_square_dict))
         meta_isf_rows = meta_isf_square_dict["rows"]  # rows有两种可能形式：1，([σ'], [μ'], τ')；2，([σ'], [μ'])
         meta_isf_cols = meta_isf_square_dict["cols"]  # cols有两种可能形式：1，[ν]；2，([ν], τ)
         meta_isf_square_matrix = meta_isf_square_dict["isf"]
@@ -2861,11 +3697,20 @@ class CGCHelper(CalcHelper):
                             else:
                                 meta_cgc_square_dict.pop(cgc_key)
 
+                        if self.s_n == 6 and data_σ_μ.σ == [3, 2, 1] and data_σ_μ.μ == [3, 2, 1] \
+                                and ν == [3, 2, 1] and τ == 1 and m_ν == 1 and cgc_key == (1, 1):
+                            logger.warning("$$$$ [3, 2, 1]*[3, 2, 1]=[3, 2, 1]τ5m1: (1, 3): {} from\n"
+                                           "isf: ν_st={}, isf_row={}, isf_col={}, isf_square={}\n"
+                                           "cgc: m_σ_st={}, m_μ_st={}, single_cgc_st_square_dict={}"
+                                           "".format(meta_cgc_square_dict[cgc_key],
+                                                     ν_st, isf_row, isf_col, isf_square,
+                                                     m_σ_st, m_μ_st, single_cgc_st_square_dict))
+
                 # if catch_cond_31_22:
                 #     logger.warning("## meta_cgc_square_dict={}, m_ν={}".format(meta_cgc_square_dict, m_ν))
 
                 cgc_square_n = sum(abs(i) for i in meta_cgc_square_dict.values())
-                if cgc_square_n != 1:  # 归一性检查
+                if cgc_square_n != 1:  # 归一性检查  # 由4-189a，循环完所有τ'，CGC理论上就是完成了的
                     err_msg = "calc cgc fail by self.s_n={}, σ={}, μ={}, " \
                               "ν={}, τ={}, m_ν={}, meta_cgc_square_dict={} with " \
                               "meet cgc_square_n={} not eq 1".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, m_ν,
@@ -3098,61 +3943,108 @@ class EHelper(CalcHelper):
         注意：它所计算出的是书中所描述的ϵ。在多数情况下，ϵ(σμν)为正，它是适用的。但，当ϵ(σμν)为负时，就不适用了。
         所以，在实际使用中（指计算ISF和CGC的时候），我们给所有的ϵ再乘上一个ϵ(σμν)去使用，就没有问题了！
         """
+        # TODO 所有简化情况重新检查，还不对，就暂时用最笨的方法实现，以后有需要再优化
         ϵ_dict = {}
         ϵ_flags = {}
         # 公共参数
         h_σ = data_sn.get_yt_num(data_σ_μ.σ)
         h_μ = data_sn.get_yt_num(data_σ_μ.μ)
         h_ν = data_sn.get_yt_num(ν)
+        h_tuple = (h_σ, h_μ, h_ν)
+        yd_σμν = (data_σ_μ.σ, data_σ_μ.μ, ν)
+        Λ_list_list = [data_sn.get_phase_factor_list(yd) for yd in yd_σμν]
 
-        # if _debug_condition(data_σ_μ, ν=ν):
-        #     logger.warning("######## catch meta data_σ_μ={}, ν={}".format(data_σ_μ, ν))
+        if _debug_condition(data_σ_μ, ν=ν):
+            logger.warning("######## catch meta data_σ_μ={}, ν={}".format(data_σ_μ, ν))
 
-        # 1，一些可以简化处理的情况可以走快速通道
-        if data_σ_μ.σ == data_σ_μ.μ == ν:
-            # 这里，除了可以由σμν_0，σμν_1对称出所有σμν组合外，也不需要遍历所有m的CGC去凑一些dict了
-            # 所以，先对m_ν=1、m_ν=h_ν做ϵ，再取对称就可以了
-            # 1.1，m_ν=1
-            flag, cgc_square_dict = load_cgc(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, 1, is_flag_true_if_not_s_n=False)
-            if not flag:
-                err_msg = "get cgc_square_dict with s_n={}, σ={}, μ={}, ν={}, τ={}, m_ν={} meet error with " \
-                          "msg={}".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, 1, cgc_square_dict)
-                logger.error(err_msg)
-                return False, err_msg
-            adding_ϵ_dict, adding_ϵ_flags = self.calc_adding_ϵ(cgc_square_dict, data_σ_μ, ν, data_sn,
-                                                               σμν_group=self.σμν_0, m_flags=(None, None, 1))
-            ϵ_dict.update(adding_ϵ_dict)
-            ϵ_flags.update(adding_ϵ_flags)
-
-            # 1.2，m_ν=h_ν
-            flag, cgc_square_dict = load_cgc(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, h_ν, is_flag_true_if_not_s_n=False)
-            if not flag:
-                err_msg = "get cgc_square_dict with s_n={}, σ={}, μ={}, ν={}, τ={}, h_ν={} meet error with " \
-                          "msg={}".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, h_ν, cgc_square_dict)
-                logger.error(err_msg)
-                return False, err_msg
-            adding_ϵ_dict, adding_ϵ_flags = self.calc_adding_ϵ(cgc_square_dict, data_σ_μ, ν, data_sn,
-                                                               σμν_group=self.σμν_1, m_flags=(None, None, h_ν))
-            ϵ_dict.update(adding_ϵ_dict)
-            ϵ_flags.update(adding_ϵ_flags)
-
-            # 1.3，其他
-            for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
-                # 对σμν_0和σμν_1采用两种对称（(1,3), (2,3)），实现全部ϵ
-                sym_1_d3, sym_1_k4 = (d3[2], d3[1], d3[0]), (k4[2], k4[1], k4[0])
-                sym_2_d3, sym_2_k4 = (d3[0], d3[2], d3[1]), (k4[0], k4[2], k4[1])
-                sym_1_ϵ_key = data_sn.get_ϵ_key_by_d3_k4(sym_1_d3, sym_1_k4)
-                sym_2_ϵ_key = data_sn.get_ϵ_key_by_d3_k4(sym_2_d3, sym_2_k4)
-                ϵ_dict[sym_1_ϵ_key], ϵ_flags[sym_1_ϵ_key] = ϵ_dict[ϵ_key], ϵ_flags[ϵ_key]
-                ϵ_dict[sym_2_ϵ_key], ϵ_flags[sym_2_ϵ_key] = ϵ_dict[ϵ_key], ϵ_flags[ϵ_key]
-
-            # 1.4，简化情况可以提前返回
-            if len(ϵ_dict) == len(ϵ_flags) == 24:
-                return ϵ_dict, ϵ_flags
-            else:
-                err_msg = "len(ϵ_dict) == len(ϵ_flags) must eq 24 but not " \
-                          "with ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags)
-                return False, err_msg
+        # # 1，一些可以简化处理的情况可以走快速通道
+        # if data_σ_μ.σ == data_σ_μ.μ == ν:
+        #     # 这里，除了可以由σμν_0，σμν_1对称出所有σμν组合外，也不需要遍历所有m的CGC去凑一些dict了
+        #     # 所以，先对m_ν=1、m_ν=h_ν做ϵ，再取对称就可以了
+        #     # 1.1，m_ν=1
+        #     flag, cgc_square_dict_1 = load_cgc(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, 1, is_flag_true_if_not_s_n=False)
+        #     if not flag:
+        #         err_msg = "get cgc_square_dict_1 with s_n={}, σ={}, μ={}, ν={}, τ={}, m_ν={} meet error with " \
+        #                   "msg={}".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, 1, cgc_square_dict_1)
+        #         logger.error(err_msg)
+        #         return False, err_msg
+        #     adding_ϵ_dict, adding_ϵ_flags = self.calc_adding_ϵ(cgc_square_dict_1, data_σ_μ, ν, data_sn,
+        #                                                        σμν_group=self.σμν_0, m_flags=(None, None, 1),
+        #                                                        Λ_list_list=Λ_list_list)
+        #     ϵ_dict.update(adding_ϵ_dict)
+        #     ϵ_flags.update(adding_ϵ_flags)
+        #
+        #     # 1.2，m_ν=h_ν
+        #     flag, cgc_square_dict_h = load_cgc(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, h_ν, is_flag_true_if_not_s_n=False)
+        #     if not flag:
+        #         err_msg = "get cgc_square_dict_h with s_n={}, σ={}, μ={}, ν={}, τ={}, h_ν={} meet error with " \
+        #                   "msg={}".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, h_ν, cgc_square_dict_h)
+        #         logger.error(err_msg)
+        #         return False, err_msg
+        #     adding_ϵ_dict, adding_ϵ_flags = self.calc_adding_ϵ(cgc_square_dict_h, data_σ_μ, ν, data_sn,
+        #                                                        σμν_group=self.σμν_1, m_flags=(None, None, h_ν),
+        #                                                        Λ_list_list=Λ_list_list)
+        #     ϵ_dict.update(adding_ϵ_dict)
+        #     ϵ_flags.update(adding_ϵ_flags)
+        #
+        #     # 1.3，其他
+        #     # 1.3.1 计算sym_ϵ_flags
+        #     sym_ϵ_flags = {}
+        #     for ϵ_key, d3, k4 in chain(self.σμν_0, self.σμν_1):
+        #         # 对σμν_0和σμν_1采用两种对称（(1,3), (2,3)），实现全部ϵ
+        #         s_13_d3, s_13_k4 = (d3[2], d3[1], d3[0]), (k4[2], k4[1], k4[0])
+        #         s_23_d3, s_23_k4 = (d3[0], d3[2], d3[1]), (k4[0], k4[2], k4[1])
+        #         s_13_ϵ_key = data_sn.get_ϵ_key_by_d3_k4(s_13_d3, s_13_k4)
+        #         s_23_ϵ_key = data_sn.get_ϵ_key_by_d3_k4(s_23_d3, s_23_k4)
+        #         sym_ϵ_flags[s_13_ϵ_key] = tuple(ϵ_flags[ϵ_key][d] if k is False else
+        #                                         h_tuple[d] + 1 - ϵ_flags[ϵ_key][d] for d, k in zip(s_13_d3, s_13_k4))
+        #         sym_ϵ_flags[s_23_ϵ_key] = tuple(ϵ_flags[ϵ_key][d] if k is False else
+        #                                         h_tuple[d] + 1 - ϵ_flags[ϵ_key][d] for d, k in zip(s_23_d3, s_23_k4))
+        #     # 1.3.2 整理一下sym_ϵ_flags
+        #     m_to_load_dict = {}  # {m: [s_ϵ_key, ...]}
+        #     for s_ϵ_key, s_flag in sym_ϵ_flags.items():
+        #         if s_flag[2] not in m_to_load_dict:
+        #             m_to_load_dict[s_flag[2]] = [s_ϵ_key]
+        #         else:
+        #             m_to_load_dict[s_flag[2]].append(s_ϵ_key)
+        #
+        #     # 1.3.3 根据整理后的sym_ϵ_flags找cgc
+        #     adding_ϵ_dict = {}
+        #     for m_to_load in m_to_load_dict.keys():
+        #         if m_to_load == 1:
+        #             cgc_square_dict_m = cgc_square_dict_1
+        #         elif m_to_load == h_ν:
+        #             cgc_square_dict_m = cgc_square_dict_h
+        #         else:
+        #             flag, cgc_square_dict_m = load_cgc(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, m_to_load,
+        #                                                is_flag_true_if_not_s_n=False)
+        #             if not flag:
+        #                 err_msg = "get cgc_square_dict_m with s_n={}, σ={}, μ={}, ν={}, τ={}, m_to_load={} " \
+        #                           "meet error with msg={}" \
+        #                           "".format(self.s_n, data_σ_μ.σ, data_σ_μ.μ, ν, τ, h_ν, cgc_square_dict_m)
+        #                 logger.error(err_msg)
+        #                 return False, err_msg
+        #         ϵ_key_list = m_to_load_dict[m_to_load]
+        #         for ϵ_key in ϵ_key_list:
+        #             ϵ_flag = sym_ϵ_flags[ϵ_key]
+        #             cgc_key = (ϵ_flag[0], ϵ_flag[1])
+        #             single_cgc_square = cgc_square_dict_m[cgc_key]  # 一定能拿到
+        #             d3, k4 = data_sn.get_d3_k4_by_ϵ_key(ϵ_key)
+        #             ΛΛ = 1
+        #             for d, k in zip(d3, k4):
+        #                 if k is True:
+        #                     ΛΛ *= Λ_list_list[d][ϵ_flag[d] - 1]
+        #             adding_ϵ_dict[ϵ_key] = sp.sign(single_cgc_square) * ΛΛ
+        #     ϵ_dict.update(adding_ϵ_dict)
+        #     ϵ_flags.update(sym_ϵ_flags)
+        #
+        #     # 1.4，简化情况可以提前返回
+        #     if len(ϵ_dict) == len(ϵ_flags) == 24:
+        #         return ϵ_dict, ϵ_flags
+        #     else:
+        #         err_msg = "len(ϵ_dict) == len(ϵ_flags) must eq 24 but not " \
+        #                   "with ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags)
+        #         return False, err_msg
 
         # 2，一般情况，必须要遍历CGC所有的m
         # 按照m_ν循环：
@@ -3169,8 +4061,8 @@ class EHelper(CalcHelper):
                 logger.error(err_msg)
                 return False, err_msg
 
-            # if _debug_condition(data_σ_μ, ν=ν):
-            #     logger.warning("## m_ν={}, cgc_square_dict={}".format(m_ν, cgc_square_dict))
+            if _debug_condition(data_σ_μ, ν=ν):
+                logger.warning("## m_ν={}, cgc_square_dict={}".format(m_ν, cgc_square_dict))
 
             # 2.1，整理6个矩阵中m_σ=1、m_μ=1、m_σ=h_σ、m_μ=h_μ的4个字典
             for (m_σ, m_μ), v in cgc_square_dict.items():
@@ -3185,17 +4077,19 @@ class EHelper(CalcHelper):
             # 2.2，m_ν=1和m_ν=h_ν可以直接使用
             if m_ν == 1:
                 adding_ϵ_dict, adding_ϵ_flags = self.calc_adding_ϵ(cgc_square_dict, data_σ_μ, ν, data_sn,
-                                                                   σμν_group=self.σμν_0, m_flags=(None, None, m_ν))
+                                                                   σμν_group=self.σμν_0, m_flags=(None, None, m_ν),
+                                                                   Λ_list_list=Λ_list_list)
                 ϵ_dict.update(adding_ϵ_dict)
                 ϵ_flags.update(adding_ϵ_flags)
             if m_ν == h_ν:
                 adding_ϵ_dict, adding_ϵ_flags = self.calc_adding_ϵ(cgc_square_dict, data_σ_μ, ν, data_sn,
-                                                                   σμν_group=self.σμν_1, m_flags=(None, None, m_ν))
+                                                                   σμν_group=self.σμν_1, m_flags=(None, None, m_ν),
+                                                                   Λ_list_list=Λ_list_list)
                 ϵ_dict.update(adding_ϵ_dict)
                 ϵ_flags.update(adding_ϵ_flags)
 
-        #     if _debug_condition(data_σ_μ, ν=ν):
-        #         logger.warning("#0# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
+            # if _debug_condition(data_σ_μ, ν=ν):
+            #     logger.warning("#0# ϵ_dict={}, ϵ_flags={}".format(ϵ_dict, ϵ_flags))
         #
         # if _debug_condition(data_σ_μ, ν=ν):
         #     logger.warning("## m_μ_1_dict={}, m_μ_h_dict={}, m_σ_1_dict={}, m_σ_h_dict={}, "
@@ -3238,22 +4132,30 @@ class EHelper(CalcHelper):
         # 2.4，计算剩余4组ϵ
         if any(i[0] not in ϵ_dict for i in self.σμν_2):
             adding_ϵ_dict, adding_ϵ_flags = self.calc_adding_ϵ(m_μ_1_dict, data_σ_μ, ν, data_sn,
-                                                               σμν_group=self.σμν_2, m_flags=(None, 1, None))
+                                                               σμν_group=self.σμν_2, m_flags=(None, 1, None),
+                                                               Λ_list_list=Λ_list_list)
             ϵ_dict.update(adding_ϵ_dict)
             ϵ_flags.update(adding_ϵ_flags)
         if any(i[0] not in ϵ_dict for i in self.σμν_3):
             adding_ϵ_dict, adding_ϵ_flags = self.calc_adding_ϵ(m_μ_h_dict, data_σ_μ, ν, data_sn,
-                                                               σμν_group=self.σμν_3, m_flags=(None, h_μ, None))
+                                                               σμν_group=self.σμν_3, m_flags=(None, h_μ, None),
+                                                               Λ_list_list=Λ_list_list)
             ϵ_dict.update(adding_ϵ_dict)
             ϵ_flags.update(adding_ϵ_flags)
         if any(i[0] not in ϵ_dict for i in self.σμν_4):
             adding_ϵ_dict, adding_ϵ_flags = self.calc_adding_ϵ(m_σ_1_dict, data_σ_μ, ν, data_sn,
-                                                               σμν_group=self.σμν_4, m_flags=(1, None, None))
+                                                               σμν_group=self.σμν_4, m_flags=(1, None, None),
+                                                               Λ_list_list=Λ_list_list)
             ϵ_dict.update(adding_ϵ_dict)
             ϵ_flags.update(adding_ϵ_flags)
+
+            if _debug_condition(data_σ_μ, ν=ν):
+                logger.warning("adding_ϵ_dict={}, adding_ϵ_flags={}".format(adding_ϵ_dict, adding_ϵ_flags))
+
         if any(i[0] not in ϵ_dict for i in self.σμν_5):
             adding_ϵ_dict, adding_ϵ_flags = self.calc_adding_ϵ(m_σ_h_dict, data_σ_μ, ν, data_sn,
-                                                               σμν_group=self.σμν_5, m_flags=(h_σ, None, None))
+                                                               σμν_group=self.σμν_5, m_flags=(h_σ, None, None),
+                                                               Λ_list_list=Λ_list_list)
             ϵ_dict.update(adding_ϵ_dict)
             ϵ_flags.update(adding_ϵ_flags)
 
@@ -3268,7 +4170,7 @@ class EHelper(CalcHelper):
             return False, err_msg
 
     @staticmethod
-    def calc_adding_ϵ(square_dict, data_σ_μ, ν, data_sn, σμν_group=None, m_flags=None):
+    def calc_adding_ϵ(square_dict, data_σ_μ, ν, data_sn, σμν_group=None, m_flags=None, Λ_list_list=None):
         """根据传入的CGC，按照定义计算ϵ
 
         注意：中文版《群表示论的新途径》这段是错的，应该使用英文版《Group Representation Theory for Physicists》中的对应公式
@@ -3290,7 +4192,8 @@ class EHelper(CalcHelper):
         # 公共条件
         default_σμν = (0, 1, 2)
         yd_σμν = (data_σ_μ.σ, data_σ_μ.μ, ν)
-        Λ_list_list = [data_sn.get_phase_factor_list(yd) for yd in yd_σμν]
+        if Λ_list_list is None:
+            Λ_list_list = [data_sn.get_phase_factor_list(yd) for yd in yd_σμν]
         m_set_list = [set(j[i] for j in square_dict.keys()) if m_flags[i] is None else (m_flags[i],) for i in range(3)]
 
         # if _debug_condition(data_σ_μ, ν=ν):

@@ -127,7 +127,7 @@ class ISFData(object):
         isf_square_dict = {"rows": [([1], [1])], "cols": [[2]], "isf": sp.Matrix([[1]])}
         self.isf_1 = (2, [2], [2], [1], isf_square_dict)
 
-        # 数据来源见《群表示论的新途径》陈金全（上海科学技术出版社1984）表4.19
+        # 数据来源见《群表示论的新途径》陈金全（上海科学技术出版社1984）表4.19  # 全部！
         isf_square_dict = {"rows": [([2], [2]), ([1, 1], [1, 1])],
                            "cols": [[3], [2, 1]],
                            "isf": sp.Matrix([[Ra(1) / 2, Ra(1) / 2], [Ra(1) / 2, -Ra(1) / 2]])}
@@ -153,81 +153,208 @@ class ISFData(object):
         isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[2, 1, 1]], "isf": sp.Matrix([[1]])}
         self.isf_6 = (4, [3, 1], [3, 1], [1, 1, 1], isf_square_dict)
 
+        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[3, 1]], "isf": sp.Matrix([[1]])}
+        self.isf_7 = (4, [3, 1], [2, 2], [3], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3], [2, 1]), ([2, 1], [2, 1])],
+                           "cols": [[3, 1], [2, 1, 1]],
+                           "isf": sp.Matrix([[Ra(1) / 2, Ra(1) / 2], [Ra(1) / 2, -Ra(1) / 2]])}
+        self.isf_8 = (4, [3, 1], [2, 2], [2, 1], isf_square_dict)
+
         isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[2, 1, 1]], "isf": sp.Matrix([[-1]])}
-        self.isf_7 = (4, [3, 1], [2, 2], [1, 1, 1], isf_square_dict)
+        self.isf_9 = (4, [3, 1], [2, 2], [1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[3, 1]], "isf": sp.Matrix([[1]])}
+        self.isf_10 = (4, [3, 1], [2, 1, 1], [3], isf_square_dict)
 
         isf_square_dict = {"rows": [([3], [2, 1]), ([2, 1], [2, 1]), ([2, 1], [1, 1, 1])],
                            "cols": [[3, 1], [2, 2], [2, 1, 1]],
                            "isf": sp.Matrix([[-Ra(1) / 2, Ra(1) / 3, Ra(1) / 6],
                                              [0, -Ra(1) / 3, Ra(2) / 3],
                                              [Ra(1) / 2, Ra(1) / 3, Ra(1) / 6]])}
-        self.isf_8 = (4, [3, 1], [2, 1, 1], [2, 1], isf_square_dict)
+        self.isf_11 = (4, [3, 1], [2, 1, 1], [2, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3], [1, 1, 1]), ([2, 1], [2, 1])],
+                           "cols": [[2, 1, 1], [1, 1, 1, 1]],
+                           "isf": sp.Matrix([[-Ra(2) / 3, Ra(1) / 3], [-Ra(1) / 3, -Ra(2) / 3]])}
+        self.isf_12 = (4, [3, 1], [2, 1, 1], [1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[4]], "isf": sp.Matrix([[1]])}
+        self.isf_13 = (4, [2, 2], [2, 2], [3], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[2, 2]], "isf": sp.Matrix([[1]])}
+        self.isf_14 = (4, [2, 2], [2, 2], [2, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[1, 1, 1, 1]], "isf": sp.Matrix([[1]])}
+        self.isf_15 = (4, [2, 2], [2, 2], [1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[3, 1]], "isf": sp.Matrix([[1]])}
+        self.isf_16 = (4, [2, 2], [2, 1, 1], [3], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1], [2, 1]), ([2, 1], [1, 1, 1])],
                            "cols": [[3, 1], [2, 1, 1]],
                            "isf": sp.Matrix([[-Ra(1) / 2, Ra(1) / 2], [-Ra(1) / 2, -Ra(1) / 2]])}
-        self.isf_9 = (4, [2, 2], [2, 1, 1], [2, 1], isf_square_dict)
+        self.isf_17 = (4, [2, 2], [2, 1, 1], [2, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[2, 1, 1]], "isf": sp.Matrix([[1]])}
+        self.isf_18 = (4, [2, 2], [2, 1, 1], [1, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1], [2, 1]), ([1, 1, 1], [1, 1, 1])],
                            "cols": [[4], [3, 1]],
                            "isf": sp.Matrix([[Ra(2) / 3, Ra(1) / 3], [Ra(1) / 3, -Ra(2) / 3]])}
-        self.isf_10 = (4, [2, 1, 1], [2, 1, 1], [3], isf_square_dict)
+        self.isf_19 = (4, [2, 1, 1], [2, 1, 1], [3], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 1], [2, 1]), ([1, 1, 1], [1, 1, 1])],
+                           "cols": [[4], [3, 1]],
+                           "isf": sp.Matrix([[Ra(2) / 3, Ra(1) / 3], [Ra(1) / 3, -Ra(2) / 3]])}
+        self.isf_20 = (4, [2, 1, 1], [2, 1, 1], [3], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1], [2, 1]), ([2, 1], [1, 1, 1]), ([1, 1, 1], [2, 1])],
                            "cols": [[3, 1], [2, 2], [2, 1, 1]],
                            "isf": sp.Matrix([[Ra(2) / 3, Ra(1) / 3, 0],
                                              [-Ra(1) / 6, Ra(1) / 3, Ra(1) / 2],
                                              [-Ra(1) / 6, Ra(1) / 3, -Ra(1) / 2]])}
-        self.isf_11 = (4, [2, 1, 1], [2, 1, 1], [2, 1], isf_square_dict)  # 这个也可以用来检查first_no_0
+        self.isf_21 = (4, [2, 1, 1], [2, 1, 1], [2, 1], isf_square_dict)  # 这个也可以用来检查first_no_0
+
+        isf_square_dict = {"rows": [([2, 1], [2, 1])], "cols": [[2, 1, 1]], "isf": sp.Matrix([[1]])}
+        self.isf_22 = (4, [2, 1, 1], [2, 1, 1], [1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([4], [4]), ([3, 1], [3, 1])],
+                           "cols": [[5], [4, 1]],
+                           "isf": sp.Matrix([[Ra(1) / 4, Ra(3) / 4], [Ra(3) / 4, -Ra(1) / 4]])}
+        self.isf_23 = (5, [4, 1], [4, 1], [4], isf_square_dict)
 
         isf_square_dict = {"rows": [([4], [3, 1]), ([3, 1], [4]), ([3, 1], [3, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
                            "isf": sp.Matrix([[-Ra(1) / 12, Ra(5) / 12, Ra(1) / 2],
                                              [-Ra(1) / 12, Ra(5) / 12, -Ra(1) / 2],
                                              [Ra(5) / 6, Ra(1) / 6, 0]])}
-        self.isf_12 = (5, [4, 1], [4, 1], [3, 1], isf_square_dict)
+        self.isf_24 = (5, [4, 1], [4, 1], [3, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [3, 1])], "cols": [[3, 2]], "isf": sp.Matrix([[1]])}
+        self.isf_25 = (5, [4, 1], [4, 1], [2, 2], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [3, 1])], "cols": [[3, 1, 1]], "isf": sp.Matrix([[1]])}
+        self.isf_26 = (5, [4, 1], [4, 1], [2, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [3, 1])], "cols": [[4, 1]], "isf": sp.Matrix([[1]])}
+        self.isf_27 = (5, [4, 1], [3, 2], [4], isf_square_dict)
+
+        isf_square_dict = {"rows": [([4], [3, 1]), ([3, 1], [3, 1]), ([3, 1], [2, 2])],
+                           "cols": [[4, 1], [3, 2], [3, 1, 1]],
+                           "isf": sp.Matrix([[Ra(1) / 3, Ra(1) / 6, Ra(1) / 2],
+                                             [Ra(2) / 15, Ra(5) / 12, -Ra(9) / 20],
+                                             [Ra(8) / 15, -Ra(5) / 12, -Ra(1) / 20]])}
+        self.isf_28 = (5, [4, 1], [3, 2], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([4], [2, 2]), ([3, 1], [3, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
                            "isf": sp.Matrix([[-Ra(3) / 8, Ra(5) / 8], [-Ra(5) / 8, -Ra(3) / 8]])}
-        self.isf_13 = (5, [4, 1], [3, 2], [2, 2], isf_square_dict)
+        self.isf_29 = (5, [4, 1], [3, 2], [2, 2], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2])],
+                           "cols": [[3, 1, 1], [2, 2, 1]],
+                           "isf": sp.Matrix([[-Ra(1) / 4, Ra(3) / 4], [Ra(3) / 4, Ra(1) / 4]])}
+        self.isf_30 = (5, [4, 1], [3, 2], [2, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [3, 1])], "cols": [[4, 1]], "isf": sp.Matrix([[1]])}
+        self.isf_31 = (5, [4, 1], [3, 1, 1], [4], isf_square_dict)
+
+        isf_square_dict = {"rows": [([4], [3, 1]), ([3, 1], [3, 1]), ([3, 1], [2, 1, 1])],
+                           "cols": [[4, 1], [3, 2], [3, 1, 1]],
+                           "isf": sp.Matrix([[-Ra(1) / 3, Ra(5) / 12, Ra(1) / 4],
+                                             [0, -Ra(3) / 8, Ra(5) / 8],
+                                             [Ra(2) / 3, Ra(5) / 24, Ra(1) / 8]])}
+        self.isf_32 = (5, [4, 1], [3, 1, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
                            "isf": sp.Matrix([[-Ra(1) / 16, Ra(15) / 16], [Ra(15) / 16, Ra(1) / 16]])}
-        self.isf_14 = (5, [4, 1], [3, 1, 1], [2, 2], isf_square_dict)
+        self.isf_33 = (5, [4, 1], [3, 1, 1], [2, 2], isf_square_dict)
+
+        isf_square_dict = {"rows": [([4], [2, 1, 1]), ([3, 1], [3, 1]), ([3, 1], [2, 1, 1])],
+                           "cols": [[3, 1, 1], [2, 2, 1], [2, 1, 1, 1]],
+                           "isf": sp.Matrix([[-Ra(1) / 4, Ra(5) / 12, Ra(1) / 3],
+                                             [-Ra(1) / 8, Ra(5) / 24, -Ra(2) / 3],
+                                             [Ra(5) / 8, Ra(3) / 8, 0]])}
+        self.isf_34 = (5, [4, 1], [3, 1, 1], [2, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1])],
                            "cols": [[2, 1, 1, 1]],
-                           "isf": sp.Matrix([[-1]])}
-        self.isf_15 = (5, [4, 1], [2, 2, 1], [1, 1, 1, 1], isf_square_dict)
+                           "isf": sp.Matrix([[1]])}
+        self.isf_35 = (5, [4, 1], [3, 1, 1], [1, 1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 2]), ([3, 1], [2, 1, 1])],
+                           "cols": [[3, 2], [3, 1, 1]],
+                           "isf": sp.Matrix([[Ra(1) / 4, Ra(3) / 4], [Ra(3) / 4, -Ra(1) / 4]])}
+        self.isf_36 = (5, [4, 1], [2, 2, 1], [3, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([4], [2, 2]), ([3, 1], [2, 1, 1])],
+                           "cols": [[3, 2], [2, 2, 1]],
+                           "isf": sp.Matrix([[-Ra(5) / 8, Ra(3) / 8], [-Ra(3) / 8, -Ra(5) / 8]])}
+        self.isf_37 = (5, [4, 1], [2, 2, 1], [2, 2], isf_square_dict)
+
+        isf_square_dict = {"rows": [([4], [2, 1, 1]), ([3, 1], [2, 2]), ([3, 1], [2, 1, 1])],
+                           "cols": [[3, 1, 1], [2, 2, 1], [2, 1, 1, 1]],
+                           "isf": sp.Matrix([[Ra(1) / 2, -Ra(1) / 6, Ra(1) / 3],
+                                             [Ra(1) / 20, -Ra(5) / 12, -Ra(8) / 15],
+                                             [Ra(9) / 20, Ra(5) / 12, -Ra(2) / 15]])}
+        self.isf_38 = (5, [4, 1], [2, 2, 1], [2, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1])], "cols": [[2, 1, 1, 1]], "isf": sp.Matrix([[-1]])}
+        self.isf_39 = (5, [4, 1], [2, 2, 1], [1, 1, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1])], "cols": [[3, 1, 1]], "isf": sp.Matrix([[1]])}
-        self.isf_16 = (5, [4, 1], [2, 1, 1, 1], [3, 1], isf_square_dict)
+        self.isf_40 = (5, [4, 1], [2, 1, 1, 1], [3, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1])], "cols": [[2, 2, 1]], "isf": sp.Matrix([[1]])}
+        self.isf_41 = (5, [4, 1], [2, 1, 1, 1], [2, 2], isf_square_dict)
+
+        isf_square_dict = {"rows": [([4], [2, 1, 1]), ([3, 1], [2, 1, 1]), ([3, 1], [1, 1, 1, 1])],
+                           "cols": [[3, 1, 1], [2, 2, 1], [2, 1, 1, 1]],
+                           "isf": sp.Matrix([[Ra(1) / 2, -Ra(5) / 12, Ra(1) / 12],
+                                             [0, Ra(1) / 6, Ra(5) / 6],
+                                             [Ra(1) / 2, Ra(5) / 12, -Ra(1) / 12]])}
+        self.isf_42 = (5, [4, 1], [2, 1, 1, 1], [2, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([4], [1, 1, 1, 1]), ([3, 1], [2, 1, 1])],
+                           "cols": [[2, 1, 1, 1], [1, 1, 1, 1, 1]],
+                           "isf": sp.Matrix([[-Ra(3) / 4, Ra(1) / 4], [-Ra(1) / 4, -Ra(3) / 4]])}
+        self.isf_43 = (5, [4, 1], [2, 1, 1, 1], [1, 1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [3, 1]), ([2, 2], [2, 2])],
+                           "cols": [[5], [4, 1]],
+                           "isf": sp.Matrix([[Ra(3) / 5, Ra(2) / 5], [Ra(2) / 5, -Ra(3) / 5]])}
+        self.isf_44 = (5, [3, 2], [3, 2], [4], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 2], [3, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
                            "isf": sp.Matrix([[Ra(1) / 3, Ra(2) / 3, 0],
                                              [-Ra(1) / 3, Ra(1) / 6, Ra(1) / 2],
                                              [-Ra(1) / 3, Ra(1) / 6, -Ra(1) / 2]])}
-        self.isf_17 = (5, [3, 2], [3, 2], [3, 1], isf_square_dict)
+        self.isf_45 = (5, [3, 2], [3, 2], [3, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [3, 1]), ([2, 2], [2, 2])],
+                           "cols": [[3, 2], [2, 2, 1]],
+                           "isf": sp.Matrix([[Ra(1) / 4, Ra(3) / 4], [Ra(3) / 4, -Ra(1) / 4]])}
+        self.isf_46 = (5, [3, 2], [3, 2], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 2], [3, 1])],
                            "cols": [[3, 1, 1], [2, 2, 1], [2, 1, 1, 1]],
                            "isf": sp.Matrix([[Ra(2) / 5, 0, Ra(3) / 5],
                                              [Ra(3) / 10, Ra(1) / 2, -Ra(1) / 5],
                                              [-Ra(3) / 10, Ra(1) / 2, Ra(1) / 5]])}
-        self.isf_18 = (5, [3, 2], [3, 2], [2, 1, 1], isf_square_dict)
+        self.isf_47 = (5, [3, 2], [3, 2], [2, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 2], [2, 2])],
                            "cols": [[2, 1, 1, 1]],
                            "isf": sp.Matrix([[1]])}
-        self.isf_19 = (5, [3, 2], [3, 2], [1, 1, 1, 1], isf_square_dict)
+        self.isf_48 = (5, [3, 2], [3, 2], [1, 1, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1])],
                            "cols": [[4, 1]],
                            "isf": sp.Matrix([[1]])}
-        self.isf_20 = (5, [3, 2], [3, 1, 1], [4], isf_square_dict)
+        self.isf_49 = (5, [3, 2], [3, 1, 1], [4], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 2], [3, 1]), ([2, 2], [2, 1, 1])],
                            "cols": [[4, 1], [3, 2], ([3, 1, 1], 1), ([3, 1, 1], 2)],
@@ -235,12 +362,12 @@ class ISFData(object):
                                              [-Ra(1) / 6, Ra(1) / 3, 0, -Ra(1) / 2],
                                              [-Ra(1) / 30, Ra(5) / 12, -Ra(3) / 20, Ra(2) / 5],
                                              [Ra(1) / 2, Ra(1) / 4, Ra(1) / 4, 0]])}
-        self.isf_21 = (5, [3, 2], [3, 1, 1], [3, 1], isf_square_dict)  # 可测真实beta
+        self.isf_50 = (5, [3, 2], [3, 1, 1], [3, 1], isf_square_dict)  # 可测真实beta
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
                            "isf": sp.Matrix([[-Ra(5) / 8, Ra(3) / 8], [-Ra(3) / 8, -Ra(5) / 8]])}
-        self.isf_22 = (5, [3, 2], [3, 1, 1], [2, 2], isf_square_dict)
+        self.isf_51 = (5, [3, 2], [3, 1, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 2], [3, 1]), ([2, 2], [2, 1, 1])],
                            "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
@@ -248,22 +375,68 @@ class ISFData(object):
                                              [-Ra(3) / 5, Ra(1) / 10, 0, -Ra(3) / 10],
                                              [Ra(1) / 4, 0, -Ra(1) / 4, -Ra(1) / 2],
                                              [Ra(3) / 20, Ra(2) / 5, Ra(5) / 12, -Ra(1) / 30]])}
-        self.isf_23 = (5, [3, 2], [3, 1, 1], [2, 1, 1], isf_square_dict)  # 可测真实beta  # 还能测first_no_0
+        self.isf_52 = (5, [3, 2], [3, 1, 1], [2, 1, 1], isf_square_dict)  # 可测真实beta  # 还能测first_no_0
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1])],
                            "cols": [[2, 1, 1, 1]],
                            "isf": sp.Matrix([[1]])}
-        self.isf_24 = (5, [3, 2], [3, 1, 1], [1, 1, 1, 1], isf_square_dict)
+        self.isf_53 = (5, [3, 2], [3, 1, 1], [1, 1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 2], [2, 2])],
+                           "cols": [[4, 1]],
+                           "isf": sp.Matrix([[1]])}
+        self.isf_54 = (5, [3, 2], [2, 2, 1], [4], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 2]), ([3, 1], [2, 1, 1]), ([2, 2], [2, 1, 1])],
+                           "cols": [[4, 1], [3, 2], [3, 1, 1]],
+                           "isf": sp.Matrix([[-Ra(1) / 5, Ra(1) / 2, Ra(3) / 10],
+                                             [Ra(3) / 5, 0, Ra(2) / 5],
+                                             [Ra(1) / 5, Ra(1) / 2, -Ra(3) / 10]])}
+        self.isf_55 = (5, [3, 2], [2, 2, 1], [3, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 2], [2, 2])],
+                           "cols": [[3, 2], [2, 2, 1]],
+                           "isf": sp.Matrix([[Ra(3) / 4, Ra(1) / 4], [-Ra(1) / 4, Ra(3) / 4]])}
+        self.isf_56 = (5, [3, 2], [2, 2, 1], [2, 2], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 2]), ([3, 1], [2, 1, 1]), ([2, 2], [2, 1, 1])],
+                           "cols": [[3, 1, 1], [2, 2, 1], [2, 1, 1, 1]],
+                           "isf": sp.Matrix([[-Ra(1) / 2, Ra(1) / 6, Ra(1) / 3],
+                                             [0, Ra(2) / 3, -Ra(1) / 3],
+                                             [Ra(1) / 2, Ra(1) / 6, Ra(1) / 3]])}
+        self.isf_57 = (5, [3, 2], [2, 2, 1], [2, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 2], [2, 2])],
                            "cols": [[2, 1, 1, 1], [1, 1, 1, 1, 1]],
                            "isf": sp.Matrix([[-Ra(2) / 5, Ra(3) / 5], [Ra(3) / 5, Ra(2) / 5]])}
-        self.isf_25 = (5, [3, 2], [2, 2, 1], [1, 1, 1, 1], isf_square_dict)
+        self.isf_58 = (5, [3, 2], [2, 2, 1], [1, 1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 2], [2, 1, 1])],
+                           "cols": [[3, 2], [3, 1, 1]],
+                           "isf": sp.Matrix([[Ra(3) / 4, Ra(1) / 4], [-Ra(1) / 4, Ra(3) / 4]])}
+        self.isf_59 = (5, [3, 2], [2, 1, 1, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 2], [1, 1, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
                            "isf": sp.Matrix([[Ra(3) / 8, Ra(5) / 8], [Ra(5) / 8, -Ra(3) / 8]])}
-        self.isf_26 = (5, [3, 2], [2, 1, 1, 1], [2, 2], isf_square_dict)
+        self.isf_60 = (5, [3, 2], [2, 1, 1, 1], [2, 2], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([3, 1], [1, 1, 1, 1]), ([2, 2], [2, 1, 1])],
+                           "cols": [[3, 1, 1], [2, 2, 1], [2, 1, 1, 1]],
+                           "isf": sp.Matrix([[Ra(9) / 20, -Ra(5) / 12, Ra(2) / 15],
+                                             [-Ra(1) / 2, -Ra(1) / 6, Ra(1) / 3],
+                                             [Ra(1) / 20, Ra(5) / 12, Ra(8) / 15]])}
+        self.isf_61 = (5, [3, 2], [2, 1, 1, 1], [2, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1])],
+                           "cols": [[2, 1, 1, 1]],
+                           "isf": sp.Matrix([[1]])}
+        self.isf_62 = (5, [3, 2], [2, 1, 1, 1], [1, 1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [3, 1]), ([2, 1, 1], [2, 1, 1])],
+                           "cols": [[5], [4, 1]],
+                           "isf": sp.Matrix([[Ra(1) / 2, Ra(1) / 2], [Ra(1) / 2, -Ra(1) / 2]])}
+        self.isf_63 = (5, [3, 1, 1], [3, 1, 1], [4], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[4, 1], ([3, 2], 1), ([3, 2], 2), [3, 1, 1]],
@@ -271,7 +444,7 @@ class ISFData(object):
                                              [-Ra(1) / 12, 0, Ra(5) / 12, Ra(1) / 2],
                                              [-Ra(1) / 12, 0, Ra(5) / 12, -Ra(1) / 2],
                                              [Ra(5) / 12, -Ra(1) / 2, Ra(1) / 12, 0]])}
-        self.isf_27 = (5, [3, 1, 1], [3, 1, 1], [3, 1], isf_square_dict)
+        self.isf_64 = (5, [3, 1, 1], [3, 1, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [([3, 2], 1), ([3, 2], 2), ([2, 2, 1], 1), ([2, 2, 1], 2)],
@@ -279,7 +452,7 @@ class ISFData(object):
                                              [Ra(5) / 16, 0, Ra(3) / 16, Ra(1) / 2],
                                              [Ra(5) / 16, 0, Ra(3) / 16, -Ra(1) / 2],
                                              [Ra(3) / 16, Ra(1) / 2, -Ra(5) / 16, 0]])}
-        self.isf_28 = (5, [3, 1, 1], [3, 1, 1], [2, 2], isf_square_dict)
+        self.isf_65 = (5, [3, 1, 1], [3, 1, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[3, 1, 1], ([2, 2, 1], 1), ([2, 2, 1], 2), [2, 1, 1, 1]],
@@ -287,7 +460,17 @@ class ISFData(object):
                                              [0, -Ra(1) / 2, Ra(1) / 12, Ra(5) / 12],
                                              [0, -Ra(1) / 2, -Ra(1) / 12, -Ra(5) / 12],
                                              [Ra(1) / 2, 0, Ra(5) / 12, -Ra(1) / 12]])}
-        self.isf_29 = (5, [3, 1, 1], [3, 1, 1], [2, 1, 1], isf_square_dict)
+        self.isf_66 = (5, [3, 1, 1], [3, 1, 1], [2, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 1, 1], [3, 1])],
+                           "cols": [[2, 1, 1, 1], [1, 1, 1, 1, 1]],
+                           "isf": sp.Matrix([[Ra(1) / 2, Ra(1) / 2], [-Ra(1) / 2, Ra(1) / 2]])}
+        self.isf_67 = (5, [3, 1, 1], [3, 1, 1], [1, 1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])],
+                           "cols": [[4, 1]],
+                           "isf": sp.Matrix([[1]])}
+        self.isf_68 = (5, [3, 1, 1], [2, 2, 1], [4], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 2]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 2]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[4, 1], [3, 2], ([3, 1, 1], 1), ([3, 1, 1], 2)],
@@ -295,12 +478,12 @@ class ISFData(object):
                                              [Ra(1) / 6, -Ra(1) / 3, 0, Ra(1) / 2],
                                              [Ra(1) / 30, -Ra(5) / 12, Ra(3) / 20, -Ra(2) / 5],
                                              [Ra(3) / 10, 0, -Ra(3) / 5, -Ra(1) / 10]])}
-        self.isf_30 = (5, [3, 1, 1], [2, 2, 1], [3, 1], isf_square_dict)
+        self.isf_69 = (5, [3, 1, 1], [2, 2, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[3, 2], [2, 2, 1]],
                            "isf": sp.Matrix([[-Ra(3) / 8, Ra(5) / 8], [Ra(5) / 8, Ra(3) / 8]])}
-        self.isf_31 = (5, [3, 1, 1], [2, 2, 1], [2, 2], isf_square_dict)
+        self.isf_70 = (5, [3, 1, 1], [2, 2, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 2]), ([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 2]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
@@ -308,38 +491,106 @@ class ISFData(object):
                                              [-Ra(3) / 5, Ra(1) / 10, 0, Ra(3) / 10],
                                              [-Ra(1) / 4, 0, -Ra(1) / 4, -Ra(1) / 2],
                                              [0, -Ra(1) / 2, -Ra(1) / 3, Ra(1) / 6]])}
-        self.isf_32 = (5, [3, 1, 1], [2, 2, 1], [2, 1, 1], isf_square_dict)
+        self.isf_71 = (5, [3, 1, 1], [2, 2, 1], [2, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1])],
+                           "cols": [[2, 1, 1, 1]],
+                           "isf": sp.Matrix([[-1]])}
+        self.isf_72 = (5, [3, 1, 1], [2, 2, 1], [1, 1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])],
+                           "cols": [[4, 1]],
+                           "isf": sp.Matrix([[1]])}
+        self.isf_73 = (5, [3, 1, 1], [2, 1, 1, 1], [4], isf_square_dict)
 
         isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 1, 1]), ([2, 1, 1], [1, 1, 1, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
                            "isf": sp.Matrix([[-Ra(2) / 3, Ra(5) / 24, Ra(1) / 8],
                                              [0, -Ra(3) / 8, Ra(5) / 8],
                                              [Ra(1) / 3, Ra(5) / 12, Ra(1) / 4]])}
-        self.isf_33 = (5, [3, 1, 1], [2, 1, 1, 1], [3, 1], isf_square_dict)
+        self.isf_74 = (5, [3, 1, 1], [2, 1, 1, 1], [3, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([2, 1, 1], [2, 1, 1])],
+                           "cols": [[3, 2], [2, 2, 1]],
+                           "isf": sp.Matrix([[-Ra(15) / 16, Ra(1) / 16], [-Ra(1) / 16, -Ra(15) / 16]])}
+        self.isf_75 = (5, [3, 1, 1], [2, 1, 1, 1], [2, 2], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1]), ([3, 1], [1, 1, 1, 1]), ([2, 1, 1], [2, 1, 1])],
+                           "cols": [[3, 1, 1], [2, 2, 1], [2, 1, 1, 1]],
+                           "isf": sp.Matrix([[-Ra(5) / 8, Ra(3) / 8, 0],
+                                             [-Ra(1) / 4, -Ra(5) / 12, Ra(1) / 3],
+                                             [-Ra(1) / 8, -Ra(5) / 24, -Ra(2) / 3]])}
+        self.isf_76 = (5, [3, 1, 1], [2, 1, 1, 1], [2, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([3, 1], [2, 1, 1])],
+                           "cols": [[2, 1, 1, 1]],
+                           "isf": sp.Matrix([[-1]])}
+        self.isf_77 = (5, [3, 1, 1], [2, 1, 1, 1], [1, 1, 1, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 2], [2, 2]), ([2, 1, 1], [2, 1, 1])],
+                           "cols": [[5], [4, 1]],
+                           "isf": sp.Matrix([[Ra(2) / 5, Ra(3) / 5], [Ra(3) / 5, -Ra(2) / 5]])}
+        self.isf_78 = (5, [2, 2, 1], [2, 2, 1], [4], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 2], [2, 1, 1]), ([2, 1, 1], [2, 2]), ([2, 1, 1], [2, 1, 1])],
                            "cols": [[4, 1], [3, 2], [3, 1, 1]],
                            "isf": sp.Matrix([[-Ra(1) / 3, Ra(1) / 6, Ra(1) / 2],
                                              [-Ra(1) / 3, Ra(1) / 6, -Ra(1) / 2],
                                              [Ra(1) / 3, Ra(2) / 3, 0]])}
-        self.isf_34 = (5, [2, 2, 1], [2, 2, 1], [3, 1], isf_square_dict)
+        self.isf_79 = (5, [2, 2, 1], [2, 2, 1], [3, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 2], [2, 2]), ([2, 1, 1], [2, 1, 1])],
+                           "cols": [[3, 2], [2, 2, 1]],
+                           "isf": sp.Matrix([[Ra(3) / 4, Ra(1) / 4], [Ra(1) / 4, -Ra(3) / 4]])}
+        self.isf_80 = (5, [2, 2, 1], [2, 2, 1], [2, 2], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 2], [2, 1, 1]), ([2, 1, 1], [2, 2]), ([2, 1, 1], [2, 1, 1])],
+                           "cols": [[3, 1, 1], [2, 2, 1], [2, 1, 1, 1]],
+                           "isf": sp.Matrix([[Ra(3) / 10, -Ra(1) / 2, Ra(1) / 5],
+                                             [-Ra(3) / 10, -Ra(1) / 2, -Ra(1) / 5],
+                                             [Ra(2) / 5, 0, -Ra(3) / 5]])}
+        self.isf_81 = (5, [2, 2, 1], [2, 2, 1], [2, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 2], [2, 2])], "cols": [[2, 1, 1, 1]], "isf": sp.Matrix([[-1]])}
-        self.isf_35 = (5, [2, 2, 1], [2, 2, 1], [1, 1, 1, 1], isf_square_dict)
+        self.isf_82 = (5, [2, 2, 1], [2, 2, 1], [1, 1, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])], "cols": [[4, 1]], "isf": sp.Matrix([[1]])}
-        self.isf_36 = (5, [2, 2, 1], [2, 1, 1, 1], [4], isf_square_dict)
+        self.isf_83 = (5, [2, 2, 1], [2, 1, 1, 1], [4], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 2], [2, 1, 1]), ([2, 1, 1], [2, 1, 1]), ([2, 1, 1], [1, 1, 1, 1])],
+                           "cols": [[4, 1], [3, 2], [3, 1, 1]],
+                           "isf": sp.Matrix([[-Ra(8) / 15, Ra(5) / 12, Ra(1) / 20],
+                                             [-Ra(2) / 15, -Ra(5) / 12, Ra(9) / 20],
+                                             [-Ra(1) / 3, -Ra(1) / 6, -Ra(1) / 2]])}
+        self.isf_84 = (5, [2, 2, 1], [2, 1, 1, 1], [3, 1], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 2], [1, 1, 1, 1]), ([2, 1, 1], [2, 1, 1])],
+                           "cols": [[3, 2], [2, 2, 1]],
+                           "isf": sp.Matrix([[Ra(3) / 8, Ra(5) / 8], [Ra(5) / 8, -Ra(3) / 8]])}
+        self.isf_85 = (5, [2, 2, 1], [2, 1, 1, 1], [2, 2], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 2], [2, 1, 1]), ([2, 1, 1], [2, 1, 1])],
+                           "cols": [[3, 1, 1], [2, 2, 1]],
+                           "isf": sp.Matrix([[-Ra(3) / 4, Ra(1) / 4], [Ra(1) / 4, Ra(3) / 4]])}
+        self.isf_86 = (5, [2, 2, 1], [2, 1, 1, 1], [2, 1, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1]), ([1, 1, 1, 1], [1, 1, 1, 1])],
                            "cols": [[5], [4, 1]],
                            "isf": sp.Matrix([[Ra(3) / 4, Ra(1) / 4], [Ra(1) / 4, -Ra(3) / 4]])}
-        self.isf_37 = (5, [2, 1, 1, 1], [2, 1, 1, 1], [4], isf_square_dict)
+        self.isf_87 = (5, [2, 1, 1, 1], [2, 1, 1, 1], [4], isf_square_dict)
+
+        isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1]), ([2, 1, 1], [1, 1, 1, 1]), ([1, 1, 1, 1], [2, 1, 1])],
+                           "cols": [[4, 1], [3, 2], [3, 1, 1]],
+                           "isf": sp.Matrix([[Ra(5) / 6, Ra(1) / 6, 0],
+                                             [-Ra(1) / 12, Ra(5) / 12, Ra(1) / 2],
+                                             [-Ra(1) / 12, Ra(5) / 12, -Ra(1) / 2]])}
+        self.isf_88 = (5, [2, 1, 1, 1], [2, 1, 1, 1], [3, 1], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])], "cols": [[3, 2]], "isf": sp.Matrix([[1]])}
-        self.isf_38 = (5, [2, 1, 1, 1], [2, 1, 1, 1], [2, 2], isf_square_dict)
+        self.isf_89 = (5, [2, 1, 1, 1], [2, 1, 1, 1], [2, 2], isf_square_dict)
 
         isf_square_dict = {"rows": [([2, 1, 1], [2, 1, 1])], "cols": [[3, 1, 1]], "isf": sp.Matrix([[1]])}
-        self.isf_39 = (5, [2, 1, 1, 1], [2, 1, 1, 1], [2, 1, 1], isf_square_dict)
+        self.isf_90 = (5, [2, 1, 1, 1], [2, 1, 1, 1], [2, 1, 1], isf_square_dict)
 
         # 自己算的
         isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 2])],
@@ -348,7 +599,7 @@ class ISFData(object):
                                              [-Ra(1) / 30, Ra(5) / 12, -Ra(3) / 20, Ra(2) / 5],
                                              [-Ra(1) / 6, Ra(1) / 3, 0, -Ra(1) / 2],
                                              [Ra(1) / 2, Ra(1) / 4, Ra(1) / 4, 0]])}
-        self.isf_40 = (5, [3, 1, 1], [3, 2], [3, 1], isf_square_dict)
+        self.isf_91 = (5, [3, 1, 1], [3, 2], [3, 1], isf_square_dict)
 
         # isf_square_dict = {"rows": [([3, 1], [3, 1]), ([3, 1], [2, 2]), ([2, 1, 1], [3, 1]), ([2, 1, 1], [2, 2])],
         #                    "cols": [([3, 1, 1], 1), ([3, 1, 1], 2), [2, 2, 1], [2, 1, 1, 1]],
@@ -373,7 +624,20 @@ class ISFData(object):
         # self.isf_ban_set = {7}
         # self.isf_ban_set = set(range(2, 39 + 1))
         self.isf_ban_set = set()
-        self.isf_num_list = list(set(range(1, 40 + 1)) - self.isf_ban_set)
+        self.isf_num_list = list(set(range(1, 91 + 1)) - self.isf_ban_set)
+
+        # isf matrix
+        # 格式 Sn, σ, μ, ν_st, row_index_tmp_list, isf_matrix
+        row_index_tmp_list = [([2], [2], None), ([1, 1], [1, 1], None)]
+        isf_matrix = sp.Matrix([[Ra(1) / 2, Ra(3) / 2], [Ra(3) / 2, Ra(1) / 2]])
+        self.isf_matrix_1 = (3, [2, 1], [2, 1], [2], row_index_tmp_list, isf_matrix)
+
+        row_index_tmp_list = [([3], [2, 1], None), ([2, 1], [2, 1], None)]
+        isf_matrix = sp.Matrix([[0, 2], [2, 0]])
+        self.isf_matrix_2 = (4, [3, 1], [2, 2], [2, 1], row_index_tmp_list, isf_matrix)  # 4-19 例2
+        self.isf_matrix_num_list = list(range(1, 2 + 1))
+
+        # TODO 增补[311][311]=[311]的例子
 
 
 class CGCData(object):
@@ -739,20 +1003,24 @@ class CGCData(object):
         cgc_square_dict = {(1, 3): 1, (2, 1): 2, (2, 2): 1, (3, 2): -2, "N": 6}
         self.cgc_102 = (4, [2, 1, 1], [3, 1], [2, 2], None, 2, cgc_square_dict)
 
-        # isf matrix
-        # 格式 Sn, σ, μ, ν_st, row_index_tmp_list, isf_matrix
-        row_index_tmp_list = [([2], [2], None), ([1, 1], [1, 1], None)]
-        isf_matrix = sp.Matrix([[Ra(1) / 2, Ra(3) / 2], [Ra(3) / 2, Ra(1) / 2]])
-        self.isf_matrix_1 = (3, [2, 1], [2, 1], [2], row_index_tmp_list, isf_matrix)
-
-        row_index_tmp_list = [([3], [2, 1], None), ([2, 1], [2, 1], None)]
-        isf_matrix = sp.Matrix([[0, 2], [2, 0]])
-        self.isf_matrix_2 = (4, [3, 1], [2, 2], [2, 1], row_index_tmp_list, isf_matrix)  # 4-19 例2
+        # The Clebsch-Gordan coefficients of permutation groups S(2)-S(6)  # 1984
+        # 注意，这个dict只列举了一部分
+        half_dict = {(1, 1): Ra(1)/30,
+                     (2, 2): -Ra(1)/120, (2, 4): Ra(1)/160, (2, 9): -Ra(1)/96,
+                     (3, 3): -Ra(1)/120, (3, 5): Ra(1)/160, (3, 10): -Ra(1)/96,
+                     (4, 2): Ra(1)/160, (4, 7): -Ra(5)/384, (4, 9): -Ra(1)/128,
+                     (5, 3): Ra(1)/160, (5, 8): -Ra(5)/384, (5, 10): -Ra(1)/128,
+                     (6, 6): -Ra(1)/30,
+                     (7, 4): -Ra(5)/384, (7, 7): Ra(1)/120, (7, 9): -Ra(1)/8, (7, 12): -Ra(1)/128, (7, 14): Ra(1)/96,
+                     (8, 5): -Ra(5)/384, (8, 8): Ra(1)/120, (8, 10): -Ra(1)/8, (8, 13): -Ra(1)/128, (8, 15): Ra(1)/96}
+        self.cgc_1985_1 = (6, [3, 2, 1], [3, 2, 1], [3, 2, 1], None, 1, half_dict)
 
         # self.cgc_ban_set = set(chain(range(51, 56 + 1), range(60, 65 + 1), range(69, 102 + 1)))
         self.cgc_ban_set = set()
         self.cgc_num_list = list(set(range(1, 102 + 1)) - self.cgc_ban_set)
-        self.isf_matrix_num_list = list(range(1, 2 + 1))
+
+        self.cgc_1984_ban_set = set()
+        self.cgc_1984_num_list = list(set(range(1, 1 + 1)) - self.cgc_1984_ban_set)
 
 
 class Data(EData, ISFData, CGCData):
@@ -767,11 +1035,11 @@ class Data(EData, ISFData, CGCData):
 class TestISFAndCGC(object):
 
     def setup_class(self):
-        self.protector = DBProtector(cgc_db_name, extension_name=".test_isf_and_cgc_protected")
-        self.protector.protector_setup()
+        # self.protector = DBProtector(cgc_db_name, extension_name=".test_isf_and_cgc_protected")
+        # self.protector.protector_setup()
 
         # 准备前文
-        s_n = 4
+        s_n = 7
         self.test_sn = s_n
         flag, msg = create_young_diagrams(s_n)
         assert flag
@@ -1089,27 +1357,6 @@ class TestISFAndCGC(object):
         assert self.cgc_create_time_dict["S1"] == data.get("create_time")
 
         # check answers
-        # for nb in self.ϵ_num_list:
-        #     ϵ_tuple = eval("self.data.ϵ_{}".format(nb))
-        #     ϵ_param = ϵ_tuple[: -1]
-        #     ϵ_answer = ϵ_tuple[-1]
-        #     if ϵ_param[0] > finish_s_n:
-        #         continue
-        #     _, file_name = get_ϵ_file_name(*ϵ_param)
-        #     flag, data = EInfo(ϵ_param[0]).query_by_file_name(file_name)
-        #     assert flag
-        #     assert isinstance(data.get("create_time"), str)
-        #     _, full_file_name = get_ϵ_file_name(*ϵ_param, is_full_path=True)
-        #     _, full_finish_file_name = get_ϵ_finish_s_n_name(is_full_path=True)
-        #     for ex in [".pkl", ".txt"]:
-        #         assert os.path.exists(full_file_name + ex)
-        #         assert os.path.exists(full_finish_file_name + ex)
-        #     flag, ϵ_dict = load_ϵ(*ϵ_param, is_flag_true_if_not_s_n=True)
-        #     assert flag
-        #     for ϵ_k, ϵ_v in ϵ_answer.items():
-        #         assert ϵ_dict[ϵ_k] == ϵ_v, \
-        #             "self.data.ϵ_{}, ={} with {} with key={} and ϵ_dict={}".format(nb, ϵ_param, ϵ_answer, ϵ_k, ϵ_dict)
-
         for nb in self.isf_num_list:
             isf_tuple = eval("self.data.isf_{}".format(nb))
             isf_param = isf_tuple[: -1]
@@ -1199,13 +1446,16 @@ class TestISFAndCGC(object):
         for i in range(1, cgc_finish_s_n + 1):
             assert isinstance(data.get("history_times").get("S{}".format(i)), int)
 
-    @pytest.mark.skip("pass")
+    # @pytest.mark.skip("pass")
     def test_004_create_isf_and_cgc_s_n_5_to_6(self):  # beta  # 005就该优化7～9了 放在benchmark里
         start_sn = 5
         end_sn = 7
         flag, isf_finish_s_n = get_isf_finish_s_n()
         assert flag
         assert isf_finish_s_n == start_sn - 1
+        flag, cgc_finish_s_n = get_ϵ_finish_s_n()
+        assert flag
+        assert cgc_finish_s_n == start_sn - 1
         flag, cgc_finish_s_n = get_cgc_finish_s_n()
         assert flag
         assert cgc_finish_s_n == start_sn - 1
@@ -1228,28 +1478,7 @@ class TestISFAndCGC(object):
         assert isinstance(data.get("create_time"), str)
         assert self.cgc_create_time_dict["S1"] == data.get("create_time")
 
-        # check answer
-        # for nb in self.ϵ_num_list:
-        #     ϵ_tuple = eval("self.data.ϵ_{}".format(nb))
-        #     ϵ_param = ϵ_tuple[: -1]
-        #     ϵ_answer = ϵ_tuple[-1]
-        #     if ϵ_param[0] > finish_s_n:
-        #         continue
-        #     _, file_name = get_ϵ_file_name(*ϵ_param)
-        #     flag, data = EInfo(ϵ_param[0]).query_by_file_name(file_name)
-        #     assert flag
-        #     assert isinstance(data.get("create_time"), str)
-        #     _, full_file_name = get_ϵ_file_name(*ϵ_param, is_full_path=True)
-        #     _, full_finish_file_name = get_ϵ_finish_s_n_name(is_full_path=True)
-        #     for ex in [".pkl", ".txt"]:
-        #         assert os.path.exists(full_file_name + ex)
-        #         assert os.path.exists(full_finish_file_name + ex)
-        #     flag, ϵ_dict = load_ϵ(*ϵ_param, is_flag_true_if_not_s_n=True)
-        #     assert flag
-        #     for ϵ_k, ϵ_v in ϵ_answer.items():
-        #         assert ϵ_dict[ϵ_k] == ϵ_v, \
-        #             "self.data.ϵ_{}, ={} with {} with key={} and ϵ_dict={}".format(nb, ϵ_param, ϵ_answer, ϵ_k, ϵ_dict)
-
+        # check answers
         for nb in self.isf_num_list:
             isf_tuple = eval("self.data.isf_{}".format(nb))
             isf_param = isf_tuple[: -1]
@@ -1317,7 +1546,7 @@ class TestISFAndCGC(object):
         assert isinstance(data.get("flags").get("history_times"), dict)
         for i in range(2, isf_finish_s_n + 1):
             assert isinstance(data.get("flags").get("history_times").get("S{}".format(i)), int)
-            assert 0 <= data.get("flags").get("history_times").get("S{}".format(i)) <= 20
+            assert 0 <= data.get("flags").get("history_times").get("S{}".format(i)) <= 100
         flag, data_txt = ISFInfo(isf_finish_s_n).query_txt_by_file_name(isf_finish_file_name)
         assert isinstance(data_txt, str)
         data = eval(data_txt)
@@ -1340,6 +1569,108 @@ class TestISFAndCGC(object):
         assert isinstance(data, dict)
         for i in range(1, cgc_finish_s_n + 1):
             assert isinstance(data.get("history_times").get("S{}".format(i)), int)
+
+
+@pytest.mark.skip("pass")
+class TestContinue(object):
+
+    def setup_class(self):
+        self.data = Data()
+        self.helper = Helper()
+
+        self.ϵ_num_list = self.data.ϵ_num_list
+        self.isf_num_list = self.data.isf_num_list
+        self.cgc_num_list = self.data.cgc_num_list
+        self.isf_matrix_num_list = self.data.isf_matrix_num_list
+
+        _, self.isf_s_n_finish_file_name = get_isf_finish_s_n_name()
+        _, self.isf_s_n_finish_full_file_name = get_isf_finish_s_n_name(is_full_path=True)
+        self.isf_create_time_dict = {}  # 用于检查计算好的部分不会重复计算
+
+        _, self.cgc_s_n_finish_file_name = get_cgc_finish_s_n_name()
+        _, self.cgc_s_n_finish_full_file_name = get_cgc_finish_s_n_name(is_full_path=True)
+        self.cgc_create_time_dict = {}  # 用于检查计算好的部分不会重复计算
+
+    def teardown_class(self):
+        pass
+
+    def test_continue_sn_x_to_sn_y(self):
+        """开始前请保证数据已经准备好了，这里不做过多额外检查"""
+        start_sn = 5
+        end_sn = 6
+        # flag, isf_finish_s_n = get_isf_finish_s_n()
+        # assert flag
+        # assert isf_finish_s_n == start_sn - 1
+        # flag, cgc_finish_s_n = get_ϵ_finish_s_n()
+        # assert flag
+        # assert cgc_finish_s_n == start_sn - 1
+        # flag, cgc_finish_s_n = get_cgc_finish_s_n()
+        # assert flag
+        # assert cgc_finish_s_n == start_sn - 1
+
+        # check create_isf_and_cgc_s_n_2
+        flag, finish_s_n = create_isf_and_cgc(end_sn)
+        assert flag
+        assert finish_s_n == end_sn
+
+        # check answers
+        for nb in self.isf_num_list:
+            isf_tuple = eval("self.data.isf_{}".format(nb))
+            isf_param = isf_tuple[: -1]
+            isf_answer = isf_tuple[-1]
+            if isf_param[0] > end_sn or isf_param[0] < start_sn:
+                continue
+            _, file_name = get_isf_file_name(*isf_param)
+            flag, data = ISFInfo(isf_param[0]).query_by_file_name(file_name)
+            assert flag
+            assert isinstance(data, dict), "self.data.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+            assert isinstance(data.get("create_time"), str)
+            _, full_file_name = get_isf_file_name(*isf_param, is_full_path=True)
+            _, full_finish_file_name = get_isf_finish_s_n_name(is_full_path=True)
+            for ex in [".pkl", ".txt"]:
+                assert os.path.exists(full_file_name + ex)
+                assert os.path.exists(full_finish_file_name + ex)
+            flag, isf = load_isf(*isf_param, is_flag_true_if_not_s_n=True)
+            assert flag
+            assert isf == isf_answer, "self.data.isf_{}, ={} with {}".format(nb, isf_param, isf_answer)
+
+        for nb in self.cgc_num_list:
+            cgc_tuple = eval("self.data.cgc_{}".format(nb))
+            cgc_param = cgc_tuple[: -1]
+            cgc_answer = cgc_tuple[-1]
+            if cgc_param[0] > end_sn or cgc_param[0] < start_sn:
+                continue
+            _, file_name = get_cgc_file_name(*cgc_param)
+            flag, data = CGCInfo(cgc_param[0]).query_by_file_name(file_name)
+            assert flag
+            assert isinstance(data, dict), "self.data.cgc_{}, ={} with {}".format(nb, cgc_param, cgc_answer)
+            assert isinstance(data.get("create_time"), str)
+            _, full_file_name = get_cgc_file_name(*cgc_param, is_full_path=True)
+            _, full_finish_file_name = get_cgc_finish_s_n_name(is_full_path=True)
+            for ex in [".pkl", ".txt"]:
+                assert os.path.exists(full_file_name + ex)
+                assert os.path.exists(full_finish_file_name + ex)
+            flag, cgc = load_cgc(*cgc_param, is_flag_true_if_not_s_n=True)
+            assert flag
+            cgc_answer_n = cgc_answer.pop("N")
+            assert sum(abs(cgc_v) for cgc_v in cgc_answer.values()) == cgc_answer_n
+            for cgc_k, cgc_v in cgc_answer.items():
+                assert cgc_k in cgc, \
+                    "key={} in self.data.cgc_{} = {} not in cgc={}".format(cgc_k, nb, cgc_param, cgc_answer)
+                assert cgc[cgc_k] == Ra(cgc_v) / cgc_answer_n, \
+                    "self.data.cgc_{}, ={} with {} with key={} and cgc={}".format(nb, cgc_param, cgc_answer, cgc_k, cgc)
+            cgc_answer["N"] = cgc_answer_n
+
+        # check finish s_n
+        flag, isf_finish_s_n = get_isf_finish_s_n()
+        assert flag
+        assert isf_finish_s_n == end_sn
+        flag, ϵ_finish_s_n = get_ϵ_finish_s_n()
+        assert flag
+        assert ϵ_finish_s_n == end_sn
+        flag, cgc_finish_s_n = get_cgc_finish_s_n()
+        assert flag
+        assert cgc_finish_s_n == end_sn
 
     '''
 
@@ -1721,6 +2052,133 @@ class TestISFAndCGC(object):
     ##@ σ_μ_ν=([3, 2, 1][3, 2, 1][3, 2, 1]), ν_st=[2, 2, 1]
     with soe_1_denominator=19839 > soe_2_denominator=9549
     '''
+    '''
+    isf_matrix=Matrix([[1/3,            -2*sqrt(2)/3, -sqrt(35)/5, -sqrt(7)/3,   0,          -8*sqrt(35)/45], 
+                       [-2*sqrt(2)/3,   -5/6,         -sqrt(70)/5, -sqrt(14)/3,  sqrt(14)/4, -sqrt(70)/90], 
+                       [-sqrt(35)/5,    -sqrt(70)/5,  -7/5,        -sqrt(5)/5,   -sqrt(5)/5, -2/15], 
+                       [-sqrt(7)/3,     -sqrt(14)/3,  -sqrt(5)/5,  1/3,          -1,         2*sqrt(5)/45], 
+                       [0,              sqrt(14)/4,   -sqrt(5)/5,  -1,           7/4,        sqrt(5)/10], 
+                       [-8*sqrt(35)/45, -sqrt(70)/90, -2/15,       2*sqrt(5)/45, sqrt(5)/10, 341/180]]) 
+    for data_σ_μ=σ=[5, 1, 1], μ=[4, 2, 1] data class, ν_st=[3, 1, 1, 1]
+    data_σ_μ=σ=[5, 1, 1], μ=[4, 2, 1] data class, ν=[4, 1, 1, 1], ν_st=[3, 1, 1, 1], 
+    row_index_list=[([5, 1], [4, 1, 1]), 
+                    ([5, 1], [3, 2, 1]), 
+                    ([4, 1, 1], [4, 2]), 
+                    ([4, 1, 1], [4, 1, 1]), 
+                    ([4, 1, 1], [3, 2, 1], 1), 
+                    ([4, 1, 1], [3, 2, 1], 2)]
+    τ_max=1
+    这里出了问题，eigenvectors解出了虚数，看来要给yamanouchi_matrix加test了
+    '''
+    '''
+    统计first_m' 和 last_m' isf_matrix不同的情况
+    σ=[5, 1, 1], μ=[4, 2, 1] ν_st=[4, 1, 1]
+    isf_matrix_with_first_m=
+    Matrix([[5/6, -3*sqrt(5)/10, 0, 4*sqrt(21)/45, -sqrt(105)/90, -sqrt(35)/10, sqrt(14)/5, sqrt(70)/5], 
+            [-3*sqrt(5)/10, -1/6, 4*sqrt(5)/15, 2*sqrt(105)/15, sqrt(21)/6, -sqrt(7)/6, -sqrt(70)/5, sqrt(14)/3], 
+            [0, 4*sqrt(5)/15, -5/6, -sqrt(21)/15, 2*sqrt(105)/15, -2*sqrt(35)/15, -3*sqrt(14)/20, sqrt(70)/60], 
+            [4*sqrt(21)/45, 2*sqrt(105)/15, -sqrt(21)/15, -52/45, 2*sqrt(5)/45, 0, -sqrt(6)/30, -sqrt(30)/10], 
+            [-sqrt(105)/90, sqrt(21)/6, 2*sqrt(105)/15, 2*sqrt(5)/45, -23/18, sqrt(3)/2, -2*sqrt(30)/15, 0], 
+            [-sqrt(35)/10, -sqrt(7)/6, -2*sqrt(35)/15, 0, sqrt(3)/2, -1/6, 0, -2*sqrt(2)/3], 
+            [sqrt(14)/5, -sqrt(70)/5, -3*sqrt(14)/20, -sqrt(6)/30, -2*sqrt(30)/15, 0, 47/20, sqrt(5)/20], 
+            [sqrt(70)/5, sqrt(14)/3, sqrt(70)/60, -sqrt(30)/10, 0, -2*sqrt(2)/3, sqrt(5)/20, 29/12]])
+    isf_matrix_with_last_m=
+    Matrix([[5/6, -3*sqrt(5)/10, 0, 4*sqrt(21)/45, -sqrt(105)/90, -sqrt(35)/10, sqrt(14)/5, 2*sqrt(70)/15], 
+            [-3*sqrt(5)/10, -1/6, 4*sqrt(5)/15, 2*sqrt(105)/15, sqrt(21)/6, -sqrt(7)/6, -sqrt(70)/5, 2*sqrt(14)/9], 
+            [0, 4*sqrt(5)/15, -5/6, -sqrt(21)/15, 2*sqrt(105)/15, -2*sqrt(35)/15, -3*sqrt(14)/20, sqrt(70)/90], 
+            [4*sqrt(21)/45, 2*sqrt(105)/15, -sqrt(21)/15, -52/45, 2*sqrt(5)/45, 0, -sqrt(6)/30, -sqrt(30)/15], 
+            [-sqrt(105)/90, sqrt(21)/6, 2*sqrt(105)/15, 2*sqrt(5)/45, -23/18, sqrt(3)/2, -2*sqrt(30)/15, 0], 
+            [-sqrt(35)/10, -sqrt(7)/6, -2*sqrt(35)/15, 0, sqrt(3)/2, -1/6, 0, -4*sqrt(2)/9], 
+            [sqrt(14)/5, -sqrt(70)/5, -3*sqrt(14)/20, -sqrt(6)/30, -2*sqrt(30)/15, 0, 47/20, sqrt(5)/30], 
+            [2*sqrt(70)/15, 2*sqrt(14)/9, sqrt(70)/90, -sqrt(30)/15, 0, -4*sqrt(2)/9, sqrt(5)/30, 377/180]])
+    isf_matrix_with_4_193a=
+    Matrix([[5/6, -3*sqrt(5)/10, 0, 4*sqrt(21)/45, -sqrt(105)/90, -sqrt(35)/10, sqrt(14)/5, sqrt(70)/5], 
+            [-3*sqrt(5)/10, -1/6, 4*sqrt(5)/15, 2*sqrt(105)/15, sqrt(21)/6, -sqrt(7)/6, -sqrt(70)/5, sqrt(14)/3], 
+            [0, 4*sqrt(5)/15, -5/6, -sqrt(21)/15, 2*sqrt(105)/15, -2*sqrt(35)/15, -3*sqrt(14)/20, sqrt(70)/60], 
+            [4*sqrt(21)/45, 2*sqrt(105)/15, -sqrt(21)/15, -52/45, 2*sqrt(5)/45, 0, -sqrt(6)/30, -sqrt(30)/10], 
+            [-sqrt(105)/90, sqrt(21)/6, 2*sqrt(105)/15, 2*sqrt(5)/45, -23/18, sqrt(3)/2, -2*sqrt(30)/15, 0], 
+            [-sqrt(35)/10, -sqrt(7)/6, -2*sqrt(35)/15, 0, sqrt(3)/2, -1/6, 0, 14*sqrt(2)/15], 
+            [sqrt(14)/5, -sqrt(70)/5, -3*sqrt(14)/20, -sqrt(6)/30, -2*sqrt(30)/15, 0, 47/20, sqrt(5)/20], 
+            [sqrt(70)/5, sqrt(14)/3, sqrt(70)/60, -sqrt(30)/10, 0, 14*sqrt(2)/15, sqrt(5)/20, 29/12]])
+            
+    σ=[5, 1, 1], μ=[4, 2, 1] ν_st=[3, 1, 1, 1]
+    isf_matrix=
+    Matrix([[1/3, -2*sqrt(2)/3, -sqrt(35)/5, -sqrt(7)/3, 0, -8*sqrt(35)/45], 
+            [-2*sqrt(2)/3, -5/6, -sqrt(70)/5, -sqrt(14)/3, sqrt(14)/4, -sqrt(70)/90], 
+            [-sqrt(35)/5, -sqrt(70)/5, -7/5, -sqrt(5)/5, -sqrt(5)/5, -2/15], 
+            [-sqrt(7)/3, -sqrt(14)/3, -sqrt(5)/5, 1/3, -1, 2*sqrt(5)/45], 
+            [0, sqrt(14)/4, -sqrt(5)/5, -1, 7/4, sqrt(5)/10], 
+            [-8*sqrt(35)/45, -sqrt(70)/90, -2/15, 2*sqrt(5)/45, sqrt(5)/10, 341/180]])
+    isf_matrix_with_last_m=
+    Matrix([[1/3, -2*sqrt(2)/3, -sqrt(35)/5, -sqrt(7)/3, 0, -4*sqrt(35)/15], 
+            [-2*sqrt(2)/3, -5/6, -sqrt(70)/5, -sqrt(14)/3, sqrt(14)/4, -sqrt(70)/60], 
+            [-sqrt(35)/5, -sqrt(70)/5, -7/5, -sqrt(5)/5, -sqrt(5)/5, -1/5], 
+            [-sqrt(7)/3, -sqrt(14)/3, -sqrt(5)/5, 1/3, -1, sqrt(5)/15], 
+            [0, sqrt(14)/4, -sqrt(5)/5, -1, 7/4, 3*sqrt(5)/20], 
+            [-4*sqrt(35)/15, -sqrt(70)/60, -1/5, sqrt(5)/15, 3*sqrt(5)/20, 109/60]])
+    
+    # TODO 下面这段加到代码或者test里，保留这个例子（甚至论文里拿它举例）
+    不同方法算同一个isf_matrix的异同（[3, 1], [3, 1], [2, 1]）
+    isf_matrix=Matrix([[-2/3, 4/3, -2/3], [4/3, -2/3, -2/3], [-2/3, -2/3, 4/3]])
+    
+    m'=1：
+    i_n=(1, 4) Matrix([[-5/18, 2/9, -4/9], [2/9, -5/18, -4/9], [-4/9, -4/9, 7/18]])
+    i_n=(2, 4) Matrix([[-5/18, 2/9, -4/9], [2/9, -5/18, -4/9], [-4/9, -4/9, 7/18]])
+    i_n=(3, 4) Matrix([[-1/9, 8/9, 2/9], [8/9, -1/9, 2/9], [2/9, 2/9, 5/9]])
+    
+    m'=last：
+    i_n=(1, 4) Matrix([[-1/6, 2/3, 0], [2/3, -1/6, 0], [0, 0, 1/2]])
+    i_n=(2, 4) Matrix([[-1/6, 2/3, 0], [2/3, -1/6, 0], [0, 0, 1/2]])
+    i_n=(3, 4) Matrix([[-1/3, 0, -2/3], [0, -1/3, -2/3], [-2/3, -2/3, 1/3]])
+    
+    4-193a：
+    m''=1，m'=1，i_n=(3, 4) Matrix([[-1/9, 8/9, 2/9], [8/9, -1/9, 2/9], [2/9, 2/9, 5/9]])
+    m''=2，m'=2，i_n=(3, 4) Matrix([[-1/3, 0, -2/3], [0, -1/3, -2/3], [-2/3, -2/3, 1/3]])
+    
+    '''
+    '''
+    Matrix([
+    [ 1/320, -1/40, 2/5,  15/448,  45/224,  3/80,   1/16, 1/80,  9/40,     0],
+    [  3/32, -3/16,   0,   -7/32,       0,   1/8, -1/120, -1/6,     0,   1/5],
+    [  9/64,     0,   0,  27/448, -25/224, -3/16,  -1/80, 1/16,   1/8,  3/10],
+    [  3/32, -3/16,   0,  25/224,   -3/28, -1/32, 49/480, -1/6,     0,  -1/5],
+    [ 27/80,     0,   0,   5/112,   15/56, -1/80,  -1/48, 1/60, -3/10,     0],
+    [     0,   1/5, 1/5,       0,       0, -3/40,   -1/8, -2/5,     0,     0],
+    [ -3/32, -3/16,   0,    7/32,       0,  1/32, -15/32,    0,     0,     0],
+    [  9/64,     0,   0, -75/448,  -1/224,     0,   -1/5, 1/16,   1/8, -3/10],
+    [ -3/32, -3/16,   0, -25/224,    3/28,  -1/2,      0,    0,     0,     0],
+    [-1/320, -1/40, 2/5, -15/448, -45/224,     0,      0, 9/80, -9/40,     0]])
+    
+    Matrix([
+    [ 1/320, -1/40, 2/5,  15/448,  45/224,  3/80,   1/16, 1/80,  9/40,     0],
+    [  3/32, -3/16,   0,   -7/32,       0,   1/8, -1/120, -1/6,     0,   1/5],
+    [  9/64,     0,   0,  27/448, -25/224, -3/16,  -1/80, 1/16,   1/8,  3/10],
+    [  3/32, -3/16,   0,  25/224,   -3/28, -1/32, 49/480, -1/6,     0,  -1/5],
+    [ 27/80,     0,   0,   5/112,   15/56, -1/80,  -1/48, 1/60, -3/10,     0],
+    [     0,   1/5, 1/5,       0,       0, -3/40,   -1/8, -2/5,     0,     0],
+    [ -3/32, -3/16,   0,    7/32,       0,  1/32, -15/32,    0,     0,     0],
+    [  9/64,     0,   0, -75/448,  -1/224,     0,   -1/5, 1/16,   1/8, -3/10],
+    [ -3/32, -3/16,   0, -25/224,    3/28,  -1/2,      0,    0,     0,     0],
+    [-1/320, -1/40, 2/5, -15/448, -45/224,     0,      0, 9/80, -9/40,     0]])}
+    '''
+    '''
+    [3, 2, 1] * [3, 2, 1] = [3, 2, 1] by [3, 2] 使用method1的 isf matrix
+    Matrix([[Ra(27)/32, sqrt(30)/32, -3*sqrt(5)/32, sqrt(30)/32, 9*sqrt(3)/16, 3*sqrt(2)/4, 3*sqrt(30)/32, -3*sqrt(5)/32, 3*sqrt(30)/32, Ra(45)/32], 
+            [sqrt(30)/32, Ra(1)/16, 3*sqrt(6)/32, Ra(15)/16, 3*sqrt(10)/16, -sqrt(15)/4, -Ra(3)/16, 15*sqrt(6)/32, Ra(15)/16, 3*sqrt(30)/32], 
+            [-3*sqrt(5)/32, 3*sqrt(6)/32, -Ra(25)/32, 15*sqrt(6)/32, 3*sqrt(15)/16, 0, -3*sqrt(6)/32, Ra(15)/32, -15*sqrt(6)/32, 3*sqrt(5)/32], 
+            [sqrt(30)/32, Ra(15)/16, 15*sqrt(6)/32, Ra(1)/16, 3*sqrt(10)/16, -sqrt(15)/4, Ra(15)/16, 3*sqrt(6)/32, -Ra(3)/16, 3*sqrt(30)/32], 
+            [9*sqrt(3)/16, 3*sqrt(10)/16, 3*sqrt(15)/16, 3*sqrt(10)/16, Ra(5)/8, 0, -3*sqrt(10)/16, 3*sqrt(15)/16, -3*sqrt(10)/16, -9*sqrt(3)/16], 
+            [3*sqrt(2)/4, -sqrt(15)/4, 0, -sqrt(15)/4, 0, 0, -sqrt(15)/4, 0, -sqrt(15)/4, 3*sqrt(2)/4], 
+            [3*sqrt(30)/32, -Ra(3)/16, -3*sqrt(6)/32, Ra(15)/16, -3*sqrt(10)/16, -sqrt(15)/4, Ra(1)/16, -15*sqrt(6)/32, Ra(15)/16, sqrt(30)/32], 
+            [-3*sqrt(5)/32, 15*sqrt(6)/32, Ra(15)/32, 3*sqrt(6)/32, 3*sqrt(15)/16, 0, -15*sqrt(6)/32, -Ra(25)/32, -3*sqrt(6)/32, 3*sqrt(5)/32], 
+            [3*sqrt(30)/32, Ra(15)/16, -15*sqrt(6)/32, -Ra(3)/16, -3*sqrt(10)/16, -sqrt(15)/4, Ra(15)/16, -3*sqrt(6)/32, Ra(1)/16, sqrt(30)/32], 
+            [Ra(45)/32, 3*sqrt(30)/32, 3*sqrt(5)/32, 3*sqrt(30)/32, -9*sqrt(3)/16, 3*sqrt(2)/4, sqrt(30)/32, 3*sqrt(5)/32, sqrt(30)/32, Ra(27)/32]])
+    '''
+    '''
+    σ=[5, 1, 1], μ=[4, 2, 1] ν_st=[3, 1, 1, 1] isf_matrix的生成细节
+    
+    
+    '''
 
 
 # @pytest.mark.skip("pass")
@@ -1730,7 +2188,7 @@ class TestResultsWithoutCalc(object):
         # 它不改变数据库，所以不需要保护
 
         # 检查范围
-        self.test_sn = 4  # 需要匹配现有数据和answer数据
+        self.test_sn = 7  # 需要匹配现有数据和answer数据
 
         # answer数据
         self.data = Data()
@@ -1743,7 +2201,7 @@ class TestResultsWithoutCalc(object):
     def teardown_class(self):
         pass
 
-    # @pytest.mark.skip("pass")
+    @pytest.mark.skip("pass")
     def test_ϵ_results(self):
         # 首先验证test_sn是否在finish_sn范围内
         flag, ϵ_finish_s_n = get_ϵ_finish_s_n()
@@ -1804,6 +2262,7 @@ class TestResultsWithoutCalc(object):
                                             "".format(len(self.ϵ_num_list), len(error_number_list),
                                                       error_number_list, error_detail_list)
 
+    # @pytest.mark.skip("pass")
     def test_isf_results(self):
         # 首先验证test_sn是否在finish_sn范围内
         flag, isf_finish_s_n = get_isf_finish_s_n()
@@ -1832,6 +2291,7 @@ class TestResultsWithoutCalc(object):
                                             "".format(len(self.isf_num_list), len(error_number_list),
                                                       error_number_list, error_detail_list)
 
+    # @pytest.mark.skip("pass")
     def test_cgc_results(self):
         # 首先验证test_sn是否在finish_sn范围内
         flag, cgc_finish_s_n = get_cgc_finish_s_n()

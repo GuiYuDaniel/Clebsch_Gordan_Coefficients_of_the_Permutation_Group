@@ -33,7 +33,7 @@ this code for creating Yamanouchi Matrix (ij)(in) by Sn, young_diagrams, branchi
 import copy
 import time
 import sympy as sp
-from sympy import Rational as Ra
+# from sympy import Rational as Ra
 from core.branching_laws import load_branching_law
 from conf.cgc_config import default_s_n, min_s_n_of_yamanouchi_matrix
 from core.cgc_utils.cgc_local_db import get_yamanouchi_matrix_file_name, get_yamanouchi_matrix_finish_s_n_name
