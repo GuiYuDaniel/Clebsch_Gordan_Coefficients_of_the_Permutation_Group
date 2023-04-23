@@ -16,6 +16,7 @@ from core.cgc_utils.cgc_local_db import get_symmetry_combination_finish_s_n_name
 from core.young_diagrams import create_young_diagrams, load_young_diagrams
 from core.characters_and_gi import create_characters_and_gi
 from core.cg_series import create_cg_series
+from core.eigenvalues import create_eigenvalues
 from core.symmetry_combination import load_meta_σμν, load_sym_σμν
 from core.symmetry_combination import get_symmetry_combination_finish_s_n, create_symmetry_combination
 from db.local_db_protector import DBProtector
@@ -32,7 +33,7 @@ class TestSYM(object):
         self.protector.protector_setup()
 
         # 准备前文
-        s_n = 5
+        s_n = 9
         self.test_sn = s_n
         flag, msg = create_young_diagrams(s_n)
         assert flag
@@ -46,8 +47,12 @@ class TestSYM(object):
         assert flag
         assert msg == s_n
 
+        flag, msg = create_eigenvalues(s_n)
+        assert flag
+        assert msg == s_n
+
         self.meta_σμν_tuple_list_s_1 = [([1], [1], [1])]
-        self.meta_σμν_tuple_list_s_3 = [([3], [3], [3]), ([3], [2, 1], [2, 1]), ([2, 1], [2, 1], [2, 1])]
+        self.meta_σμν_tuple_list_s_3 = [([3], [3], [3]), ([2, 1], [2, 1], [3]), ([2, 1], [2, 1], [2, 1])]
 
         self.sym_σμν_dict_s_1 = {('[1]', '[1]', '[1]'): ['σμν', 'σ~μ~ν', 'σ~μν~', 'σμ~ν~',
                                                          'μσν', 'μ~σ~ν', 'μ~σν~', 'μσ~ν~',
@@ -80,7 +85,7 @@ class TestSYM(object):
         self.create_time_dict = {}  # 用于检查计算好的部分不会重复计算
 
     def teardown_class(self):
-        self.protector.protector_teardown()
+        # self.protector.protector_teardown()
         pass
 
         # start with 0xx tests need test by order
